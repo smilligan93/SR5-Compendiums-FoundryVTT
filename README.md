@@ -1,2 +1,3 @@
-# SR5-Compendiums-FoundryVTT
-Compendiums to use with the Shadowrun5e system for FoundryVTT
+# Shadowrun 5e Compendiums
+For use with https://github.com/smilligan93/SR5-FoundryVTT
+
