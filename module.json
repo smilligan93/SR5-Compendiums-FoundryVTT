@@ -1,14 +1,30 @@
 {
-  "name": "shadowrun5e-compendiums",
-  "title": "Shadowrun 5e Compendiums",
-  "description": "Compendiums to be used with the Shadowrun5e System",
-  "version": "0.0.1",
-  "author": "Shawn Milligan [n3rf_herder#9026]",
-  "packs": [ ],
-  "compatibleCoreVersion": "0.6.0",
-  "minimumCoreVersion": "0.6.0",
-  "systems": ["shadowrun5e"],
-  "manifest": "https://raw.githubusercontent.com/smilligan93/SR5-Compendiums-FoundryVTT/master/module.json",
-  "download": "https://github.com/smilligan93/SR5-Compendiums-FoundryVTT/archive/master.zip",
-  "url": "https://github.com/smilligan93/SR5-Compendiums-FoundryVTT"
+	"name": "shadowrun5e-compendiums",
+	"title": "Shadowrun 5e Compendiums",
+	"description": "Compendiums to be used with the Shadowrun5e System",
+	"version": "0.0.1",
+	"author": "Shawn Milligan [n3rf_herder#9026], Andrew Cuccinello [DJ#1982]",
+	"packs": [
+		{
+			"name": "shadowrun5e-compendiums-weapons",
+			"label": "SR5 Weapons",
+			"path": "packs/weapons.db",
+			"entity": "Item"
+		},
+		{
+			"name": "shadowrun5e-compendiums-armors",
+			"label": "SR5 Armors",
+			"path": "packs/armors.db",
+			"entity": "Item"
+		}
+	],
+	"compatibleCoreVersion": "0.6.0",
+	"minimumCoreVersion": "0.6.0",
+	"systems": ["shadowrun5e"],
+	"esmodules": [
+		"module/main.js"
+	],
+	"manifest": "https://raw.githubusercontent.com/smilligan93/SR5-Compendiums-FoundryVTT/master/module.json",
+	"download": "https://github.com/smilligan93/SR5-Compendiums-FoundryVTT/archive/master.zip",
+	"url": "https://github.com/smilligan93/SR5-Compendiums-FoundryVTT"
 }
