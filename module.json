@@ -22,7 +22,7 @@
 	"minimumCoreVersion": "0.6.0",
 	"systems": ["shadowrun5e"],
 	"esmodules": [
-		"module/main.js"
+		"build/bundle.js"
 	],
 	"manifest": "https://raw.githubusercontent.com/smilligan93/SR5-Compendiums-FoundryVTT/master/module.json",
 	"download": "https://github.com/smilligan93/SR5-Compendiums-FoundryVTT/archive/master.zip",

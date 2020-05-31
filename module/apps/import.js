@@ -1,3 +1,5 @@
+const  {DataImporter} = import("../importer/DataImporter.js");
+
 class Helper {
     static intValue = (jsonData, key) => parseInt(jsonData[key]['_text']);
     static intValueSafe = (jsonData, key, defaultValue = 0) => {
@@ -709,13 +711,7 @@ export class Import extends Application {
 
     static async parseXML(xmlSource) {
         let rootFolder = await Import.NewFolder("SR5 Imported Data");
-        let jsonSource = xml2js(xmlSource, {
-            ignoreAttributes: true,
-            ignoreComment: true,
-            ignoreDeclaration: true,
-            compact: true,
-            trim: true
-        })["chummer"];
+        let jsonSource = DataImporter.Parse(xmlSource);
 
         if (jsonSource.hasOwnProperty("weapons")) {
             await Import.parseWeapons(rootFolder, jsonSource);
