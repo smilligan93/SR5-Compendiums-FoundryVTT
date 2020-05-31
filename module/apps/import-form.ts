@@ -1,5 +1,8 @@
 import { ImportHelper } from "../importer/ImportHelper";
 import { Constants } from "../importer/Constants";
+import { WeaponImporter } from "../importer/WeaponImporter";
+import { ArmorImporter } from "../importer/ArmorImporter";
+import { DataImporter } from "../importer/DataImporter";
 
 export class Import extends Application {
     static get defaultOptions() {
@@ -13,14 +16,19 @@ export class Import extends Application {
         return options;
     }
 
-    async parseXML(xmlSource) {
-        let rootFolder = await Import.NewFolder("SR5 Imported Data");
-        let jsonSource = DataImporter.Parse(xmlSource);
+    static Importers: DataImporter[] = [
+        new WeaponImporter(),
+        new ArmorImporter()
+    ];
 
-        if (jsonSource.hasOwnProperty("weapons")) {
-            await Import.parseWeapons(rootFolder, jsonSource);
-        } else if (jsonSource.hasOwnProperty("armors")) {
-            await Import.parseArmors(rootFolder, jsonSource);
+    async parseXML(xmlSource) {
+        let jsonSource = await DataImporter.xml2json(xmlSource);
+        console.log(jsonSource);
+
+        for (const di of Import.Importers) {
+            if (di.canParse(jsonSource)) {
+                await di.parse(jsonSource);
+            }
         }
     }
 
