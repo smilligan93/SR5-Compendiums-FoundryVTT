@@ -10,5 +10,6 @@
         "regenerator": true
       }
     ]
-  ]
+  ],
+  "sourceMaps": true
 }
