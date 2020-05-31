@@ -8,12 +8,12 @@ const fixFile = (filePath) => {
         const newText = replaceImage(text);
         fs.writeFileSync(filePath, newText);
     }
-}
+};
 
 const replaceImage = (text, newImage = "icons/svg/mystery-man.svg") => {
     const regex = /(?<="img":")(.*?)(?=")/g;
     return text.replace(regex, `${newImage}`);
-}
+};
 
 const fixFilesInDirectory = (dir) => {
     const directoryPath = path.join(__dirname, dir);
@@ -25,5 +25,5 @@ const fixFilesInDirectory = (dir) => {
             fixFile(newPath);
         }
     })
-}
+};
 fixFilesInDirectory('./packs');
