@@ -31,8 +31,8 @@ let Import = /** @class */ (() => {
                 let jsonSource = yield DataImporter_1.DataImporter.xml2json(xmlSource);
                 console.log(jsonSource);
                 for (const di of Import.Importers) {
-                    if (di.canParse(jsonSource)) {
-                        yield di.parse(jsonSource);
+                    if (di.CanParse(jsonSource)) {
+                        yield di.Parse(jsonSource);
                     }
                 }
             });
@@ -68,74 +68,84 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ArmorImporter = void 0;
 const DataImporter_1 = require("./DataImporter");
 const ImportHelper_1 = require("./ImportHelper");
+const Constants_1 = require("./Constants");
 class ArmorImporter extends DataImporter_1.DataImporter {
-    canParse(jsonObject) {
+    CanParse(jsonObject) {
         return jsonObject.hasOwnProperty("armors") && jsonObject["armors"].hasOwnProperty("armor");
     }
-    getDefaultData(objectType = undefined) {
-        return undefined;
+    GetDefaultData() {
+        return {
+            name: "Unnamed Armor",
+            folder: null,
+            type: "armor",
+            data: {
+                description: {
+                    value: "",
+                    chat: "",
+                    source: ""
+                },
+                technology: {
+                    rating: 0,
+                    availability: "0",
+                    quantity: 1,
+                    cost: 0,
+                    equipped: true,
+                    concealability: 0
+                },
+                armor: {
+                    value: 0,
+                    mod: false,
+                    acid: 0,
+                    cold: 0,
+                    fire: 0,
+                    electricity: 0,
+                    radiation: 0
+                }
+            },
+            permission: {
+                default: 2
+            }
+        };
     }
-    parse(jsonObject) {
+    ParseData(jsonObject) {
+        let data = this.GetDefaultData();
+        data.name = ImportHelper_1.ImportHelper.stringValue(jsonObject, "name");
+        data.data.description.source = `${ImportHelper_1.ImportHelper.stringValue(jsonObject, "source")} ${ImportHelper_1.ImportHelper.stringValue(jsonObject, "page")}`;
+        data.data.technology.availability = ImportHelper_1.ImportHelper.stringValue(jsonObject, "avail");
+        data.data.technology.cost = ImportHelper_1.ImportHelper.intValue(jsonObject, "cost");
+        data.data.armor.value = ImportHelper_1.ImportHelper.intValue(jsonObject, "armor", 0);
+        data.data.armor.mod = ImportHelper_1.ImportHelper.stringValue(jsonObject, "armor").includes("+");
+        return data;
+    }
+    Parse(jsonObject) {
         return __awaiter(this, void 0, void 0, function* () {
-            const intValue = ImportHelper_1.ImportHelper.intValue;
-            const stringValue = ImportHelper_1.ImportHelper.stringValue;
-            const parseInt = ImportHelper_1.ImportHelper.parseInt;
-            let armorFolder = yield ImportHelper_1.ImportHelper.NewFolder("SR5e Armor");
             let armorCategoryFolders = {};
             let jsonCategories = jsonObject["categories"]["category"];
             for (let i = 0; i < jsonCategories.length; i++) {
                 let categoryName = ImportHelper_1.ImportHelper.stringValue(jsonCategories, i);
-                armorCategoryFolders[categoryName] = yield ImportHelper_1.ImportHelper.NewFolder(categoryName, armorFolder);
-                console.log(categoryName);
-                console.log(armorCategoryFolders[categoryName]);
+                armorCategoryFolders[categoryName]
+                    = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Armor/${categoryName}`, true);
             }
             let armorDatas = [];
             let jsonArmors = jsonObject["armors"]["armor"];
             for (let i = 0; i < jsonArmors.length; i++) {
                 let jsonData = jsonArmors[i];
-                let category = stringValue(jsonData, "category");
+                let data = this.ParseData(jsonData);
+                let category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category");
                 let folder = armorCategoryFolders[category];
-                let data = {
-                    name: stringValue(jsonData, "name"),
-                    folder: folder.id,
-                    type: "armor",
-                    data: {
-                        description: {
-                            value: "",
-                            chat: "",
-                            source: `${stringValue(jsonData, "source")} ${stringValue(jsonData, "page")}`
-                        },
-                        technology: {
-                            rating: 2,
-                            availability: stringValue(jsonData, "avail"),
-                            quantity: 1,
-                            cost: intValue(jsonData, "cost"),
-                            equipped: true,
-                            concealability: 0
-                        },
-                        armor: {
-                            value: intValue(jsonData, "armor"),
-                            mod: stringValue(jsonData, "armor").includes("+"),
-                            acid: 0,
-                            cold: 0,
-                            fire: 0,
-                            electricity: 0,
-                            radiation: 0
-                        }
-                    },
-                    permission: {
-                        default: 2
-                    }
-                };
+                if (game.items.find((item) => item.folder === folder.id && item.name === data.name)) {
+                    continue;
+                }
+                data.folder = folder.id;
                 armorDatas.push(data);
             }
-            return Item.create(armorDatas);
+            return yield Item.create(armorDatas);
         });
     }
 }
 exports.ArmorImporter = ArmorImporter;
 
-},{"./DataImporter":4,"./ImportHelper":5}],3:[function(require,module,exports){
+},{"./Constants":3,"./DataImporter":4,"./ImportHelper":5}],3:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Constants = void 0;
@@ -355,6 +365,7 @@ let Constants = /** @class */ (() => {
             extreme: -1
         }
     };
+    Constants.ROOT_IMPORT_FOLDER_NAME = "SR5e";
     return Constants;
 })();
 exports.Constants = Constants;
@@ -393,7 +404,7 @@ class DataImporter {
 }
 exports.DataImporter = DataImporter;
 
-},{"./ImportHelper":5,"xml2js":45}],5:[function(require,module,exports){
+},{"./ImportHelper":5,"xml2js":49}],5:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -426,6 +437,32 @@ let ImportHelper = /** @class */ (() => {
                     parent: (parent === null) ? null : parent.id,
                     name: name
                 });
+            });
+        }
+        /**
+         * Get a folder at a path in the items directory.
+         * @param path The absolute path of the folder.
+         * @param mkdirs If true, will make all folders along the hierarchy if they do not exist.
+         * @returns A promise that will resolve with the found folder.
+         */
+        static GetFolderAtPath(path, mkdirs = false) {
+            return __awaiter(this, void 0, void 0, function* () {
+                console.log(`Trying to find the following path: ${path}`);
+                let idx = 0;
+                let curr, last = null;
+                let next = path.split("/");
+                while (idx < next.length) {
+                    curr = game.folders.find((folder) => folder.parent === last && folder.name === next[idx]);
+                    if (curr === null) {
+                        if (!mkdirs) {
+                            return Promise.reject(`Unable to find folder: ${path}`);
+                        }
+                        curr = yield ImportHelper.NewFolder(next[idx], last);
+                    }
+                    last = curr;
+                    idx++;
+                }
+                return Promise.resolve(curr);
             });
         }
         /**
@@ -508,12 +545,15 @@ exports.WeaponImporter = void 0;
 const DataImporter_1 = require("./DataImporter");
 const ImportHelper_1 = require("./ImportHelper");
 const Constants_1 = require("./Constants");
+const RangedParser_1 = require("./weapon/RangedParser");
+const MeleeParser_1 = require("./weapon/MeleeParser");
+const ThrownParser_1 = require("./weapon/ThrownParser");
 class WeaponImporter extends DataImporter_1.DataImporter {
-    canParse(jsonObject) {
+    CanParse(jsonObject) {
         return jsonObject.hasOwnProperty("weapons") && jsonObject["weapons"].hasOwnProperty("weapon");
     }
-    getDefaultData(type) {
-        let data = {
+    GetDefaultData() {
+        return {
             name: "Unnamed Item",
             folder: null,
             type: "weapon",
@@ -523,34 +563,41 @@ class WeaponImporter extends DataImporter_1.DataImporter {
                     chat: "",
                     source: ""
                 },
-                technology: {
-                    rating: 1,
-                    availability: 0,
-                    quantity: 1,
-                    cost: "",
-                    equipped: true,
-                    concealability: 0
-                },
-                category: type
-            },
-            permission: {
-                default: 2
-            }
-        };
-        switch (type) {
-            case "range":
-                data.data.action = {
+                action: {
                     type: "varies",
                     category: "",
                     attribute: "agility",
+                    attribute2: "",
                     skill: "",
-                    damage: 0,
+                    spec: false,
+                    mod: 0,
+                    mod_description: "",
+                    damage: {
+                        type: {
+                            base: "physical",
+                            value: ""
+                        },
+                        element: {
+                            base: "",
+                            value: ""
+                        },
+                        base: 0,
+                        value: 0,
+                        ap: {
+                            base: 0,
+                            value: 0,
+                            mod: {}
+                        },
+                        attribute: "",
+                        mod: {}
+                    },
                     limit: {
                         value: 0,
                         attribute: "",
-                        mod: 0,
+                        mod: {},
                         base: 0
                     },
+                    extended: false,
                     opposed: {
                         type: "defense",
                         attribute: "",
@@ -559,374 +606,143 @@ class WeaponImporter extends DataImporter_1.DataImporter {
                         mod: 0,
                         description: ""
                     },
-                };
-                return data;
-            case "melee":
-                return data;
-            case "thrown":
-                return data;
-            default:
-                throw new TypeError("Error: objectType must of type 'range'|'melee'|'thrown'.");
+                    alt_mod: 0,
+                    dice_pool_mod: {}
+                },
+                technology: {
+                    rating: 1,
+                    availability: "",
+                    quantity: 1,
+                    cost: 0,
+                    equipped: true,
+                    conceal: {
+                        base: 0,
+                        value: 0,
+                        mod: {}
+                    }
+                },
+                condition_monitor: {
+                    value: 0,
+                    max: 0
+                },
+                ammo: {
+                    spare_clips: {
+                        value: 0,
+                        max: 0
+                    },
+                    current: {
+                        value: 0,
+                        max: 0
+                    }
+                },
+                range: {
+                    category: "",
+                    ranges: {
+                        short: 0,
+                        medium: 0,
+                        long: 0,
+                        extreme: 0
+                    },
+                    rc: {
+                        value: 0,
+                        base: 0,
+                        mod: {}
+                    },
+                    modes: {
+                        single_shot: false,
+                        semi_auto: false,
+                        burst_fire: false,
+                        full_auto: false
+                    }
+                },
+                melee: {
+                    reach: 0
+                },
+                thrown: {
+                    ranges: {
+                        short: 0,
+                        medium: 0,
+                        long: 0,
+                        extreme: 0,
+                        attribute: ""
+                    },
+                    blast: {
+                        radius: 0,
+                        dropoff: 0
+                    }
+                },
+                category: "range"
+            },
+            permission: {
+                default: 2
+            }
+        };
+    }
+    GetWeaponType(weaponJson) {
+        let type = ImportHelper_1.ImportHelper.stringValue(weaponJson, "type");
+        //melee is the least specific, all melee entries are accurate
+        if (type === "Melee") {
+            return "melee";
+        }
+        else {
+            // skill takes priorities over category
+            if (weaponJson.hasOwnProperty("useskill")) {
+                let skill = ImportHelper_1.ImportHelper.stringValue(weaponJson, "useskill");
+                if (skill === "Throwing Weapons")
+                    return "thrown";
+            }
+            // category is the fallback
+            let category = ImportHelper_1.ImportHelper.stringValue(weaponJson, "category");
+            if (category === "Throwing Weapons")
+                return "thrown";
+            // ranged is everything else
+            return "range";
         }
     }
-    parse(jsonObject) {
+    Parse(jsonObject) {
         return __awaiter(this, void 0, void 0, function* () {
-            // Copy functions to local
-            const intValue = ImportHelper_1.ImportHelper.intValue;
-            const stringValue = ImportHelper_1.ImportHelper.stringValue;
-            const parseInt = ImportHelper_1.ImportHelper.parseInt;
-            let weaponsFolder = yield ImportHelper_1.ImportHelper.NewFolder("Weapons");
+            let folders = {};
             let jsonCategories = jsonObject["categories"]["category"];
-            let weaponCategoryFolders = {};
             for (let i = 0; i < jsonCategories.length; i++) {
-                let categoryName = jsonCategories[i]["_text"];
-                weaponCategoryFolders[categoryName] = yield ImportHelper_1.ImportHelper.NewFolder(categoryName, weaponsFolder);
+                let categoryName = jsonCategories[i][ImportHelper_1.ImportHelper.CHAR_KEY];
+                folders[categoryName] = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/${categoryName}`, true);
             }
-            weaponCategoryFolders["Gear"] = yield ImportHelper_1.ImportHelper.NewFolder("Gear", weaponsFolder);
-            weaponCategoryFolders["Quality"] = yield ImportHelper_1.ImportHelper.NewFolder("Quality", weaponsFolder);
-            //DONE
-            const ParseFiringModes = function (weapon) {
-                let firingModesString = stringValue(weapon, "mode");
-                return {
-                    single_shot: firingModesString.includes("SS"),
-                    semi_auto: firingModesString.includes("SA"),
-                    burst_fire: firingModesString.includes("BF"),
-                    full_auto: firingModesString.includes("FA")
-                };
-            };
-            const nameToId = (value) => {
-                return value.replace(/[\s\-]/g, "_").toLowerCase();
-            };
-            /**
-             *
-             * @param weaponJson
-             * @returns {"melee"|"thrown"|"range"}
-             * @constructor
-             */
-            const ParseWeaponType = function (weaponJson) {
-                let type = stringValue(weaponJson, "type");
-                //melee is the least specific, all melee entries are accurate
-                if (type === "Melee") {
-                    return "melee";
-                }
-                else {
-                    // skill takes priorities over category
-                    if (weaponJson.hasOwnProperty("useskill")) {
-                        let skill = stringValue(weaponJson, "useskill");
-                        if (skill === "Throwing Weapons")
-                            return "thrown";
-                    }
-                    // category is the fallback
-                    let category = stringValue(weaponJson, "category");
-                    if (category === "Throwing Weapons")
-                        return "thrown";
-                    // ranged is everything else
-                    return "range";
-                }
-            };
-            const ParseRanges = function (weaponJson) {
-                let category = stringValue(weaponJson, "range", stringValue(weaponJson, "category"));
-                if (Constants_1.Constants.WEAPON_RANGES.hasOwnProperty(category)) {
-                    return Constants_1.Constants.WEAPON_RANGES[category];
-                }
-                return {
-                    short: 0,
-                    medium: 0,
-                    long: 0,
-                    extreme: 0
-                };
-            };
-            const ParseRangedDamage = function (weaponJson) {
-                let jsonDamage = stringValue(weaponJson, "damage");
-                let damageCode = jsonDamage.match(/[0-9]+[PS](\(f\))?/g);
-                if (damageCode == null) {
-                    return {
-                        type: "",
-                        element: "",
-                        value: 0,
-                        ap: {
-                            value: 0,
-                            mod: 0,
-                            base: 0
-                        },
-                        attribute: 0,
-                        mod: 0,
-                        base: 0
-                    };
-                }
-                //ignore any other matches for simplicity
-                damageCode = damageCode[0];
-                let flechette = damageCode.includes("(f)"); //currently unused but handled for when it is
-                if (flechette) {
-                    damageCode = damageCode.replace("(f)", "");
-                }
-                let damageType = (damageCode.includes("P")) ? "physical" : "stun";
-                let damageAmount = parseInt(damageCode.replace(damageType[0].toUpperCase(), ""));
-                let damageAp = intValue(weaponJson, "ap", 0);
-                return {
-                    type: damageType,
-                    element: "",
-                    value: damageAmount,
-                    ap: {
-                        value: damageAp,
-                        mod: 0,
-                        base: damageAp
-                    },
-                    attribute: "",
-                    mod: "",
-                    base: damageAmount
-                };
-            };
-            const ParseMeleeDamage = function (weaponJson) {
-                let jsonDamage = stringValue(weaponJson, "damage");
-                let damageCode = jsonDamage.match(/(STR)([+-]?)([1-9]*)\)([PS])/g);
-                if (damageCode == null) {
-                    return {
-                        type: "",
-                        element: "",
-                        value: 0,
-                        ap: {
-                            value: 0,
-                            mod: 0,
-                            base: 0
-                        },
-                        attribute: 0,
-                        mod: 0,
-                        base: 0
-                    };
-                }
-                damageCode = damageCode[0];
-                let damageBase = 0;
-                let damageAp = intValue(weaponJson, "ap", 0);
-                let splitDamageCode = damageCode.split(")");
-                let damageType = (splitDamageCode[1].includes("P")) ? "physical" : "stun";
-                let splitBaseCode = damageCode.includes("+") ? splitDamageCode[0].split("+") : splitDamageCode[0].split("-");
-                if (splitDamageCode[0].includes("+") || splitDamageCode[0].includes("-")) {
-                    damageBase = parseInt(splitBaseCode[1], 0);
-                }
-                let damageAttribute = (damageCode.includes("STR")) ? "strength" : "";
-                return {
-                    type: damageType,
-                    element: "",
-                    value: damageBase,
-                    ap: {
-                        value: damageAp,
-                        mod: 0,
-                        base: damageAp
-                    },
-                    attribute: damageAttribute,
-                    mod: 0,
-                    base: damageBase
-                };
-            };
-            const ParseAmmo = function (weaponJson) {
-                let jsonAmmo = stringValue(weaponJson, "ammo");
-                let match = jsonAmmo.match(/[0-9]/g);
-                return (match != null) ? match.join("") : 0;
-            };
-            const ParseSkill = function (jsonObject) {
-                if (jsonObject.hasOwnProperty("useskill")) {
-                    let jsonSkill = stringValue(jsonObject, "useskill");
-                    if (Constants_1.Constants.MAP_CATEGORY_TO_SKILL.hasOwnProperty(jsonSkill)) {
-                        return Constants_1.Constants.MAP_CATEGORY_TO_SKILL[jsonSkill];
-                    }
-                    return nameToId(jsonSkill);
-                }
-                else {
-                    let category = stringValue(jsonObject, "category");
-                    if (Constants_1.Constants.MAP_CATEGORY_TO_SKILL.hasOwnProperty(category)) {
-                        return Constants_1.Constants.MAP_CATEGORY_TO_SKILL[category];
-                    }
-                    let type = stringValue(jsonObject, "type").toLowerCase();
-                    return (type === "ranged") ? "exotic_range" : "exotic_melee";
-                }
-            };
+            folders["Gear"] = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Gear`, true);
+            folders["Quality"] = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Quality`, true);
+            let rangedParser = new RangedParser_1.RangedParser();
+            let meleeParser = new MeleeParser_1.MeleeParser();
+            let thrownParser = new ThrownParser_1.ThrownParser();
             let weaponDatas = [];
             let jsonWeapons = jsonObject["weapons"]["weapon"];
             for (let i = 0; i < jsonWeapons.length; i++) {
                 let jsonData = jsonWeapons[i];
-                let category = stringValue(jsonData, "category");
+                let category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category");
                 // A single item does not meet normal rules, thanks Chummer.
                 if (category === "Hold-outs") {
                     category = "Holdouts";
                 }
-                let folder = weaponCategoryFolders[category];
-                let weaponType = ParseWeaponType(jsonData);
-                let data = {
-                    name: stringValue(jsonData, "name"),
-                    folder: folder.id,
-                    type: "weapon",
-                    data: {
-                        description: {
-                            value: "",
-                            chat: "",
-                            source: `${stringValue(jsonData, "source")} ${stringValue(jsonData, "page")}`
-                        },
-                        technology: {
-                            rating: 2,
-                            availability: stringValue(jsonData, "avail"),
-                            quantity: 1,
-                            cost: intValue(jsonData, "cost", 0),
-                            equipped: true,
-                            concealability: intValue(jsonData, "conceal")
-                        },
-                        category: weaponType
-                    },
-                    permission: {
-                        default: 2
-                    }
-                };
+                let folder = folders[category];
+                let data = this.GetDefaultData();
+                data.name = ImportHelper_1.ImportHelper.stringValue(jsonData, "name");
+                data.folder = folder.id;
+                data.data.description.source = `${ImportHelper_1.ImportHelper.stringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.stringValue(jsonData, "page")}`;
+                data.data.technology.rating = 2;
+                data.data.technology.availability = ImportHelper_1.ImportHelper.stringValue(jsonData, "avail");
+                data.data.technology.cost = ImportHelper_1.ImportHelper.intValue(jsonData, "cost", 0);
+                //TODO: Derive from mods.
+                data.data.technology.conceal.base = ImportHelper_1.ImportHelper.intValue(jsonData, "conceal");
+                data.data.technology.conceal.value = ImportHelper_1.ImportHelper.intValue(jsonData, "conceal");
+                data.data.category = this.GetWeaponType(jsonData);
                 switch (data.data.category) {
                     case "range":
-                        data.data.action = {
-                            type: "varies",
-                            category: stringValue(jsonData, "category"),
-                            attribute: "agility",
-                            skill: ParseSkill(jsonData),
-                            damage: ParseRangedDamage(jsonData),
-                            limit: {
-                                value: intValue(jsonData, "accuracy"),
-                                attribute: "",
-                                mod: 0,
-                                base: intValue(jsonData, "accuracy")
-                            },
-                            opposed: {
-                                type: "defense",
-                                attribute: "",
-                                attribute2: "",
-                                skill: "",
-                                mod: 0,
-                                description: ""
-                            },
-                        };
-                        data.data.range = {
-                            ranges: ParseRanges(jsonData),
-                            rc: {
-                                value: intValue(jsonData, "rc"),
-                                mod: 0,
-                                base: intValue(jsonData, "rc")
-                            },
-                            modes: ParseFiringModes(jsonData),
-                            mods: [],
-                            ammo: {
-                                enabled: false,
-                                count: {
-                                    value: 0,
-                                    max: 0
-                                },
-                                equipped: {
-                                    name: "Regular",
-                                    equipped: true,
-                                    qty: 0,
-                                    damage: null,
-                                    damageType: "physical",
-                                    element: "",
-                                    ap: null,
-                                    blast: {
-                                        radius: null,
-                                        dropoff: null
-                                    }
-                                },
-                                available: [
-                                    {
-                                        name: "Regular",
-                                        equipped: true,
-                                        qty: 0,
-                                        damage: null,
-                                        damageType: "physical",
-                                        element: "",
-                                        ap: null,
-                                        blast: {
-                                            radius: null,
-                                            dropoff: null
-                                        }
-                                    },
-                                    { "name": "Depleted Uranium", "qty": 0, "equipped": false, "damage": 1, "damageType": "physical", "element": "", "ap": -5, "blast": { "radius": null, "dropoff": null } },
-                                    { "name": "Silver", "qty": 0, "equipped": false, "damage": 0, "damageType": "physical", "element": "", "ap": 2, "blast": { "radius": null, "dropoff": null } },
-                                    { "name": "Wood Pulp", "qty": 0, "equipped": false, "damage": -4, "damageType": "physical", "element": "", "ap": 4, "blast": { "radius": null, "dropoff": null } },
-                                    { "name": "Subsonic", "qty": 0, "equipped": false, "damage": -1, "damageType": "physical", "element": "", "ap": 0, "blast": { "radius": null, "dropoff": null } },
-                                    { "name": "APDS", "qty": 0, "equipped": false, "damage": 0, "damageType": "physical", "element": "", "ap": -4, "blast": { "radius": null, "dropoff": null } },
-                                    { "name": "Explosive Rounds", "qty": 0, "equipped": false, "damage": 1, "damageType": "physical", "element": "", "ap": -1, "blast": { "radius": null, "dropoff": null } },
-                                    { "name": "Flechette Rounds", "qty": 0, "equipped": false, "damage": 2, "damageType": "physical", "element": "", "ap": 5, "blast": { "radius": null, "dropoff": null } },
-                                    { "name": "Gel Rounds", "qty": 0, "equipped": false, "damage": 0, "damageType": "physical", "element": "", "ap": 1, "blast": { "radius": null, "dropoff": null } },
-                                    { "name": "Hollow Points", "qty": 0, "equipped": false, "damage": 1, "damageType": "physical", "element": "", "ap": 2, "blast": { "radius": null, "dropoff": null } },
-                                    { "name": "Stick-n-Shock", "qty": 0, "equipped": false, "damage": -2, "damageType": "physical", "element": "", "ap": 0, "blast": { "radius": null, "dropoff": null } },
-                                    { "name": "EX-Explosive Rounds", "qty": 0, "equipped": false, "damage": 2, "damageType": "physical", "element": "", "ap": -1, "blast": { "radius": null, "dropoff": null } },
-                                    { "name": "Frangible Rounds", "qty": 0, "equipped": false, "damage": -1, "damageType": "physical", "element": "", "ap": 4, "blast": { "radius": null, "dropoff": null } },
-                                    { "name": "Flare Rounds", "qty": 0, "equipped": false, "damage": -2, "damageType": "physical", "element": "", "ap": 2, "blast": { "radius": null, "dropoff": null } },
-                                    { "name": "AV Rounds", "qty": 0, "equipped": false, "damage": 0, "damageType": "physical", "element": "", "ap": -1, "blast": { "radius": null, "dropoff": null } },
-                                ],
-                                value: ParseAmmo(jsonData),
-                                max: ParseAmmo(jsonData)
-                            }
-                        };
+                        data = rangedParser.Parse(jsonData, data);
                         break;
                     case "melee":
-                        data.data.melee = {
-                            reach: intValue(jsonData, "reach")
-                        };
-                        data.data.action = {
-                            type: "complex",
-                            category: stringValue(jsonData, "category"),
-                            attribute: "agility",
-                            skill: ParseSkill(jsonData),
-                            damage: ParseMeleeDamage(jsonData),
-                            limit: {
-                                value: intValue(jsonData, "accuracy"),
-                                attribute: "",
-                                mod: 0,
-                                base: intValue(jsonData, "accuracy")
-                            },
-                            opposed: {
-                                type: "defense",
-                                attribute: "",
-                                attribute2: "",
-                                skill: "",
-                                mod: 0,
-                                description: ""
-                            },
-                        };
+                        data = meleeParser.Parse(jsonData, data);
                         break;
                     case "thrown":
-                        data.data.action = {
-                            type: "varies",
-                            category: stringValue(jsonData, "category"),
-                            attribute: "agility",
-                            skill: ParseSkill(jsonData),
-                            damage: {
-                                type: "physical",
-                                element: "",
-                                value: 0,
-                                ap: {
-                                    value: 0,
-                                    mod: 0,
-                                    base: 0
-                                },
-                                attribute: 0,
-                                mod: 0,
-                                base: 0
-                            },
-                            limit: {
-                                value: intValue(jsonData, "accuracy", 0),
-                                attribute: "physical",
-                                mod: 0,
-                                base: intValue(jsonData, "accuracy", 0)
-                            },
-                            opposed: {
-                                type: "defense",
-                                attribute: "",
-                                attribute2: "",
-                                skill: "",
-                                mod: 0,
-                                description: ""
-                            },
-                        };
-                        data.data.thrown = {
-                            ranges: ParseRanges(jsonData),
-                        };
+                        data = thrownParser.Parse(jsonData, data);
                         break;
-                    default:
-                        console.warn(`Category '${data.data.category}' did not match known categories.`);
                 }
                 weaponDatas.push(data);
             }
@@ -936,7 +752,313 @@ class WeaponImporter extends DataImporter_1.DataImporter {
 }
 exports.WeaponImporter = WeaponImporter;
 
-},{"./Constants":3,"./DataImporter":4,"./ImportHelper":5}],7:[function(require,module,exports){
+},{"./Constants":3,"./DataImporter":4,"./ImportHelper":5,"./weapon/MeleeParser":7,"./weapon/RangedParser":8,"./weapon/ThrownParser":9}],7:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.MeleeParser = void 0;
+const ImportHelper_1 = require("../ImportHelper");
+const WeaponParser_1 = require("./WeaponParser");
+class MeleeParser extends WeaponParser_1.WeaponParser {
+    GetDamage(jsonData) {
+        var _a;
+        let jsonDamage = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
+        let damageCode = (_a = jsonDamage.match(/(STR)([+-]?)([1-9]*)\)([PS])/g)) === null || _a === void 0 ? void 0 : _a[0];
+        if (damageCode == null) {
+            return {
+                type: {
+                    base: "physical",
+                    value: "physical"
+                },
+                element: {
+                    base: "",
+                    value: ""
+                },
+                base: 0,
+                value: 0,
+                ap: {
+                    base: 0,
+                    value: 0,
+                    mod: {}
+                },
+                attribute: "",
+                mod: {}
+            };
+        }
+        let damageBase = 0;
+        let damageAp = ImportHelper_1.ImportHelper.intValue(jsonData, "ap", 0);
+        let splitDamageCode = damageCode.split(")");
+        let damageType = (splitDamageCode[1].includes("P")) ? "physical" : "stun";
+        let splitBaseCode = damageCode.includes("+") ? splitDamageCode[0].split("+") : splitDamageCode[0].split("-");
+        if (splitDamageCode[0].includes("+") || splitDamageCode[0].includes("-")) {
+            damageBase = parseInt(splitBaseCode[1], 0);
+        }
+        let damageAttribute = (damageCode.includes("STR")) ? "strength" : "";
+        return {
+            type: {
+                base: damageType,
+                value: damageType
+            },
+            element: {
+                base: "",
+                value: ""
+            },
+            base: damageBase,
+            value: damageBase,
+            ap: {
+                base: damageAp,
+                value: damageAp,
+                mod: {}
+            },
+            attribute: damageAttribute,
+            mod: {}
+        };
+    }
+    ;
+    Parse(jsonData, data) {
+        data.data.action.category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category");
+        data.data.action.skill = this.GetSkill(jsonData);
+        data.data.action.damage = this.GetDamage(jsonData);
+        data.data.action.limit.value = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy");
+        data.data.action.limit.base = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy");
+        data.data.melee.reach = ImportHelper_1.ImportHelper.intValue(jsonData, "reach");
+        return data;
+    }
+    ;
+}
+exports.MeleeParser = MeleeParser;
+
+},{"../ImportHelper":5,"./WeaponParser":10}],8:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.RangedParser = void 0;
+const ImportHelper_1 = require("../ImportHelper");
+const WeaponParser_1 = require("./WeaponParser");
+const Constants_1 = require("../Constants");
+class RangedParser extends WeaponParser_1.WeaponParser {
+    GetDamage(jsonData) {
+        var _a;
+        let jsonDamage = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
+        let damageCode = (_a = jsonDamage.match(/[0-9]+[PS]/g)) === null || _a === void 0 ? void 0 : _a[0];
+        if (damageCode == null) {
+            return {
+                type: {
+                    base: "physical",
+                    value: ""
+                },
+                element: {
+                    base: "",
+                    value: ""
+                },
+                base: 0,
+                value: 0,
+                ap: {
+                    base: 0,
+                    value: 0,
+                    mod: {}
+                },
+                attribute: "",
+                mod: {}
+            };
+        }
+        let damageType = (damageCode.includes("P")) ? "physical" : "stun";
+        let damageAmount = parseInt(damageCode.replace(damageType[0].toUpperCase(), ""));
+        let damageAp = ImportHelper_1.ImportHelper.intValue(jsonData, "ap", 0);
+        return {
+            type: {
+                base: damageType,
+                value: damageType
+            },
+            element: {
+                base: "",
+                value: ""
+            },
+            value: damageAmount,
+            ap: {
+                base: damageAp,
+                value: damageAp,
+                mod: {},
+            },
+            attribute: "",
+            mod: {},
+            base: damageAmount
+        };
+    }
+    ;
+    GetAmmo(weaponJson) {
+        var _a;
+        let jsonAmmo = ImportHelper_1.ImportHelper.stringValue(weaponJson, "ammo");
+        let match = (_a = jsonAmmo.match(/([0-9]+)/g)) === null || _a === void 0 ? void 0 : _a[0];
+        return (match !== null) ? parseInt(match) : 0;
+    }
+    Parse(jsonData, data) {
+        data.data.action.category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category");
+        data.data.action.skill = this.GetSkill(jsonData);
+        data.data.action.damage = this.GetDamage(jsonData);
+        data.data.action.limit.value = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy");
+        data.data.action.limit.base = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy");
+        //TODO: Derive from mods.
+        data.data.range.rc.base = ImportHelper_1.ImportHelper.intValue(jsonData, "rc");
+        data.data.range.rc.value = ImportHelper_1.ImportHelper.intValue(jsonData, "rc");
+        if (jsonData.hasOwnProperty("range")) {
+            data.data.range.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.stringValue(jsonData, "range")];
+        }
+        else {
+            data.data.range.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.stringValue(jsonData, "category")];
+        }
+        data.data.ammo.current.value = this.GetAmmo(jsonData);
+        data.data.ammo.current.max = this.GetAmmo(jsonData);
+        data.data.range.modes.single_shot = ImportHelper_1.ImportHelper.stringValue(jsonData, "mode").includes("SS");
+        data.data.range.modes.semi_auto = ImportHelper_1.ImportHelper.stringValue(jsonData, "mode").includes("SA");
+        data.data.range.modes.burst_fire = ImportHelper_1.ImportHelper.stringValue(jsonData, "mode").includes("BF");
+        data.data.range.modes.full_auto = ImportHelper_1.ImportHelper.stringValue(jsonData, "mode").includes("FA");
+        return data;
+    }
+    ;
+}
+exports.RangedParser = RangedParser;
+
+},{"../Constants":3,"../ImportHelper":5,"./WeaponParser":10}],9:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ThrownParser = void 0;
+const ImportHelper_1 = require("../ImportHelper");
+const WeaponParser_1 = require("./WeaponParser");
+const Constants_1 = require("../Constants");
+class ThrownParser extends WeaponParser_1.WeaponParser {
+    GetDamage(jsonData) {
+        var _a, _b, _c, _d;
+        let jsonDamage = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
+        let damageCode = "";
+        let damageAmount = 0;
+        let damageType = "physical";
+        let damageAttribute = "";
+        //STR scaling weapons like the boomerang
+        if (jsonDamage.includes("STR")) {
+            damageAttribute = "strength";
+            damageCode = (_a = jsonDamage.match(/((STR)([+-])[0-9]\)[PS])/g)) === null || _a === void 0 ? void 0 : _a[0];
+            if (damageCode !== undefined) {
+                let amountMatch = (_b = damageCode.match(/-?[0-9]+/g)) === null || _b === void 0 ? void 0 : _b[0];
+                damageAmount = (amountMatch !== undefined) ? parseInt(amountMatch) : 0;
+            }
+        }
+        else {
+            damageCode = (_c = jsonDamage.match(/([0-9]+[PS])/g)) === null || _c === void 0 ? void 0 : _c[0];
+            if (damageCode === undefined) {
+                return {
+                    type: {
+                        base: "physical",
+                        value: "physical"
+                    },
+                    element: {
+                        base: "",
+                        value: ""
+                    },
+                    base: 0,
+                    value: 0,
+                    ap: {
+                        base: 0,
+                        value: 0,
+                        mod: {},
+                    },
+                    attribute: "",
+                    mod: {}
+                };
+            }
+            let amountMatch = (_d = damageCode.match(/[0-9]+/g)) === null || _d === void 0 ? void 0 : _d[0];
+            if (amountMatch !== undefined) {
+                damageAmount = parseInt(amountMatch);
+            }
+        }
+        damageType = jsonDamage.includes("P") ? "physical" : "stun";
+        let damageAp = ImportHelper_1.ImportHelper.intValue(jsonData, "ap", 0);
+        return {
+            type: {
+                base: damageType,
+                value: damageType
+            },
+            element: {
+                base: "",
+                value: ""
+            },
+            base: damageAmount,
+            value: damageAmount,
+            ap: {
+                base: damageAp,
+                value: damageAp,
+                mod: {},
+            },
+            attribute: damageAttribute,
+            mod: {}
+        };
+    }
+    ;
+    GetBlast(jsonData, data) {
+        var _a, _b;
+        let blastData = {
+            radius: 0,
+            dropoff: 0
+        };
+        let blastCode = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
+        let radiusMatch = (_a = blastCode.match(/([0-9]+m)/)) === null || _a === void 0 ? void 0 : _a[0];
+        if (radiusMatch !== undefined) {
+            blastData.radius = parseInt(radiusMatch.match(/[0-9]+/)[0]);
+        }
+        let dropoffMatch = (_b = blastCode.match(/(\-[0-9]+\/m)/)) === null || _b === void 0 ? void 0 : _b[0];
+        if (dropoffMatch !== undefined) {
+            blastData.dropoff = parseInt(dropoffMatch.match(/\-[0-9]+/)[0]);
+        }
+        if (blastData.dropoff && !blastData.radius) {
+            blastData.radius = -(data.data.action.damage.base / blastData.dropoff);
+        }
+        return blastData;
+    }
+    Parse(jsonData, data) {
+        data.data.action.skill = this.GetSkill(jsonData);
+        data.data.action.damage = this.GetDamage(jsonData);
+        data.data.action.limit.value = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy");
+        data.data.action.limit.base = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy");
+        if (jsonData.hasOwnProperty("range")) {
+            data.data.thrown.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.stringValue(jsonData, "range")];
+        }
+        else {
+            data.data.thrown.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.stringValue(jsonData, "category")];
+        }
+        data.data.thrown.blast = this.GetBlast(jsonData, data);
+        return data;
+    }
+    ;
+}
+exports.ThrownParser = ThrownParser;
+
+},{"../Constants":3,"../ImportHelper":5,"./WeaponParser":10}],10:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.WeaponParser = void 0;
+const ImportHelper_1 = require("../ImportHelper");
+const Constants_1 = require("../Constants");
+class WeaponParser {
+    GetSkill(weaponJson) {
+        if (weaponJson.hasOwnProperty("useskill")) {
+            let jsonSkill = ImportHelper_1.ImportHelper.stringValue(weaponJson, "useskill");
+            if (Constants_1.Constants.MAP_CATEGORY_TO_SKILL.hasOwnProperty(jsonSkill)) {
+                return Constants_1.Constants.MAP_CATEGORY_TO_SKILL[jsonSkill];
+            }
+            return jsonSkill.replace(/[\s\-]/g, "_").toLowerCase();
+        }
+        else {
+            let category = ImportHelper_1.ImportHelper.stringValue(weaponJson, "category");
+            if (Constants_1.Constants.MAP_CATEGORY_TO_SKILL.hasOwnProperty(category)) {
+                return Constants_1.Constants.MAP_CATEGORY_TO_SKILL[category];
+            }
+            let type = ImportHelper_1.ImportHelper.stringValue(weaponJson, "type").toLowerCase();
+            return (type === "ranged") ? "exotic_range" : "exotic_melee";
+        }
+    }
+    ;
+}
+exports.WeaponParser = WeaponParser;
+
+},{"../Constants":3,"../ImportHelper":5}],11:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const import_form_1 = require("./apps/import-form");
@@ -948,7 +1070,7 @@ Hooks.on("renderItemDirectory", (app, html) => {
     });
 });
 
-},{"./apps/import-form":1}],8:[function(require,module,exports){
+},{"./apps/import-form":1}],12:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -1102,9 +1224,9 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],9:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 
-},{}],10:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 (function (Buffer){
 /*!
  * The buffer module from node.js, for the browser.
@@ -2885,7 +3007,7 @@ function numberIsNaN (obj) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"base64-js":8,"buffer":10,"ieee754":13}],11:[function(require,module,exports){
+},{"base64-js":12,"buffer":14,"ieee754":17}],15:[function(require,module,exports){
 (function (Buffer){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -2996,7 +3118,7 @@ function objectToString(o) {
 }
 
 }).call(this,{"isBuffer":require("../../is-buffer/index.js")})
-},{"../../is-buffer/index.js":15}],12:[function(require,module,exports){
+},{"../../is-buffer/index.js":19}],16:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3521,7 +3643,7 @@ function functionBindPolyfill(context) {
   };
 }
 
-},{}],13:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = (nBytes * 8) - mLen - 1
@@ -3607,7 +3729,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],14:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -3636,7 +3758,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],15:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 /*!
  * Determine if an object is a Buffer
  *
@@ -3659,14 +3781,14 @@ function isSlowBuffer (obj) {
   return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
 }
 
-},{}],16:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 var toString = {}.toString;
 
 module.exports = Array.isArray || function (arr) {
   return toString.call(arr) == '[object Array]';
 };
 
-},{}],17:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -3715,7 +3837,7 @@ function nextTick(fn, arg1, arg2, arg3) {
 
 
 }).call(this,require('_process'))
-},{"_process":18}],18:[function(require,module,exports){
+},{"_process":22}],22:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -3901,10 +4023,10 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],19:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 module.exports = require('./lib/_stream_duplex.js');
 
-},{"./lib/_stream_duplex.js":20}],20:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":24}],24:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4036,7 +4158,7 @@ Duplex.prototype._destroy = function (err, cb) {
 
   pna.nextTick(cb, err);
 };
-},{"./_stream_readable":22,"./_stream_writable":24,"core-util-is":11,"inherits":14,"process-nextick-args":17}],21:[function(require,module,exports){
+},{"./_stream_readable":26,"./_stream_writable":28,"core-util-is":15,"inherits":18,"process-nextick-args":21}],25:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4084,7 +4206,7 @@ function PassThrough(options) {
 PassThrough.prototype._transform = function (chunk, encoding, cb) {
   cb(null, chunk);
 };
-},{"./_stream_transform":23,"core-util-is":11,"inherits":14}],22:[function(require,module,exports){
+},{"./_stream_transform":27,"core-util-is":15,"inherits":18}],26:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -5106,7 +5228,7 @@ function indexOf(xs, x) {
   return -1;
 }
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./_stream_duplex":20,"./internal/streams/BufferList":25,"./internal/streams/destroy":26,"./internal/streams/stream":27,"_process":18,"core-util-is":11,"events":12,"inherits":14,"isarray":16,"process-nextick-args":17,"safe-buffer":28,"string_decoder/":29,"util":9}],23:[function(require,module,exports){
+},{"./_stream_duplex":24,"./internal/streams/BufferList":29,"./internal/streams/destroy":30,"./internal/streams/stream":31,"_process":22,"core-util-is":15,"events":16,"inherits":18,"isarray":20,"process-nextick-args":21,"safe-buffer":32,"string_decoder/":33,"util":13}],27:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -5321,7 +5443,7 @@ function done(stream, er, data) {
 
   return stream.push(null);
 }
-},{"./_stream_duplex":20,"core-util-is":11,"inherits":14}],24:[function(require,module,exports){
+},{"./_stream_duplex":24,"core-util-is":15,"inherits":18}],28:[function(require,module,exports){
 (function (process,global,setImmediate){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -6011,7 +6133,7 @@ Writable.prototype._destroy = function (err, cb) {
   cb(err);
 };
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("timers").setImmediate)
-},{"./_stream_duplex":20,"./internal/streams/destroy":26,"./internal/streams/stream":27,"_process":18,"core-util-is":11,"inherits":14,"process-nextick-args":17,"safe-buffer":28,"timers":38,"util-deprecate":39}],25:[function(require,module,exports){
+},{"./_stream_duplex":24,"./internal/streams/destroy":30,"./internal/streams/stream":31,"_process":22,"core-util-is":15,"inherits":18,"process-nextick-args":21,"safe-buffer":32,"timers":42,"util-deprecate":43}],29:[function(require,module,exports){
 'use strict';
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -6091,7 +6213,7 @@ if (util && util.inspect && util.inspect.custom) {
     return this.constructor.name + ' ' + obj;
   };
 }
-},{"safe-buffer":28,"util":9}],26:[function(require,module,exports){
+},{"safe-buffer":32,"util":13}],30:[function(require,module,exports){
 'use strict';
 
 /*<replacement>*/
@@ -6166,10 +6288,10 @@ module.exports = {
   destroy: destroy,
   undestroy: undestroy
 };
-},{"process-nextick-args":17}],27:[function(require,module,exports){
+},{"process-nextick-args":21}],31:[function(require,module,exports){
 module.exports = require('events').EventEmitter;
 
-},{"events":12}],28:[function(require,module,exports){
+},{"events":16}],32:[function(require,module,exports){
 /* eslint-disable node/no-deprecated-api */
 var buffer = require('buffer')
 var Buffer = buffer.Buffer
@@ -6233,7 +6355,7 @@ SafeBuffer.allocUnsafeSlow = function (size) {
   return buffer.SlowBuffer(size)
 }
 
-},{"buffer":10}],29:[function(require,module,exports){
+},{"buffer":14}],33:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -6530,10 +6652,10 @@ function simpleWrite(buf) {
 function simpleEnd(buf) {
   return buf && buf.length ? this.write(buf) : '';
 }
-},{"safe-buffer":28}],30:[function(require,module,exports){
+},{"safe-buffer":32}],34:[function(require,module,exports){
 module.exports = require('./readable').PassThrough
 
-},{"./readable":31}],31:[function(require,module,exports){
+},{"./readable":35}],35:[function(require,module,exports){
 exports = module.exports = require('./lib/_stream_readable.js');
 exports.Stream = exports;
 exports.Readable = exports;
@@ -6542,13 +6664,13 @@ exports.Duplex = require('./lib/_stream_duplex.js');
 exports.Transform = require('./lib/_stream_transform.js');
 exports.PassThrough = require('./lib/_stream_passthrough.js');
 
-},{"./lib/_stream_duplex.js":20,"./lib/_stream_passthrough.js":21,"./lib/_stream_readable.js":22,"./lib/_stream_transform.js":23,"./lib/_stream_writable.js":24}],32:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":24,"./lib/_stream_passthrough.js":25,"./lib/_stream_readable.js":26,"./lib/_stream_transform.js":27,"./lib/_stream_writable.js":28}],36:[function(require,module,exports){
 module.exports = require('./readable').Transform
 
-},{"./readable":31}],33:[function(require,module,exports){
+},{"./readable":35}],37:[function(require,module,exports){
 module.exports = require('./lib/_stream_writable.js');
 
-},{"./lib/_stream_writable.js":24}],34:[function(require,module,exports){
+},{"./lib/_stream_writable.js":28}],38:[function(require,module,exports){
 /*! safe-buffer. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */
 /* eslint-disable node/no-deprecated-api */
 var buffer = require('buffer')
@@ -6615,7 +6737,7 @@ SafeBuffer.allocUnsafeSlow = function (size) {
   return buffer.SlowBuffer(size)
 }
 
-},{"buffer":10}],35:[function(require,module,exports){
+},{"buffer":14}],39:[function(require,module,exports){
 (function (Buffer){
 ;(function (sax) { // wrapper for non-node envs
   sax.parser = function (strict, opt) { return new SAXParser(strict, opt) }
@@ -8184,7 +8306,7 @@ SafeBuffer.allocUnsafeSlow = function (size) {
 })(typeof exports === 'undefined' ? this.sax = {} : exports)
 
 }).call(this,require("buffer").Buffer)
-},{"buffer":10,"stream":36,"string_decoder":37}],36:[function(require,module,exports){
+},{"buffer":14,"stream":40,"string_decoder":41}],40:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -8313,9 +8435,9 @@ Stream.prototype.pipe = function(dest, options) {
   return dest;
 };
 
-},{"events":12,"inherits":14,"readable-stream/duplex.js":19,"readable-stream/passthrough.js":30,"readable-stream/readable.js":31,"readable-stream/transform.js":32,"readable-stream/writable.js":33}],37:[function(require,module,exports){
-arguments[4][29][0].apply(exports,arguments)
-},{"dup":29,"safe-buffer":34}],38:[function(require,module,exports){
+},{"events":16,"inherits":18,"readable-stream/duplex.js":23,"readable-stream/passthrough.js":34,"readable-stream/readable.js":35,"readable-stream/transform.js":36,"readable-stream/writable.js":37}],41:[function(require,module,exports){
+arguments[4][33][0].apply(exports,arguments)
+},{"dup":33,"safe-buffer":38}],42:[function(require,module,exports){
 (function (setImmediate,clearImmediate){
 var nextTick = require('process/browser.js').nextTick;
 var apply = Function.prototype.apply;
@@ -8394,7 +8516,7 @@ exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate :
   delete immediateIds[id];
 };
 }).call(this,require("timers").setImmediate,require("timers").clearImmediate)
-},{"process/browser.js":18,"timers":38}],39:[function(require,module,exports){
+},{"process/browser.js":22,"timers":42}],43:[function(require,module,exports){
 (function (global){
 
 /**
@@ -8465,7 +8587,7 @@ function config (name) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],40:[function(require,module,exports){
+},{}],44:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -8479,7 +8601,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],41:[function(require,module,exports){
+},{}],45:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -8608,7 +8730,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./defaults":42,"xmlbuilder":78}],42:[function(require,module,exports){
+},{"./defaults":46,"xmlbuilder":82}],46:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   exports.defaults = {
@@ -8682,7 +8804,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],43:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -9065,7 +9187,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./bom":40,"./defaults":42,"./processors":44,"events":12,"sax":35,"timers":38}],44:[function(require,module,exports){
+},{"./bom":44,"./defaults":46,"./processors":48,"events":16,"sax":39,"timers":42}],48:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -9101,7 +9223,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],45:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -9142,7 +9264,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./builder":41,"./defaults":42,"./parser":43,"./processors":44}],46:[function(require,module,exports){
+},{"./builder":45,"./defaults":46,"./parser":47,"./processors":48}],50:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   module.exports = {
@@ -9156,7 +9278,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],47:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   module.exports = {
@@ -9181,7 +9303,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],48:[function(require,module,exports){
+},{}],52:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var assign, getValue, isArray, isEmpty, isFunction, isObject, isPlainObject,
@@ -9266,7 +9388,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],49:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   module.exports = {
@@ -9278,7 +9400,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],50:[function(require,module,exports){
+},{}],54:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLAttribute, XMLNode;
@@ -9388,7 +9510,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./XMLNode":69}],51:[function(require,module,exports){
+},{"./NodeType":51,"./XMLNode":73}],55:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLCData, XMLCharacterData,
@@ -9426,7 +9548,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./XMLCharacterData":52}],52:[function(require,module,exports){
+},{"./NodeType":51,"./XMLCharacterData":56}],56:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLCharacterData, XMLNode,
@@ -9507,7 +9629,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./XMLNode":69}],53:[function(require,module,exports){
+},{"./XMLNode":73}],57:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLCharacterData, XMLComment,
@@ -9545,7 +9667,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./XMLCharacterData":52}],54:[function(require,module,exports){
+},{"./NodeType":51,"./XMLCharacterData":56}],58:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLDOMConfiguration, XMLDOMErrorHandler, XMLDOMStringList;
@@ -9611,7 +9733,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./XMLDOMErrorHandler":55,"./XMLDOMStringList":57}],55:[function(require,module,exports){
+},{"./XMLDOMErrorHandler":59,"./XMLDOMStringList":61}],59:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLDOMErrorHandler;
@@ -9629,7 +9751,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],56:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLDOMImplementation;
@@ -9663,7 +9785,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],57:[function(require,module,exports){
+},{}],61:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLDOMStringList;
@@ -9693,7 +9815,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],58:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDAttList, XMLNode,
@@ -9750,7 +9872,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./XMLNode":69}],59:[function(require,module,exports){
+},{"./NodeType":51,"./XMLNode":73}],63:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDElement, XMLNode,
@@ -9790,7 +9912,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./XMLNode":69}],60:[function(require,module,exports){
+},{"./NodeType":51,"./XMLNode":73}],64:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDEntity, XMLNode, isObject,
@@ -9889,7 +10011,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./Utility":48,"./XMLNode":69}],61:[function(require,module,exports){
+},{"./NodeType":51,"./Utility":52,"./XMLNode":73}],65:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDNotation, XMLNode,
@@ -9943,7 +10065,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./XMLNode":69}],62:[function(require,module,exports){
+},{"./NodeType":51,"./XMLNode":73}],66:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDeclaration, XMLNode, isObject,
@@ -9988,7 +10110,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./Utility":48,"./XMLNode":69}],63:[function(require,module,exports){
+},{"./NodeType":51,"./Utility":52,"./XMLNode":73}],67:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDocType, XMLNamedNodeMap, XMLNode, isObject,
@@ -10176,7 +10298,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./Utility":48,"./XMLDTDAttList":58,"./XMLDTDElement":59,"./XMLDTDEntity":60,"./XMLDTDNotation":61,"./XMLNamedNodeMap":68,"./XMLNode":69}],64:[function(require,module,exports){
+},{"./NodeType":51,"./Utility":52,"./XMLDTDAttList":62,"./XMLDTDElement":63,"./XMLDTDEntity":64,"./XMLDTDNotation":65,"./XMLNamedNodeMap":72,"./XMLNode":73}],68:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDOMConfiguration, XMLDOMImplementation, XMLDocument, XMLNode, XMLStringWriter, XMLStringifier, isPlainObject,
@@ -10420,7 +10542,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./Utility":48,"./XMLDOMConfiguration":54,"./XMLDOMImplementation":56,"./XMLNode":69,"./XMLStringWriter":74,"./XMLStringifier":75}],65:[function(require,module,exports){
+},{"./NodeType":51,"./Utility":52,"./XMLDOMConfiguration":58,"./XMLDOMImplementation":60,"./XMLNode":73,"./XMLStringWriter":78,"./XMLStringifier":79}],69:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, WriterState, XMLAttribute, XMLCData, XMLComment, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDeclaration, XMLDocType, XMLDocument, XMLDocumentCB, XMLElement, XMLProcessingInstruction, XMLRaw, XMLStringWriter, XMLStringifier, XMLText, getValue, isFunction, isObject, isPlainObject, ref,
@@ -10950,7 +11072,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./Utility":48,"./WriterState":49,"./XMLAttribute":50,"./XMLCData":51,"./XMLComment":53,"./XMLDTDAttList":58,"./XMLDTDElement":59,"./XMLDTDEntity":60,"./XMLDTDNotation":61,"./XMLDeclaration":62,"./XMLDocType":63,"./XMLDocument":64,"./XMLElement":67,"./XMLProcessingInstruction":71,"./XMLRaw":72,"./XMLStringWriter":74,"./XMLStringifier":75,"./XMLText":76}],66:[function(require,module,exports){
+},{"./NodeType":51,"./Utility":52,"./WriterState":53,"./XMLAttribute":54,"./XMLCData":55,"./XMLComment":57,"./XMLDTDAttList":62,"./XMLDTDElement":63,"./XMLDTDEntity":64,"./XMLDTDNotation":65,"./XMLDeclaration":66,"./XMLDocType":67,"./XMLDocument":68,"./XMLElement":71,"./XMLProcessingInstruction":75,"./XMLRaw":76,"./XMLStringWriter":78,"./XMLStringifier":79,"./XMLText":80}],70:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDummy, XMLNode,
@@ -10983,7 +11105,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./XMLNode":69}],67:[function(require,module,exports){
+},{"./NodeType":51,"./XMLNode":73}],71:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLAttribute, XMLElement, XMLNamedNodeMap, XMLNode, getValue, isFunction, isObject, ref,
@@ -11283,7 +11405,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./Utility":48,"./XMLAttribute":50,"./XMLNamedNodeMap":68,"./XMLNode":69}],68:[function(require,module,exports){
+},{"./NodeType":51,"./Utility":52,"./XMLAttribute":54,"./XMLNamedNodeMap":72,"./XMLNode":73}],72:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLNamedNodeMap;
@@ -11343,7 +11465,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],69:[function(require,module,exports){
+},{}],73:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var DocumentPosition, NodeType, XMLCData, XMLComment, XMLDeclaration, XMLDocType, XMLDummy, XMLElement, XMLNamedNodeMap, XMLNode, XMLNodeList, XMLProcessingInstruction, XMLRaw, XMLText, getValue, isEmpty, isFunction, isObject, ref1,
@@ -12130,7 +12252,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./DocumentPosition":46,"./NodeType":47,"./Utility":48,"./XMLCData":51,"./XMLComment":53,"./XMLDeclaration":62,"./XMLDocType":63,"./XMLDummy":66,"./XMLElement":67,"./XMLNamedNodeMap":68,"./XMLNodeList":70,"./XMLProcessingInstruction":71,"./XMLRaw":72,"./XMLText":76}],70:[function(require,module,exports){
+},{"./DocumentPosition":50,"./NodeType":51,"./Utility":52,"./XMLCData":55,"./XMLComment":57,"./XMLDeclaration":66,"./XMLDocType":67,"./XMLDummy":70,"./XMLElement":71,"./XMLNamedNodeMap":72,"./XMLNodeList":74,"./XMLProcessingInstruction":75,"./XMLRaw":76,"./XMLText":80}],74:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLNodeList;
@@ -12160,7 +12282,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],71:[function(require,module,exports){
+},{}],75:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLCharacterData, XMLProcessingInstruction,
@@ -12211,7 +12333,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./XMLCharacterData":52}],72:[function(require,module,exports){
+},{"./NodeType":51,"./XMLCharacterData":56}],76:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLNode, XMLRaw,
@@ -12248,7 +12370,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./XMLNode":69}],73:[function(require,module,exports){
+},{"./NodeType":51,"./XMLNode":73}],77:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, WriterState, XMLStreamWriter, XMLWriterBase,
@@ -12426,7 +12548,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./WriterState":49,"./XMLWriterBase":77}],74:[function(require,module,exports){
+},{"./NodeType":51,"./WriterState":53,"./XMLWriterBase":81}],78:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLStringWriter, XMLWriterBase,
@@ -12463,7 +12585,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./XMLWriterBase":77}],75:[function(require,module,exports){
+},{"./XMLWriterBase":81}],79:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLStringifier,
@@ -12705,7 +12827,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],76:[function(require,module,exports){
+},{}],80:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLCharacterData, XMLText,
@@ -12776,7 +12898,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./XMLCharacterData":52}],77:[function(require,module,exports){
+},{"./NodeType":51,"./XMLCharacterData":56}],81:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, WriterState, XMLCData, XMLComment, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDeclaration, XMLDocType, XMLDummy, XMLElement, XMLProcessingInstruction, XMLRaw, XMLText, XMLWriterBase, assign,
@@ -13206,7 +13328,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./Utility":48,"./WriterState":49,"./XMLCData":51,"./XMLComment":53,"./XMLDTDAttList":58,"./XMLDTDElement":59,"./XMLDTDEntity":60,"./XMLDTDNotation":61,"./XMLDeclaration":62,"./XMLDocType":63,"./XMLDummy":66,"./XMLElement":67,"./XMLProcessingInstruction":71,"./XMLRaw":72,"./XMLText":76}],78:[function(require,module,exports){
+},{"./NodeType":51,"./Utility":52,"./WriterState":53,"./XMLCData":55,"./XMLComment":57,"./XMLDTDAttList":62,"./XMLDTDElement":63,"./XMLDTDEntity":64,"./XMLDTDNotation":65,"./XMLDeclaration":66,"./XMLDocType":67,"./XMLDummy":70,"./XMLElement":71,"./XMLProcessingInstruction":75,"./XMLRaw":76,"./XMLText":80}],82:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, WriterState, XMLDOMImplementation, XMLDocument, XMLDocumentCB, XMLStreamWriter, XMLStringWriter, assign, isFunction, ref;
@@ -13273,4 +13395,4 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":47,"./Utility":48,"./WriterState":49,"./XMLDOMImplementation":56,"./XMLDocument":64,"./XMLDocumentCB":65,"./XMLStreamWriter":73,"./XMLStringWriter":74}]},{},[7]);
+},{"./NodeType":51,"./Utility":52,"./WriterState":53,"./XMLDOMImplementation":60,"./XMLDocument":68,"./XMLDocumentCB":69,"./XMLStreamWriter":77,"./XMLStringWriter":78}]},{},[11]);
