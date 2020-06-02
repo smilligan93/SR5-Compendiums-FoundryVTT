@@ -574,12 +574,12 @@ class WeaponImporter extends DataImporter_1.DataImporter {
                     mod_description: "",
                     damage: {
                         type: {
-                            base: "physical",
-                            value: ""
+                            base: DamageType.physical,
+                            value: DamageType.none
                         },
                         element: {
-                            base: "",
-                            value: ""
+                            base: DamageElement.none,
+                            value: DamageElement.none
                         },
                         base: 0,
                         value: 0,
@@ -599,7 +599,7 @@ class WeaponImporter extends DataImporter_1.DataImporter {
                     },
                     extended: false,
                     opposed: {
-                        type: "defense",
+                        type: OpposedType.defense,
                         attribute: "",
                         attribute2: "",
                         skill: "",
@@ -671,7 +671,7 @@ class WeaponImporter extends DataImporter_1.DataImporter {
                         dropoff: 0
                     }
                 },
-                category: "range"
+                category: WeaponCategory.range
             },
             permission: {
                 default: 2
@@ -682,21 +682,21 @@ class WeaponImporter extends DataImporter_1.DataImporter {
         let type = ImportHelper_1.ImportHelper.stringValue(weaponJson, "type");
         //melee is the least specific, all melee entries are accurate
         if (type === "Melee") {
-            return "melee";
+            return WeaponCategory.melee;
         }
         else {
             // skill takes priorities over category
             if (weaponJson.hasOwnProperty("useskill")) {
                 let skill = ImportHelper_1.ImportHelper.stringValue(weaponJson, "useskill");
                 if (skill === "Throwing Weapons")
-                    return "thrown";
+                    return WeaponCategory.thrown;
             }
             // category is the fallback
             let category = ImportHelper_1.ImportHelper.stringValue(weaponJson, "category");
             if (category === "Throwing Weapons")
-                return "thrown";
+                return WeaponCategory.thrown;
             // ranged is everything else
-            return "range";
+            return WeaponCategory.range;
         }
     }
     Parse(jsonObject) {
@@ -734,13 +734,13 @@ class WeaponImporter extends DataImporter_1.DataImporter {
                 data.data.technology.conceal.value = ImportHelper_1.ImportHelper.intValue(jsonData, "conceal");
                 data.data.category = this.GetWeaponType(jsonData);
                 switch (data.data.category) {
-                    case "range":
+                    case WeaponCategory.range:
                         data = rangedParser.Parse(jsonData, data);
                         break;
-                    case "melee":
+                    case WeaponCategory.melee:
                         data = meleeParser.Parse(jsonData, data);
                         break;
-                    case "thrown":
+                    case WeaponCategory.thrown:
                         data = thrownParser.Parse(jsonData, data);
                         break;
                 }
@@ -766,12 +766,12 @@ class MeleeParser extends WeaponParser_1.WeaponParser {
         if (damageCode == null) {
             return {
                 type: {
-                    base: "physical",
-                    value: "physical"
+                    base: DamageType.physical,
+                    value: DamageType.physical
                 },
                 element: {
-                    base: "",
-                    value: ""
+                    base: DamageElement.none,
+                    value: DamageElement.none
                 },
                 base: 0,
                 value: 0,
@@ -799,8 +799,8 @@ class MeleeParser extends WeaponParser_1.WeaponParser {
                 value: damageType
             },
             element: {
-                base: "",
-                value: ""
+                base: DamageElement.none,
+                value: DamageElement.none
             },
             base: damageBase,
             value: damageBase,
@@ -842,12 +842,12 @@ class RangedParser extends WeaponParser_1.WeaponParser {
         if (damageCode == null) {
             return {
                 type: {
-                    base: "physical",
-                    value: ""
+                    base: DamageType.physical,
+                    value: DamageType.none
                 },
                 element: {
-                    base: "",
-                    value: ""
+                    base: DamageElement.none,
+                    value: DamageElement.none
                 },
                 base: 0,
                 value: 0,
@@ -869,8 +869,8 @@ class RangedParser extends WeaponParser_1.WeaponParser {
                 value: damageType
             },
             element: {
-                base: "",
-                value: ""
+                base: DamageElement.none,
+                value: DamageElement.none
             },
             value: damageAmount,
             ap: {
@@ -946,12 +946,12 @@ class ThrownParser extends WeaponParser_1.WeaponParser {
             if (damageCode === undefined) {
                 return {
                     type: {
-                        base: "physical",
-                        value: "physical"
+                        base: DamageType.physical,
+                        value: DamageType.physical
                     },
                     element: {
-                        base: "",
-                        value: ""
+                        base: DamageElement.none,
+                        value: DamageElement.none
                     },
                     base: 0,
                     value: 0,
@@ -977,8 +977,8 @@ class ThrownParser extends WeaponParser_1.WeaponParser {
                 value: damageType
             },
             element: {
-                base: "",
-                value: ""
+                base: DamageElement.none,
+                value: DamageElement.none
             },
             base: damageAmount,
             value: damageAmount,

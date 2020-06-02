@@ -1,4 +1,3 @@
-import {WeaponImporter} from "../WeaponImporter";
 import {ImportHelper} from "../ImportHelper";
 import {WeaponParser} from "./WeaponParser";
 import {Constants} from "../Constants";
@@ -11,12 +10,12 @@ export class RangedParser extends WeaponParser {
         if (damageCode == null) {
             return {
                 type: {
-                    base: "physical",
-                    value: ""
+                    base: DamageType.physical,
+                    value: DamageType.none
                 },
                 element: {
-                    base: "",
-                    value: ""
+                    base: DamageElement.none,
+                    value: DamageElement.none
                 },
                 base: 0,
                 value: 0,
@@ -40,8 +39,8 @@ export class RangedParser extends WeaponParser {
                 value: (damageType as DamageType)
             },
             element: {
-                base: "",
-                value: ""
+                base: DamageElement.none,
+                value: DamageElement.none
             },
             value: damageAmount,
             ap: {

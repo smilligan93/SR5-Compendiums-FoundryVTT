@@ -32,12 +32,12 @@ export class WeaponImporter extends DataImporter {
                     mod_description: "",
                     damage: {
                         type: {
-                            base: "physical",
-                            value: ""
+                            base: DamageType.physical,
+                            value: DamageType.none
                         },
                         element: {
-                            base: "",
-                            value: ""
+                            base: DamageElement.none,
+                            value: DamageElement.none
                         },
                         base: 0,
                         value: 0,
@@ -57,7 +57,7 @@ export class WeaponImporter extends DataImporter {
                     },
                     extended: false,
                     opposed: {
-                        type: "defense",
+                        type: OpposedType.defense,
                         attribute: "",
                         attribute2: "",
                         skill: "",
@@ -129,7 +129,7 @@ export class WeaponImporter extends DataImporter {
                         dropoff: 0
                     }
                 },
-                category: "range"
+                category: WeaponCategory.range
             },
             permission: {
                 default: 2
@@ -141,19 +141,19 @@ export class WeaponImporter extends DataImporter {
         let type = ImportHelper.stringValue(weaponJson, "type");
         //melee is the least specific, all melee entries are accurate
         if (type === "Melee") {
-            return "melee";
+            return WeaponCategory.melee;
         } else {
             // skill takes priorities over category
             if (weaponJson.hasOwnProperty("useskill")) {
                 let skill = ImportHelper.stringValue(weaponJson, "useskill");
-                if (skill === "Throwing Weapons") return "thrown";
+                if (skill === "Throwing Weapons") return WeaponCategory.thrown;
             }
 
             // category is the fallback
             let category = ImportHelper.stringValue(weaponJson, "category");
-            if (category === "Throwing Weapons") return "thrown";
+            if (category === "Throwing Weapons") return WeaponCategory.thrown;
             // ranged is everything else
-            return "range";
+            return WeaponCategory.range;
         }
     }
 
@@ -210,13 +210,13 @@ export class WeaponImporter extends DataImporter {
             data.data.category = this.GetWeaponType(jsonData);
 
             switch (data.data.category) {
-                case "range":
+                case WeaponCategory.range:
                     data = rangedParser.Parse(jsonData, data);
                     break;
-                case "melee":
+                case WeaponCategory.melee:
                     data = meleeParser.Parse(jsonData, data);
                     break;
-                case "thrown":
+                case WeaponCategory.thrown:
                     data = thrownParser.Parse(jsonData, data);
                     break;
             }

@@ -1,4 +1,3 @@
-import {WeaponImporter} from "../WeaponImporter";
 import {ImportHelper} from "../ImportHelper";
 import {WeaponParser} from "./WeaponParser";
 
@@ -11,12 +10,12 @@ export class MeleeParser extends WeaponParser {
         if (damageCode == null) {
             return {
                 type: {
-                    base: "physical",
-                    value: "physical"
+                    base: DamageType.physical,
+                    value: DamageType.physical
                 },
                 element: {
-                    base: "",
-                    value: ""
+                    base: DamageElement.none,
+                    value: DamageElement.none
                 },
                 base: 0,
                 value: 0,
@@ -48,8 +47,8 @@ export class MeleeParser extends WeaponParser {
                 value: (damageType as DamageType)
             },
             element: {
-                base: "",
-                value: ""
+                base: DamageElement.none,
+                value: DamageElement.none
             },
             base: damageBase,
             value: damageBase,
@@ -76,29 +75,4 @@ export class MeleeParser extends WeaponParser {
 
         return data;
     };
-
-    // data.data.melee = {
-    //     reach: ImportHelper.intValue(jsonData, "reach")
-    // };
-    // data.data.action = {
-    //     type: "complex",
-    //     category: ImportHelper.stringValue(jsonData, "category"),
-    //     attribute: "agility",
-    //     skill: ParseSkill(jsonData),
-    //     damage: ParseMeleeDamage(jsonData),
-    //     limit: {
-    //         value: ImportHelper.intValue(jsonData, "accuracy"),
-    //         attribute: "",
-    //         mod: 0,
-    //         base: ImportHelper.intValue(jsonData,"accuracy")
-    //     },
-    //     opposed: {
-    //         type: "defense",
-    //         attribute: "",
-    //         attribute2: "",
-    //         skill: "",
-    //         mod: 0,
-    //         description: ""
-    //     },
-    // };
 }
