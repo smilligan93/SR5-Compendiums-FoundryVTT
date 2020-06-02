@@ -4,8 +4,7 @@
  * Also contains helper methods to safely parse values to appropriate types.
  */
 export class ImportHelper {
-
-    public static CHAR_KEY = "_TEXT";
+    public static readonly CHAR_KEY = "_TEXT";
 
     /**
      * Helper method to create a new folder.
@@ -19,6 +18,33 @@ export class ImportHelper {
             parent: (parent === null) ? null : parent.id,
             name: name
         });
+    }
+
+    /**
+     * Get a folder at a path in the items directory.
+     * @param path The absolute path of the folder.
+     * @param mkdirs If true, will make all folders along the hierarchy if they do not exist.
+     * @returns A promise that will resolve with the found folder.
+     */
+    public static async GetFolderAtPath(path: string, mkdirs: boolean = false): Promise<Entity> {
+        console.log(`Trying to find the following path: ${path}`);
+
+        let idx = 0;
+        let curr, last = null;
+        let next = path.split("/");
+        while (idx < next.length) {
+            curr = game.folders.find((folder) => folder.parent === last && folder.name === next[idx]);
+            if (curr === null) {
+                if (!mkdirs) {
+                    return Promise.reject(`Unable to find folder: ${path}`);
+                }
+
+                curr = await ImportHelper.NewFolder(next[idx], last);
+            }
+            last = curr;
+            idx++;
+        }
+        return Promise.resolve(curr);
     }
 
     /**

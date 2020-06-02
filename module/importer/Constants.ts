@@ -1,5 +1,5 @@
 export class Constants {
-    public static MAP_CATEGORY_TO_SKILL = {
+    public static readonly MAP_CATEGORY_TO_SKILL = {
         "Assault Cannons": "heavy_weapons",
         "Assault Rifles": "automatics",
         "Blades": "blades",
@@ -27,7 +27,7 @@ export class Constants {
         "Tasers": "pistols",
         "Unarmed": "unarmed_combat"
     };
-    public static WEAPON_RANGES = {
+    public static readonly WEAPON_RANGES = {
         "Tasers": {
             short: 5,
             medium: 10,
@@ -212,4 +212,6 @@ export class Constants {
             extreme: -1
         }
     };
+
+    public static readonly ROOT_IMPORT_FOLDER_NAME = "SR5e";
 }

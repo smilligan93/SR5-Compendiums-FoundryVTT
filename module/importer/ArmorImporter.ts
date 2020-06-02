@@ -1,75 +1,87 @@
 import { DataImporter } from "./DataImporter";
 import {ImportHelper} from "./ImportHelper";
+import {Constants} from "./Constants";
 
 export class ArmorImporter extends DataImporter {
-    canParse(jsonObject: object): boolean {
+    CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("armors") && jsonObject["armors"].hasOwnProperty("armor");
     }
 
-    getDefaultData(objectType: string = undefined): object {
-        return undefined;
+    GetDefaultData() {
+        return {
+            name: "Unnamed Armor",
+            folder: null,
+            type: "armor",
+            data: {
+                description: {
+                    value: "",
+                    chat: "",
+                    source: ""
+                },
+                technology: {
+                    rating: 0,
+                    availability: "0",
+                    quantity: 1,
+                    cost: 0,
+                    equipped: true,
+                    concealability: 0
+                },
+                armor: {
+                    value: 0,
+                    mod: false,
+                    acid: 0,
+                    cold: 0,
+                    fire: 0,
+                    electricity: 0,
+                    radiation: 0
+                }
+            },
+            permission: {
+                default: 2
+            }
+        };
     }
 
-    async parse(jsonObject: object): Promise<Entity> {
-        const intValue = ImportHelper.intValue;
-        const stringValue = ImportHelper.stringValue;
-        const parseInt = ImportHelper.parseInt;
+    ParseData(jsonObject: object) {
+        let data = this.GetDefaultData();
+        data.name = ImportHelper.stringValue(jsonObject, "name");
+        data.data.description.source = `${ImportHelper.stringValue(jsonObject, "source")} ${ImportHelper.stringValue(jsonObject, "page")}`;
 
-        let armorFolder = await ImportHelper.NewFolder("SR5e Armor");
+        data.data.technology.availability = ImportHelper.stringValue(jsonObject, "avail");
+        data.data.technology.cost = ImportHelper.intValue(jsonObject, "cost");
 
+        data.data.armor.value = ImportHelper.intValue(jsonObject, "armor", 0);
+        data.data.armor.mod = ImportHelper.stringValue(jsonObject, "armor").includes("+");
+        return data;
+    }
+
+    async Parse(jsonObject: object): Promise<Entity> {
         let armorCategoryFolders = {};
         let jsonCategories = jsonObject["categories"]["category"];
         for (let i = 0; i < jsonCategories.length; i++) {
             let categoryName = ImportHelper.stringValue(jsonCategories, i);
-            armorCategoryFolders[categoryName] = await ImportHelper.NewFolder(categoryName, armorFolder);
-            console.log(categoryName);
-            console.log(armorCategoryFolders[categoryName]);
+            armorCategoryFolders[categoryName]
+                = await ImportHelper.GetFolderAtPath(`${Constants.ROOT_IMPORT_FOLDER_NAME}/Armor/${categoryName}`, true);
         }
 
         let armorDatas = [];
         let jsonArmors = jsonObject["armors"]["armor"];
         for (let i = 0; i < jsonArmors.length; i++) {
             let jsonData = jsonArmors[i];
+            let data = this.ParseData(jsonData);
 
-            let category = stringValue(jsonData, "category");
-
+            let category = ImportHelper.stringValue(jsonData, "category");
             let folder = armorCategoryFolders[category];
-            let data = {
-                name: stringValue(jsonData, "name"),
-                folder: folder.id,
-                type: "armor",
-                data: {
-                    description: {
-                        value: "",
-                        chat: "",
-                        source: `${stringValue(jsonData, "source")} ${stringValue(jsonData, "page")}`
-                    },
-                    technology: {
-                        rating: 2,
-                        availability: stringValue(jsonData, "avail"),
-                        quantity: 1,
-                        cost: intValue(jsonData, "cost"),
-                        equipped: true,
-                        concealability: 0
-                    },
-                    armor: {
-                        value: intValue(jsonData, "armor"),
-                        mod: stringValue(jsonData, "armor").includes("+"),
-                        acid: 0,
-                        cold: 0,
-                        fire: 0,
-                        electricity: 0,
-                        radiation: 0
-                    }
-                },
-                permission: {
-                    default: 2
-                }
-            };
+
+            if (game.items.find((item) => item.folder === folder.id && item.name === data.name)) {
+                continue;
+            }
+
+            data.folder = folder.id;
 
             armorDatas.push(data);
         }
 
-        return Item.create(armorDatas);
+        return await Item.create(armorDatas);
     }
 }

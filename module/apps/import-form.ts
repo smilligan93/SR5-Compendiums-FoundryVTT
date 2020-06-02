@@ -3,6 +3,10 @@ import { Constants } from "../importer/Constants";
 import { WeaponImporter } from "../importer/WeaponImporter";
 import { ArmorImporter } from "../importer/ArmorImporter";
 import { DataImporter } from "../importer/DataImporter";
+import { RangedParser } from "../importer/weapon/RangedParser";
+import { MeleeParser } from "../importer/weapon/MeleeParser";
+import { ThrownParser } from "../importer/weapon/ThrownParser";
+import {WeaponParser} from "../importer/weapon/WeaponParser";
 
 export class Import extends Application {
     static get defaultOptions() {
@@ -26,8 +30,8 @@ export class Import extends Application {
         console.log(jsonSource);
 
         for (const di of Import.Importers) {
-            if (di.canParse(jsonSource)) {
-                await di.parse(jsonSource);
+            if (di.CanParse(jsonSource)) {
+                await di.Parse(jsonSource);
             }
         }
     }

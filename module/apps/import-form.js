@@ -10,37 +10,41 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 import { WeaponImporter } from "../importer/WeaponImporter";
 import { ArmorImporter } from "../importer/ArmorImporter";
 import { DataImporter } from "../importer/DataImporter";
-export class Import extends Application {
-    static get defaultOptions() {
-        const options = super.defaultOptions;
-        options.id = 'chummer-data-import';
-        options.classes = ["app", "window-app", "filepicker"];
-        options.title = 'Chummer/Data Import';
-        options.template = 'modules/shadowrun5e-compendiums/templates/apps/compendium-import.html';
-        options.width = 600;
-        options.height = "auto";
-        return options;
-    }
-    parseXML(xmlSource) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let jsonSource = yield DataImporter.xml2json(xmlSource);
-            console.log(jsonSource);
-            for (const di of Import.Importers) {
-                if (di.canParse(jsonSource)) {
-                    yield di.parse(jsonSource);
+let Import = /** @class */ (() => {
+    class Import extends Application {
+        static get defaultOptions() {
+            const options = super.defaultOptions;
+            options.id = 'chummer-data-import';
+            options.classes = ["app", "window-app", "filepicker"];
+            options.title = 'Chummer/Data Import';
+            options.template = 'modules/shadowrun5e-compendiums/templates/apps/compendium-import.html';
+            options.width = 600;
+            options.height = "auto";
+            return options;
+        }
+        parseXML(xmlSource) {
+            return __awaiter(this, void 0, void 0, function* () {
+                let jsonSource = yield DataImporter.xml2json(xmlSource);
+                console.log(jsonSource);
+                for (const di of Import.Importers) {
+                    if (di.CanParse(jsonSource)) {
+                        yield di.Parse(jsonSource);
+                    }
                 }
-            }
-        });
+            });
+        }
+        activateListeners(html) {
+            html.find("button[type='submit']").on("click", (event) => __awaiter(this, void 0, void 0, function* () {
+                event.preventDefault();
+                let xmlSource = html.find("#xml-source").val();
+                yield this.parseXML(xmlSource);
+            }));
+        }
     }
-    activateListeners(html) {
-        html.find("button[type='submit']").on("click", (event) => __awaiter(this, void 0, void 0, function* () {
-            event.preventDefault();
-            let xmlSource = html.find("#xml-source").val();
-            yield this.parseXML(xmlSource);
-        }));
-    }
-}
-Import.Importers = [
-    new WeaponImporter(),
-    new ArmorImporter()
-];
+    Import.Importers = [
+        new WeaponImporter(),
+        new ArmorImporter()
+    ];
+    return Import;
+})();
+export { Import };

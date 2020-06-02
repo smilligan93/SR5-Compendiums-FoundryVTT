@@ -7,21 +7,21 @@ export abstract class DataImporter {
     /**
      * Get default data for constructing a TItem.
      */
-    public abstract getDefaultData(objectType: string): object;
+    public abstract GetDefaultData(): any;
 
     /**
      * Validate if this importer is capable of parsing the provided JSON data.
      * @param jsonObject JSON data to check import capability for.
      * @returns boolean True if the importer is capable of parsing the provided XML data.
      */
-    public abstract canParse(jsonObject: object): boolean;
+    public abstract CanParse(jsonObject: object): boolean;
 
     /**
      * Parse the specified jsonObject and return Item representations.
      * @param jsonObject The JSON data to parse.
      * @returns An array of created objects.
      */
-    public abstract async parse(jsonObject: object): Promise<Entity>;
+    public abstract async Parse(jsonObject: object): Promise<Entity>;
 
     /**
      * Parse an XML string into a JSON object.
@@ -36,5 +36,4 @@ export abstract class DataImporter {
         });
         return (await parser.parseStringPromise(xmlString))["chummer"];
     }
-
 }
