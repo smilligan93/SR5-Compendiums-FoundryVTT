@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
       "target": "es6",
-      "experimentalDecorators": true,
+      "strictNullChecks": true,
       "types": [
         "foundry-pc-types"
       ]
