@@ -8,12 +8,12 @@ export class MeleeParser extends WeaponParser {
         if (damageCode == null) {
             return {
                 type: {
-                    base: DamageType.physical,
-                    value: DamageType.physical
+                    base: "physical",
+                    value: "physical"
                 },
                 element: {
-                    base: DamageElement.none,
-                    value: DamageElement.none
+                    base: "",
+                    value: ""
                 },
                 base: 0,
                 value: 0,
@@ -41,8 +41,8 @@ export class MeleeParser extends WeaponParser {
                 value: damageType
             },
             element: {
-                base: DamageElement.none,
-                value: DamageElement.none
+                base: "",
+                value: ""
             },
             base: damageBase,
             value: damageBase,

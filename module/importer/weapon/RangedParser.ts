@@ -1,6 +1,10 @@
 import {ImportHelper} from "../ImportHelper";
 import {WeaponParser} from "./WeaponParser";
 import {Constants} from "../Constants";
+import DamageData = Shadowrun.DamageData;
+import DamageElement = Shadowrun.DamageElement;
+import DamageType = Shadowrun.DamageType;
+import Weapon = Shadowrun.Weapon;
 
 export class RangedParser extends WeaponParser {
     public GetDamage(jsonData: object): DamageData {
@@ -10,12 +14,12 @@ export class RangedParser extends WeaponParser {
         if (damageCode == null) {
             return {
                 type: {
-                    base: DamageType.physical,
-                    value: DamageType.none
+                    base: "physical",
+                    value: ""
                 },
                 element: {
-                    base: DamageElement.none,
-                    value: DamageElement.none
+                    base: "",
+                    value: ""
                 },
                 base: 0,
                 value: 0,
@@ -39,8 +43,8 @@ export class RangedParser extends WeaponParser {
                 value: (damageType as DamageType)
             },
             element: {
-                base: DamageElement.none,
-                value: DamageElement.none
+                base: "",
+                value: ""
             },
             value: damageAmount,
             ap: {
@@ -57,7 +61,7 @@ export class RangedParser extends WeaponParser {
     protected GetAmmo(weaponJson: object) {
         let jsonAmmo = ImportHelper.stringValue(weaponJson, "ammo");
         let match = jsonAmmo.match(/([0-9]+)/g)?.[0];
-        return (match !== null) ? parseInt(match) : 0;
+        return (match !== undefined) ? parseInt(match) : 0;
     }
 
     Parse(jsonData: object, data: Weapon): Weapon {

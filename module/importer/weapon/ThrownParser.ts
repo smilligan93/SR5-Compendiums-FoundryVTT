@@ -1,6 +1,12 @@
 import {ImportHelper} from "../ImportHelper";
 import {WeaponParser} from "./WeaponParser";
 import {Constants} from "../Constants";
+import DamageElement = Shadowrun.DamageElement;
+import BlastData = Shadowrun.BlastData;
+import ActorAttribute = Shadowrun.ActorAttribute;
+import DamageData = Shadowrun.DamageData;
+import DamageType = Shadowrun.DamageType;
+import Weapon = Shadowrun.Weapon;
 
 export class ThrownParser extends WeaponParser {
     public GetDamage(jsonData: object): DamageData {
@@ -15,24 +21,28 @@ export class ThrownParser extends WeaponParser {
         if (jsonDamage.includes("STR")) {
             damageAttribute = "strength";
 
-            damageCode = jsonDamage.match(/((STR)([+-])[0-9]\)[PS])/g)?.[0];
-
-            if (damageCode !== undefined) {
-                let amountMatch = damageCode.match(/-?[0-9]+/g)?.[0];
+            let damageMatch = jsonDamage.match(/((STR)([+-])[0-9]\)[PS])/g)?.[0];
+            if (damageMatch !== undefined) {
+                let amountMatch = damageMatch.match(/-?[0-9]+/g)?.[0];
                 damageAmount = (amountMatch !== undefined) ? parseInt(amountMatch) : 0;
             }
         } else {
-            damageCode = jsonDamage.match(/([0-9]+[PS])/g)?.[0];
+            let damageMatch = jsonDamage.match(/([0-9]+[PS])/g)?.[0];
 
-            if (damageCode === undefined) {
+            if (damageMatch !== undefined) {
+                let amountMatch = damageMatch.match(/[0-9]+/g)?.[0];
+                if (amountMatch !== undefined) {
+                    damageAmount = parseInt(amountMatch);
+                }
+            } else {
                 return {
                     type: {
-                        base: DamageType.physical,
-                        value: DamageType.physical
+                        base: "physical",
+                        value: "physical"
                     },
                     element: {
-                        base: DamageElement.none,
-                        value: DamageElement.none
+                        base: "",
+                        value: ""
                     },
                     base: 0,
                     value: 0,
@@ -45,11 +55,6 @@ export class ThrownParser extends WeaponParser {
                     mod: {}
                 }
             }
-
-            let amountMatch = damageCode.match(/[0-9]+/g)?.[0];
-            if (amountMatch !== undefined) {
-                damageAmount = parseInt(amountMatch);
-            }
         }
         damageType = jsonDamage.includes("P") ? "physical" : "stun";
 
@@ -61,8 +66,8 @@ export class ThrownParser extends WeaponParser {
                 value: (damageType as DamageType)
             },
             element: {
-                base: DamageElement.none,
-                value: DamageElement.none
+                base: "",
+                value: ""
             },
             base: damageAmount,
             value: damageAmount,
@@ -86,12 +91,18 @@ export class ThrownParser extends WeaponParser {
 
         let radiusMatch = blastCode.match(/([0-9]+m)/)?.[0];
         if (radiusMatch !== undefined) {
-            blastData.radius = parseInt(radiusMatch.match(/[0-9]+/)[0]);
+            radiusMatch = radiusMatch.match(/[0-9]+/)?.[0];
+            if (radiusMatch !== undefined) {
+                blastData.radius = parseInt(radiusMatch);
+            }
         }
 
         let dropoffMatch = blastCode.match(/(\-[0-9]+\/m)/)?.[0];
         if (dropoffMatch !== undefined) {
-            blastData.dropoff = parseInt(dropoffMatch.match(/\-[0-9]+/)[0]);
+            dropoffMatch = dropoffMatch.match(/\-[0-9]+/)?.[0];
+            if (dropoffMatch !== undefined) {
+                blastData.dropoff = parseInt(dropoffMatch);
+            }
         }
 
         if (blastData.dropoff && !blastData.radius) {

@@ -26,12 +26,20 @@ export class ArmorImporter extends DataImporter {
                     source: ""
                 },
                 technology: {
-                    rating: 0,
-                    availability: "0",
+                    rating: 1,
+                    availability: "",
                     quantity: 1,
                     cost: 0,
                     equipped: true,
-                    concealability: 0
+                    conceal: {
+                        base: 0,
+                        value: 0,
+                        mod: {}
+                    }
+                },
+                condition_monitor: {
+                    value: 0,
+                    max: 0
                 },
                 armor: {
                     value: 0,

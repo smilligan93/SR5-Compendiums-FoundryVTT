@@ -37,7 +37,6 @@ let ImportHelper = /** @class */ (() => {
          */
         static GetFolderAtPath(path, mkdirs = false) {
             return __awaiter(this, void 0, void 0, function* () {
-                console.log(`Trying to find the following path: ${path}`);
                 let idx = 0;
                 let curr, last = null;
                 let next = path.split("/");
@@ -95,6 +94,25 @@ let ImportHelper = /** @class */ (() => {
             }
         }
         /**
+         * Get an object from the the provided jsonData, optionally returning a default value if it is not found.
+         * @param jsonData The data to get the keyed value in.
+         * @param key The key to check for the value under.
+         * @param fallback An optional default value to return if the key is not found.
+         */
+        static objectValue(jsonData, key, fallback = undefined) {
+            try {
+                return jsonData[key];
+            }
+            catch (e) {
+                if (fallback !== undefined) {
+                    return fallback;
+                }
+                else {
+                    throw e;
+                }
+            }
+        }
+        /**
          * A decorated parseInt which supports error suppression by providing a default value to
          * be returned in the event an error is raised.
          * @param value The value to parse.
@@ -112,6 +130,17 @@ let ImportHelper = /** @class */ (() => {
                     throw e;
                 }
             }
+        }
+        //TODO
+        static findItem(nameOrCmp) {
+            let result;
+            if (typeof (nameOrCmp) === "string") {
+                result = game.items.find((item) => item.name == nameOrCmp);
+            }
+            else {
+                result = game.items.find(nameOrCmp);
+            }
+            return result;
         }
     }
     ImportHelper.CHAR_KEY = "_TEXT";

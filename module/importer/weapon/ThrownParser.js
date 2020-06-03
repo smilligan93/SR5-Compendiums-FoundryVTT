@@ -12,23 +12,29 @@ export class ThrownParser extends WeaponParser {
         //STR scaling weapons like the boomerang
         if (jsonDamage.includes("STR")) {
             damageAttribute = "strength";
-            damageCode = (_a = jsonDamage.match(/((STR)([+-])[0-9]\)[PS])/g)) === null || _a === void 0 ? void 0 : _a[0];
-            if (damageCode !== undefined) {
-                let amountMatch = (_b = damageCode.match(/-?[0-9]+/g)) === null || _b === void 0 ? void 0 : _b[0];
+            let damageMatch = (_a = jsonDamage.match(/((STR)([+-])[0-9]\)[PS])/g)) === null || _a === void 0 ? void 0 : _a[0];
+            if (damageMatch !== undefined) {
+                let amountMatch = (_b = damageMatch.match(/-?[0-9]+/g)) === null || _b === void 0 ? void 0 : _b[0];
                 damageAmount = (amountMatch !== undefined) ? parseInt(amountMatch) : 0;
             }
         }
         else {
-            damageCode = (_c = jsonDamage.match(/([0-9]+[PS])/g)) === null || _c === void 0 ? void 0 : _c[0];
-            if (damageCode === undefined) {
+            let damageMatch = (_c = jsonDamage.match(/([0-9]+[PS])/g)) === null || _c === void 0 ? void 0 : _c[0];
+            if (damageMatch !== undefined) {
+                let amountMatch = (_d = damageMatch.match(/[0-9]+/g)) === null || _d === void 0 ? void 0 : _d[0];
+                if (amountMatch !== undefined) {
+                    damageAmount = parseInt(amountMatch);
+                }
+            }
+            else {
                 return {
                     type: {
-                        base: DamageType.physical,
-                        value: DamageType.physical
+                        base: "physical",
+                        value: "physical"
                     },
                     element: {
-                        base: DamageElement.none,
-                        value: DamageElement.none
+                        base: "",
+                        value: ""
                     },
                     base: 0,
                     value: 0,
@@ -41,10 +47,6 @@ export class ThrownParser extends WeaponParser {
                     mod: {}
                 };
             }
-            let amountMatch = (_d = damageCode.match(/[0-9]+/g)) === null || _d === void 0 ? void 0 : _d[0];
-            if (amountMatch !== undefined) {
-                damageAmount = parseInt(amountMatch);
-            }
         }
         damageType = jsonDamage.includes("P") ? "physical" : "stun";
         let damageAp = ImportHelper.intValue(jsonData, "ap", 0);
@@ -54,8 +56,8 @@ export class ThrownParser extends WeaponParser {
                 value: damageType
             },
             element: {
-                base: DamageElement.none,
-                value: DamageElement.none
+                base: "",
+                value: ""
             },
             base: damageAmount,
             value: damageAmount,
@@ -70,7 +72,7 @@ export class ThrownParser extends WeaponParser {
     }
     ;
     GetBlast(jsonData, data) {
-        var _a, _b;
+        var _a, _b, _c, _d;
         let blastData = {
             radius: 0,
             dropoff: 0
@@ -78,11 +80,17 @@ export class ThrownParser extends WeaponParser {
         let blastCode = ImportHelper.stringValue(jsonData, "damage");
         let radiusMatch = (_a = blastCode.match(/([0-9]+m)/)) === null || _a === void 0 ? void 0 : _a[0];
         if (radiusMatch !== undefined) {
-            blastData.radius = parseInt(radiusMatch.match(/[0-9]+/)[0]);
+            radiusMatch = (_b = radiusMatch.match(/[0-9]+/)) === null || _b === void 0 ? void 0 : _b[0];
+            if (radiusMatch !== undefined) {
+                blastData.radius = parseInt(radiusMatch);
+            }
         }
-        let dropoffMatch = (_b = blastCode.match(/(\-[0-9]+\/m)/)) === null || _b === void 0 ? void 0 : _b[0];
+        let dropoffMatch = (_c = blastCode.match(/(\-[0-9]+\/m)/)) === null || _c === void 0 ? void 0 : _c[0];
         if (dropoffMatch !== undefined) {
-            blastData.dropoff = parseInt(dropoffMatch.match(/\-[0-9]+/)[0]);
+            dropoffMatch = (_d = dropoffMatch.match(/\-[0-9]+/)) === null || _d === void 0 ? void 0 : _d[0];
+            if (dropoffMatch !== undefined) {
+                blastData.dropoff = parseInt(dropoffMatch);
+            }
         }
         if (blastData.dropoff && !blastData.radius) {
             blastData.radius = -(data.data.action.damage.base / blastData.dropoff);

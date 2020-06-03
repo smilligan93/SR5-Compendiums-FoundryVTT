@@ -1,5 +1,8 @@
 import {ImportHelper} from "../ImportHelper";
 import {Constants} from "../Constants";
+import Skill = Shadowrun.Skill;
+import DamageData = Shadowrun.DamageData;
+import Weapon = Shadowrun.Weapon;
 
 export abstract class WeaponParser {
     public abstract GetDamage(jsonData: object): DamageData;

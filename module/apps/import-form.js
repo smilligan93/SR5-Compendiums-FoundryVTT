@@ -10,6 +10,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 import { WeaponImporter } from "../importer/WeaponImporter";
 import { ArmorImporter } from "../importer/ArmorImporter";
 import { DataImporter } from "../importer/DataImporter";
+import { AmmoImporter } from "../importer/AmmoImporter";
+import { ModImporter } from "../importer/ModImporter";
 let Import = /** @class */ (() => {
     class Import extends Application {
         static get defaultOptions() {
@@ -41,9 +43,12 @@ let Import = /** @class */ (() => {
             }));
         }
     }
+    //Order is important, ex. some weapons need mods to fully import
     Import.Importers = [
+        new ModImporter(),
         new WeaponImporter(),
-        new ArmorImporter()
+        new ArmorImporter(),
+        new AmmoImporter(),
     ];
     return Import;
 })();

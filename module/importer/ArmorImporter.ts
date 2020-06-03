@@ -1,13 +1,14 @@
 import { DataImporter } from "./DataImporter";
 import {ImportHelper} from "./ImportHelper";
 import {Constants} from "./Constants";
+import Armor = Shadowrun.Armor;
 
 export class ArmorImporter extends DataImporter {
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("armors") && jsonObject["armors"].hasOwnProperty("armor");
     }
 
-    GetDefaultData() {
+    GetDefaultData(): Armor {
         return {
             name: "Unnamed Armor",
             folder: null,
@@ -19,12 +20,20 @@ export class ArmorImporter extends DataImporter {
                     source: ""
                 },
                 technology: {
-                    rating: 0,
-                    availability: "0",
+                    rating: 1,
+                    availability: "",
                     quantity: 1,
                     cost: 0,
                     equipped: true,
-                    concealability: 0
+                    conceal: {
+                        base: 0,
+                        value: 0,
+                        mod: {}
+                    }
+                },
+                condition_monitor: {
+                    value: 0,
+                    max: 0
                 },
                 armor: {
                     value: 0,
@@ -64,7 +73,7 @@ export class ArmorImporter extends DataImporter {
                 = await ImportHelper.GetFolderAtPath(`${Constants.ROOT_IMPORT_FOLDER_NAME}/Armor/${categoryName}`, true);
         }
 
-        let armorDatas = [];
+        let armorDatas: Armor[] = [];
         let jsonArmors = jsonObject["armors"]["armor"];
         for (let i = 0; i < jsonArmors.length; i++) {
             let jsonData = jsonArmors[i];

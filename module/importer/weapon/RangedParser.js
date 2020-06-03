@@ -9,12 +9,12 @@ export class RangedParser extends WeaponParser {
         if (damageCode == null) {
             return {
                 type: {
-                    base: DamageType.physical,
-                    value: DamageType.none
+                    base: "physical",
+                    value: ""
                 },
                 element: {
-                    base: DamageElement.none,
-                    value: DamageElement.none
+                    base: "",
+                    value: ""
                 },
                 base: 0,
                 value: 0,
@@ -36,8 +36,8 @@ export class RangedParser extends WeaponParser {
                 value: damageType
             },
             element: {
-                base: DamageElement.none,
-                value: DamageElement.none
+                base: "",
+                value: ""
             },
             value: damageAmount,
             ap: {
@@ -55,7 +55,7 @@ export class RangedParser extends WeaponParser {
         var _a;
         let jsonAmmo = ImportHelper.stringValue(weaponJson, "ammo");
         let match = (_a = jsonAmmo.match(/([0-9]+)/g)) === null || _a === void 0 ? void 0 : _a[0];
-        return (match !== null) ? parseInt(match) : 0;
+        return (match !== undefined) ? parseInt(match) : 0;
     }
     Parse(jsonData, data) {
         data.data.action.category = ImportHelper.stringValue(jsonData, "category");

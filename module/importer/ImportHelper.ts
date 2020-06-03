@@ -27,8 +27,6 @@ export class ImportHelper {
      * @returns A promise that will resolve with the found folder.
      */
     public static async GetFolderAtPath(path: string, mkdirs: boolean = false): Promise<Entity> {
-        console.log(`Trying to find the following path: ${path}`);
-
         let idx = 0;
         let curr, last = null;
         let next = path.split("/");
@@ -54,7 +52,7 @@ export class ImportHelper {
      * @param key The key to check for the value under.
      * @param fallback An optional default value to return if the key is not found.
      */
-    public static intValue(jsonData: object, key: string, fallback: number = undefined): number {
+    public static intValue(jsonData: object, key: string, fallback: number|undefined = undefined): number {
         try {
             return parseInt(jsonData[key][ImportHelper.CHAR_KEY]);
         }
@@ -73,9 +71,28 @@ export class ImportHelper {
      * @param key The key to check for the value under.
      * @param fallback An optional default value to return if the key is not found.
      */
-    public static stringValue(jsonData: object, key: string|number, fallback: string = undefined): string {
+    public static stringValue(jsonData: object, key: string|number, fallback: string|undefined = undefined): string {
         try {
             return jsonData[key][ImportHelper.CHAR_KEY];
+        }
+        catch (e) {
+            if (fallback !== undefined) {
+                return fallback;
+            } else {
+                throw e;
+            }
+        }
+    }
+
+    /**
+     * Get an object from the the provided jsonData, optionally returning a default value if it is not found.
+     * @param jsonData The data to get the keyed value in.
+     * @param key The key to check for the value under.
+     * @param fallback An optional default value to return if the key is not found.
+     */
+    public static objectValue(jsonData: object, key: string|number, fallback: object|null|undefined = undefined): object|null {
+        try {
+            return jsonData[key];
         }
         catch (e) {
             if (fallback !== undefined) {
@@ -92,7 +109,7 @@ export class ImportHelper {
      * @param value The value to parse.
      * @param fallback The devault value to return in case of error.
      */
-    public static parseInt(value: any, fallback: number = undefined): number {
+    public static parseInt(value: any, fallback: number|undefined = undefined): number {
         try {
             return parseInt(value);
         }
@@ -104,4 +121,16 @@ export class ImportHelper {
             }
         }
     }
+
+    //TODO
+    public static findItem(nameOrCmp: string|ItemComparer): Entity {
+        let result: any | null;
+        if (typeof (nameOrCmp) === "string") {
+            result = game.items.find((item) => item.name == nameOrCmp);
+        } else {
+            result = game.items.find(nameOrCmp);
+        }
+        return result;
+    }
 }
+type ItemComparer = (item: Item) => boolean;

@@ -7,6 +7,8 @@ import { RangedParser } from "../importer/weapon/RangedParser";
 import { MeleeParser } from "../importer/weapon/MeleeParser";
 import { ThrownParser } from "../importer/weapon/ThrownParser";
 import {WeaponParser} from "../importer/weapon/WeaponParser";
+import {AmmoImporter} from "../importer/AmmoImporter";
+import {ModImporter} from "../importer/ModImporter";
 
 export class Import extends Application {
     static get defaultOptions() {
@@ -20,9 +22,12 @@ export class Import extends Application {
         return options;
     }
 
+    //Order is important, ex. some weapons need mods to fully import
     static Importers: DataImporter[] = [
+        new ModImporter(),
         new WeaponImporter(),
-        new ArmorImporter()
+        new ArmorImporter(),
+        new AmmoImporter(),
     ];
 
     async parseXML(xmlSource) {
