@@ -89,7 +89,7 @@ export class AmmoImporter extends DataImporter {
 
             let shouldLookForWeapons = false;
             let nameLower = data.name.toLowerCase();
-            ["greande", "rocket", "missile"].forEach((compare) => {
+            ["grenade", "rocket", "missile"].forEach((compare) => {
                 shouldLookForWeapons = shouldLookForWeapons || nameLower.includes(compare);
             });
 
@@ -97,17 +97,16 @@ export class AmmoImporter extends DataImporter {
                 let foundWeapon = ImportHelper.findItem((item) => {
                     return item.name.toLowerCase() === nameLower
                 });
-                
+
                 if (foundWeapon !== null) {
                     data.data.damage = foundWeapon.data.data.action.damage.value;
                     data.data.ap = foundWeapon.data.data.action.damage.ap.value;
                 }
             }
 
-
-            //TODO: Derive from mods.
+            // ammo doesn't have conceal rating from looking at the data
             // data.data.technology.conceal.base = ImportHelper.intValue(jsonData, "conceal");
-            // data.data.technology.conceal.value = ImportHelper.intValue(jsonData, "conceal");
+            data.data.technology.conceal.base = 0;
 
             ammoDatas.push(data);
         }

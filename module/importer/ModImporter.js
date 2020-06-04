@@ -59,6 +59,7 @@ export class ModImporter extends DataImporter {
             for (let i = 0; i < jsonAccs.length; i++) {
                 let jsonData = jsonAccs[i];
                 let data = this.GetDefaultData();
+
                 data.name = ImportHelper.stringValue(jsonData, "name");
                 data.data.description.source = `${ImportHelper.stringValue(jsonData, "source")} ${ImportHelper.stringValue(jsonData, "page")}`;
                 data.data.technology.availability = ImportHelper.stringValue(jsonData, "avail", "0");
@@ -68,8 +69,8 @@ export class ModImporter extends DataImporter {
                 data.data.mount_point = ImportHelper.stringValue(jsonData, "mount");
                 data.data.rc = ImportHelper.intValue(jsonData, "rc", 0);
                 data.data.accuracy = ImportHelper.intValue(jsonData, "accuracy", 0);
-                //TODO when conceal for mods gets implemented
-                // data.data.concreal = ImportHelper.intValue(jsonData, "concreal", 0);
+                data.data.conceal = ImportHelper.intValue(jsonData, "conceal", 0);
+
                 let folderName = (data.data.mount_point !== undefined) ? data.data.mount_point : "Other";
                 if (folderName.includes("/")) {
                     let splitName = folderName.split("/");
