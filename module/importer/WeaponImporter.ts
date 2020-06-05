@@ -208,9 +208,7 @@ export class WeaponImporter extends DataImporter {
             data.data.technology.availability = ImportHelper.stringValue(jsonData, "avail");
             data.data.technology.cost = ImportHelper.intValue(jsonData, "cost", 0);
 
-            //TODO: Derive from mods.
             data.data.technology.conceal.base = ImportHelper.intValue(jsonData, "conceal");
-            data.data.technology.conceal.value = ImportHelper.intValue(jsonData, "conceal");
 
             data.data.category = this.GetWeaponType(jsonData);
 

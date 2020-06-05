@@ -72,8 +72,7 @@ export class ModImporter extends DataImporter {
             data.data.rc = ImportHelper.intValue(jsonData, "rc", 0);
             data.data.accuracy = ImportHelper.intValue(jsonData, "accuracy", 0);
 
-            //TODO when conceal for mods gets implemented
-            // data.data.concreal = ImportHelper.intValue(jsonData, "concreal", 0);
+            data.data.technology.conceal.base = ImportHelper.intValue(jsonData, "conceal", 0);
 
             let folderName = (data.data.mount_point !== undefined) ? data.data.mount_point : "Other";
             if (folderName.includes("/")) {

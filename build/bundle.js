@@ -14,6 +14,8 @@ exports.Import = void 0;
 const WeaponImporter_1 = require("../importer/WeaponImporter");
 const ArmorImporter_1 = require("../importer/ArmorImporter");
 const DataImporter_1 = require("../importer/DataImporter");
+const AmmoImporter_1 = require("../importer/AmmoImporter");
+const ModImporter_1 = require("../importer/ModImporter");
 let Import = /** @class */ (() => {
     class Import extends Application {
         static get defaultOptions() {
@@ -45,15 +47,146 @@ let Import = /** @class */ (() => {
             }));
         }
     }
+    //Order is important, ex. some weapons need mods to fully import
     Import.Importers = [
+        new ModImporter_1.ModImporter(),
         new WeaponImporter_1.WeaponImporter(),
-        new ArmorImporter_1.ArmorImporter()
+        new ArmorImporter_1.ArmorImporter(),
+        new AmmoImporter_1.AmmoImporter(),
     ];
     return Import;
 })();
 exports.Import = Import;
 
-},{"../importer/ArmorImporter":2,"../importer/DataImporter":4,"../importer/WeaponImporter":6}],2:[function(require,module,exports){
+},{"../importer/AmmoImporter":2,"../importer/ArmorImporter":3,"../importer/DataImporter":5,"../importer/ModImporter":7,"../importer/WeaponImporter":8}],2:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AmmoImporter = void 0;
+const DataImporter_1 = require("./DataImporter");
+const ImportHelper_1 = require("./ImportHelper");
+const Constants_1 = require("./Constants");
+class AmmoImporter extends DataImporter_1.DataImporter {
+    CanParse(jsonObject) {
+        return jsonObject.hasOwnProperty("gears") && jsonObject["gears"].hasOwnProperty("gear");
+    }
+    GetDefaultData() {
+        return {
+            name: "",
+            folder: null,
+            type: "ammo",
+            data: {
+                description: {
+                    value: "",
+                    chat: "",
+                    source: ""
+                },
+                technology: {
+                    rating: 1,
+                    availability: "",
+                    quantity: 1,
+                    cost: 0,
+                    equipped: true,
+                    conceal: {
+                        base: 0,
+                        value: 0,
+                        mod: {}
+                    }
+                },
+                condition_monitor: {
+                    value: 0,
+                    max: 0
+                },
+                element: "",
+                ap: 0,
+                damage: 0,
+                damageType: "physical",
+                blast: {
+                    radius: 0,
+                    dropoff: 0
+                }
+            },
+            permission: {
+                default: 2
+            }
+        };
+    }
+    Parse(jsonObject) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let ammoDatas = [];
+            let jsonAmmos = jsonObject["gears"]["gear"];
+            for (let i = 0; i < jsonAmmos.length; i++) {
+                let jsonData = jsonAmmos[i];
+                if (ImportHelper_1.ImportHelper.stringValue(jsonData, "category", "") !== "Ammunition") {
+                    continue;
+                }
+                let data = this.GetDefaultData();
+                data.name = ImportHelper_1.ImportHelper.stringValue(jsonData, "name");
+                data.data.description.source = `${ImportHelper_1.ImportHelper.stringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.stringValue(jsonData, "page")}`;
+                data.data.technology.rating = 2;
+                data.data.technology.availability = ImportHelper_1.ImportHelper.stringValue(jsonData, "avail");
+                data.data.technology.cost = ImportHelper_1.ImportHelper.intValue(jsonData, "cost", 0);
+                let bonusData = ImportHelper_1.ImportHelper.objectValue(jsonData, "weaponbonus", null);
+                if (bonusData !== undefined && bonusData !== null) {
+                    data.data.ap = ImportHelper_1.ImportHelper.intValue(bonusData, "ap", 0);
+                    data.data.damage = ImportHelper_1.ImportHelper.intValue(bonusData, "damage", 0);
+                    let damageType = ImportHelper_1.ImportHelper.stringValue(bonusData, "damagetype", "");
+                    if (damageType.length > 0) {
+                        if (damageType.includes("P")) {
+                            data.data.damageType = "physical";
+                        }
+                        else if (damageType.includes("S")) {
+                            data.data.damageType = "stun";
+                        }
+                        else if (damageType.includes("M")) {
+                            data.data.damageType = "matrix";
+                        }
+                    }
+                }
+                let shouldLookForWeapons = false;
+                let nameLower = data.name.toLowerCase();
+                ["grenade", "rocket", "missile"].forEach((compare) => {
+                    shouldLookForWeapons = shouldLookForWeapons || nameLower.includes(compare);
+                });
+                if (shouldLookForWeapons) {
+                    let foundWeapon = ImportHelper_1.ImportHelper.findItem((item) => {
+                        return item.name.toLowerCase() === nameLower;
+                    });
+                    if (foundWeapon !== null) {
+                        data.data.damage = foundWeapon.data.data.action.damage.value;
+                        data.data.ap = foundWeapon.data.data.action.damage.ap.value;
+                    }
+                }
+                // ammo doesn't have conceal rating from looking at the data
+                // data.data.technology.conceal.base = ImportHelper.intValue(jsonData, "conceal");
+                data.data.technology.conceal.base = 0;
+                ammoDatas.push(data);
+            }
+            for (let i = 0; i < ammoDatas.length; i++) {
+                let folderName = "Misc";
+                let ammo = ammoDatas[i];
+                let splitName = ammo.name.split(":");
+                if (splitName.length > 1) {
+                    folderName = splitName[0].trim();
+                }
+                let folder = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Ammo/${folderName}`, true);
+                ammo.folder = folder.id;
+            }
+            return yield Item.create(ammoDatas);
+        });
+    }
+}
+exports.AmmoImporter = AmmoImporter;
+
+},{"./Constants":4,"./DataImporter":5,"./ImportHelper":6}],3:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -85,12 +218,20 @@ class ArmorImporter extends DataImporter_1.DataImporter {
                     source: ""
                 },
                 technology: {
-                    rating: 0,
-                    availability: "0",
+                    rating: 1,
+                    availability: "",
                     quantity: 1,
                     cost: 0,
                     equipped: true,
-                    concealability: 0
+                    conceal: {
+                        base: 0,
+                        value: 0,
+                        mod: {}
+                    }
+                },
+                condition_monitor: {
+                    value: 0,
+                    max: 0
                 },
                 armor: {
                     value: 0,
@@ -145,7 +286,7 @@ class ArmorImporter extends DataImporter_1.DataImporter {
 }
 exports.ArmorImporter = ArmorImporter;
 
-},{"./Constants":3,"./DataImporter":4,"./ImportHelper":5}],3:[function(require,module,exports){
+},{"./Constants":4,"./DataImporter":5,"./ImportHelper":6}],4:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Constants = void 0;
@@ -370,7 +511,7 @@ let Constants = /** @class */ (() => {
 })();
 exports.Constants = Constants;
 
-},{}],4:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -404,7 +545,7 @@ class DataImporter {
 }
 exports.DataImporter = DataImporter;
 
-},{"./ImportHelper":5,"xml2js":49}],5:[function(require,module,exports){
+},{"./ImportHelper":6,"xml2js":51}],6:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -447,7 +588,6 @@ let ImportHelper = /** @class */ (() => {
          */
         static GetFolderAtPath(path, mkdirs = false) {
             return __awaiter(this, void 0, void 0, function* () {
-                console.log(`Trying to find the following path: ${path}`);
                 let idx = 0;
                 let curr, last = null;
                 let next = path.split("/");
@@ -505,6 +645,25 @@ let ImportHelper = /** @class */ (() => {
             }
         }
         /**
+         * Get an object from the the provided jsonData, optionally returning a default value if it is not found.
+         * @param jsonData The data to get the keyed value in.
+         * @param key The key to check for the value under.
+         * @param fallback An optional default value to return if the key is not found.
+         */
+        static objectValue(jsonData, key, fallback = undefined) {
+            try {
+                return jsonData[key];
+            }
+            catch (e) {
+                if (fallback !== undefined) {
+                    return fallback;
+                }
+                else {
+                    throw e;
+                }
+            }
+        }
+        /**
          * A decorated parseInt which supports error suppression by providing a default value to
          * be returned in the event an error is raised.
          * @param value The value to parse.
@@ -523,13 +682,114 @@ let ImportHelper = /** @class */ (() => {
                 }
             }
         }
+        //TODO
+        static findItem(nameOrCmp) {
+            let result;
+            if (typeof (nameOrCmp) === "string") {
+                result = game.items.find((item) => item.name == nameOrCmp);
+            }
+            else {
+                result = game.items.find(nameOrCmp);
+            }
+            return result;
+        }
     }
     ImportHelper.CHAR_KEY = "_TEXT";
     return ImportHelper;
 })();
 exports.ImportHelper = ImportHelper;
 
-},{}],6:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ModImporter = void 0;
+const DataImporter_1 = require("./DataImporter");
+const ImportHelper_1 = require("./ImportHelper");
+const Constants_1 = require("./Constants");
+class ModImporter extends DataImporter_1.DataImporter {
+    CanParse(jsonObject) {
+        return jsonObject.hasOwnProperty("accessories") && jsonObject["accessories"].hasOwnProperty("accessory");
+    }
+    GetDefaultData() {
+        return {
+            name: "",
+            folder: null,
+            type: "modification",
+            data: {
+                description: {
+                    value: "",
+                    chat: "",
+                    source: ""
+                },
+                technology: {
+                    rating: 1,
+                    availability: "",
+                    quantity: 1,
+                    cost: 0,
+                    equipped: true,
+                    conceal: {
+                        base: 0,
+                        value: 0,
+                        mod: {}
+                    }
+                },
+                condition_monitor: {
+                    value: 0,
+                    max: 0
+                },
+                type: "",
+                mount_point: "",
+                dice_pool: 0,
+                accuracy: 0,
+                rc: 0
+            },
+            permission: {
+                default: 2
+            }
+        };
+    }
+    Parse(jsonObject) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let modDatas = [];
+            let jsonAccs = jsonObject["accessories"]["accessory"];
+            for (let i = 0; i < jsonAccs.length; i++) {
+                let jsonData = jsonAccs[i];
+                let data = this.GetDefaultData();
+                data.name = ImportHelper_1.ImportHelper.stringValue(jsonData, "name");
+                data.data.description.source = `${ImportHelper_1.ImportHelper.stringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.stringValue(jsonData, "page")}`;
+                data.data.technology.availability = ImportHelper_1.ImportHelper.stringValue(jsonData, "avail", "0");
+                data.data.technology.cost = ImportHelper_1.ImportHelper.intValue(jsonData, "cost", 0);
+                data.data.technology.rating = ImportHelper_1.ImportHelper.intValue(jsonData, "rating", 0);
+                data.data.type = "weapon";
+                data.data.mount_point = ImportHelper_1.ImportHelper.stringValue(jsonData, "mount");
+                data.data.rc = ImportHelper_1.ImportHelper.intValue(jsonData, "rc", 0);
+                data.data.accuracy = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy", 0);
+                data.data.technology.conceal.base = ImportHelper_1.ImportHelper.intValue(jsonData, "conceal", 0);
+                let folderName = (data.data.mount_point !== undefined) ? data.data.mount_point : "Other";
+                if (folderName.includes("/")) {
+                    let splitName = folderName.split("/");
+                    folderName = splitName[0];
+                }
+                let folder = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Mods/${folderName}`, true);
+                data.folder = folder.id;
+                modDatas.push(data);
+            }
+            return yield Item.create(modDatas);
+        });
+    }
+}
+exports.ModImporter = ModImporter;
+
+},{"./Constants":4,"./DataImporter":5,"./ImportHelper":6}],8:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -574,12 +834,12 @@ class WeaponImporter extends DataImporter_1.DataImporter {
                     mod_description: "",
                     damage: {
                         type: {
-                            base: DamageType.physical,
-                            value: DamageType.none
+                            base: "physical",
+                            value: "physical"
                         },
                         element: {
-                            base: DamageElement.none,
-                            value: DamageElement.none
+                            base: "",
+                            value: ""
                         },
                         base: 0,
                         value: 0,
@@ -599,7 +859,7 @@ class WeaponImporter extends DataImporter_1.DataImporter {
                     },
                     extended: false,
                     opposed: {
-                        type: OpposedType.defense,
+                        type: "defense",
                         attribute: "",
                         attribute2: "",
                         skill: "",
@@ -671,7 +931,7 @@ class WeaponImporter extends DataImporter_1.DataImporter {
                         dropoff: 0
                     }
                 },
-                category: WeaponCategory.range
+                category: "range"
             },
             permission: {
                 default: 2
@@ -682,21 +942,21 @@ class WeaponImporter extends DataImporter_1.DataImporter {
         let type = ImportHelper_1.ImportHelper.stringValue(weaponJson, "type");
         //melee is the least specific, all melee entries are accurate
         if (type === "Melee") {
-            return WeaponCategory.melee;
+            return "melee";
         }
         else {
             // skill takes priorities over category
             if (weaponJson.hasOwnProperty("useskill")) {
                 let skill = ImportHelper_1.ImportHelper.stringValue(weaponJson, "useskill");
                 if (skill === "Throwing Weapons")
-                    return WeaponCategory.thrown;
+                    return "thrown";
             }
             // category is the fallback
             let category = ImportHelper_1.ImportHelper.stringValue(weaponJson, "category");
             if (category === "Throwing Weapons")
-                return WeaponCategory.thrown;
+                return "thrown";
             // ranged is everything else
-            return WeaponCategory.range;
+            return "range";
         }
     }
     Parse(jsonObject) {
@@ -729,18 +989,16 @@ class WeaponImporter extends DataImporter_1.DataImporter {
                 data.data.technology.rating = 2;
                 data.data.technology.availability = ImportHelper_1.ImportHelper.stringValue(jsonData, "avail");
                 data.data.technology.cost = ImportHelper_1.ImportHelper.intValue(jsonData, "cost", 0);
-                //TODO: Derive from mods.
                 data.data.technology.conceal.base = ImportHelper_1.ImportHelper.intValue(jsonData, "conceal");
-                data.data.technology.conceal.value = ImportHelper_1.ImportHelper.intValue(jsonData, "conceal");
                 data.data.category = this.GetWeaponType(jsonData);
                 switch (data.data.category) {
-                    case WeaponCategory.range:
+                    case "range":
                         data = rangedParser.Parse(jsonData, data);
                         break;
-                    case WeaponCategory.melee:
+                    case "melee":
                         data = meleeParser.Parse(jsonData, data);
                         break;
-                    case WeaponCategory.thrown:
+                    case "thrown":
                         data = thrownParser.Parse(jsonData, data);
                         break;
                 }
@@ -752,7 +1010,7 @@ class WeaponImporter extends DataImporter_1.DataImporter {
 }
 exports.WeaponImporter = WeaponImporter;
 
-},{"./Constants":3,"./DataImporter":4,"./ImportHelper":5,"./weapon/MeleeParser":7,"./weapon/RangedParser":8,"./weapon/ThrownParser":9}],7:[function(require,module,exports){
+},{"./Constants":4,"./DataImporter":5,"./ImportHelper":6,"./weapon/MeleeParser":9,"./weapon/RangedParser":10,"./weapon/ThrownParser":11}],9:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MeleeParser = void 0;
@@ -766,12 +1024,12 @@ class MeleeParser extends WeaponParser_1.WeaponParser {
         if (damageCode == null) {
             return {
                 type: {
-                    base: DamageType.physical,
-                    value: DamageType.physical
+                    base: "physical",
+                    value: "physical"
                 },
                 element: {
-                    base: DamageElement.none,
-                    value: DamageElement.none
+                    base: "",
+                    value: ""
                 },
                 base: 0,
                 value: 0,
@@ -799,8 +1057,8 @@ class MeleeParser extends WeaponParser_1.WeaponParser {
                 value: damageType
             },
             element: {
-                base: DamageElement.none,
-                value: DamageElement.none
+                base: "",
+                value: ""
             },
             base: damageBase,
             value: damageBase,
@@ -827,7 +1085,7 @@ class MeleeParser extends WeaponParser_1.WeaponParser {
 }
 exports.MeleeParser = MeleeParser;
 
-},{"../ImportHelper":5,"./WeaponParser":10}],8:[function(require,module,exports){
+},{"../ImportHelper":6,"./WeaponParser":12}],10:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RangedParser = void 0;
@@ -842,12 +1100,12 @@ class RangedParser extends WeaponParser_1.WeaponParser {
         if (damageCode == null) {
             return {
                 type: {
-                    base: DamageType.physical,
-                    value: DamageType.none
+                    base: "physical",
+                    value: ""
                 },
                 element: {
-                    base: DamageElement.none,
-                    value: DamageElement.none
+                    base: "",
+                    value: ""
                 },
                 base: 0,
                 value: 0,
@@ -869,8 +1127,8 @@ class RangedParser extends WeaponParser_1.WeaponParser {
                 value: damageType
             },
             element: {
-                base: DamageElement.none,
-                value: DamageElement.none
+                base: "",
+                value: ""
             },
             value: damageAmount,
             ap: {
@@ -888,7 +1146,7 @@ class RangedParser extends WeaponParser_1.WeaponParser {
         var _a;
         let jsonAmmo = ImportHelper_1.ImportHelper.stringValue(weaponJson, "ammo");
         let match = (_a = jsonAmmo.match(/([0-9]+)/g)) === null || _a === void 0 ? void 0 : _a[0];
-        return (match !== null) ? parseInt(match) : 0;
+        return (match !== undefined) ? parseInt(match) : 0;
     }
     Parse(jsonData, data) {
         data.data.action.category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category");
@@ -917,7 +1175,7 @@ class RangedParser extends WeaponParser_1.WeaponParser {
 }
 exports.RangedParser = RangedParser;
 
-},{"../Constants":3,"../ImportHelper":5,"./WeaponParser":10}],9:[function(require,module,exports){
+},{"../Constants":4,"../ImportHelper":6,"./WeaponParser":12}],11:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ThrownParser = void 0;
@@ -935,23 +1193,29 @@ class ThrownParser extends WeaponParser_1.WeaponParser {
         //STR scaling weapons like the boomerang
         if (jsonDamage.includes("STR")) {
             damageAttribute = "strength";
-            damageCode = (_a = jsonDamage.match(/((STR)([+-])[0-9]\)[PS])/g)) === null || _a === void 0 ? void 0 : _a[0];
-            if (damageCode !== undefined) {
-                let amountMatch = (_b = damageCode.match(/-?[0-9]+/g)) === null || _b === void 0 ? void 0 : _b[0];
+            let damageMatch = (_a = jsonDamage.match(/((STR)([+-])[0-9]\)[PS])/g)) === null || _a === void 0 ? void 0 : _a[0];
+            if (damageMatch !== undefined) {
+                let amountMatch = (_b = damageMatch.match(/-?[0-9]+/g)) === null || _b === void 0 ? void 0 : _b[0];
                 damageAmount = (amountMatch !== undefined) ? parseInt(amountMatch) : 0;
             }
         }
         else {
-            damageCode = (_c = jsonDamage.match(/([0-9]+[PS])/g)) === null || _c === void 0 ? void 0 : _c[0];
-            if (damageCode === undefined) {
+            let damageMatch = (_c = jsonDamage.match(/([0-9]+[PS])/g)) === null || _c === void 0 ? void 0 : _c[0];
+            if (damageMatch !== undefined) {
+                let amountMatch = (_d = damageMatch.match(/[0-9]+/g)) === null || _d === void 0 ? void 0 : _d[0];
+                if (amountMatch !== undefined) {
+                    damageAmount = parseInt(amountMatch);
+                }
+            }
+            else {
                 return {
                     type: {
-                        base: DamageType.physical,
-                        value: DamageType.physical
+                        base: "physical",
+                        value: "physical"
                     },
                     element: {
-                        base: DamageElement.none,
-                        value: DamageElement.none
+                        base: "",
+                        value: ""
                     },
                     base: 0,
                     value: 0,
@@ -964,10 +1228,6 @@ class ThrownParser extends WeaponParser_1.WeaponParser {
                     mod: {}
                 };
             }
-            let amountMatch = (_d = damageCode.match(/[0-9]+/g)) === null || _d === void 0 ? void 0 : _d[0];
-            if (amountMatch !== undefined) {
-                damageAmount = parseInt(amountMatch);
-            }
         }
         damageType = jsonDamage.includes("P") ? "physical" : "stun";
         let damageAp = ImportHelper_1.ImportHelper.intValue(jsonData, "ap", 0);
@@ -977,8 +1237,8 @@ class ThrownParser extends WeaponParser_1.WeaponParser {
                 value: damageType
             },
             element: {
-                base: DamageElement.none,
-                value: DamageElement.none
+                base: "",
+                value: ""
             },
             base: damageAmount,
             value: damageAmount,
@@ -993,7 +1253,7 @@ class ThrownParser extends WeaponParser_1.WeaponParser {
     }
     ;
     GetBlast(jsonData, data) {
-        var _a, _b;
+        var _a, _b, _c, _d;
         let blastData = {
             radius: 0,
             dropoff: 0
@@ -1001,11 +1261,17 @@ class ThrownParser extends WeaponParser_1.WeaponParser {
         let blastCode = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
         let radiusMatch = (_a = blastCode.match(/([0-9]+m)/)) === null || _a === void 0 ? void 0 : _a[0];
         if (radiusMatch !== undefined) {
-            blastData.radius = parseInt(radiusMatch.match(/[0-9]+/)[0]);
+            radiusMatch = (_b = radiusMatch.match(/[0-9]+/)) === null || _b === void 0 ? void 0 : _b[0];
+            if (radiusMatch !== undefined) {
+                blastData.radius = parseInt(radiusMatch);
+            }
         }
-        let dropoffMatch = (_b = blastCode.match(/(\-[0-9]+\/m)/)) === null || _b === void 0 ? void 0 : _b[0];
+        let dropoffMatch = (_c = blastCode.match(/(\-[0-9]+\/m)/)) === null || _c === void 0 ? void 0 : _c[0];
         if (dropoffMatch !== undefined) {
-            blastData.dropoff = parseInt(dropoffMatch.match(/\-[0-9]+/)[0]);
+            dropoffMatch = (_d = dropoffMatch.match(/\-[0-9]+/)) === null || _d === void 0 ? void 0 : _d[0];
+            if (dropoffMatch !== undefined) {
+                blastData.dropoff = parseInt(dropoffMatch);
+            }
         }
         if (blastData.dropoff && !blastData.radius) {
             blastData.radius = -(data.data.action.damage.base / blastData.dropoff);
@@ -1030,7 +1296,7 @@ class ThrownParser extends WeaponParser_1.WeaponParser {
 }
 exports.ThrownParser = ThrownParser;
 
-},{"../Constants":3,"../ImportHelper":5,"./WeaponParser":10}],10:[function(require,module,exports){
+},{"../Constants":4,"../ImportHelper":6,"./WeaponParser":12}],12:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WeaponParser = void 0;
@@ -1058,7 +1324,7 @@ class WeaponParser {
 }
 exports.WeaponParser = WeaponParser;
 
-},{"../Constants":3,"../ImportHelper":5}],11:[function(require,module,exports){
+},{"../Constants":4,"../ImportHelper":6}],13:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const import_form_1 = require("./apps/import-form");
@@ -1070,7 +1336,7 @@ Hooks.on("renderItemDirectory", (app, html) => {
     });
 });
 
-},{"./apps/import-form":1}],12:[function(require,module,exports){
+},{"./apps/import-form":1}],14:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -1224,9 +1490,9 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],13:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 
-},{}],14:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 (function (Buffer){
 /*!
  * The buffer module from node.js, for the browser.
@@ -3007,7 +3273,7 @@ function numberIsNaN (obj) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"base64-js":12,"buffer":14,"ieee754":17}],15:[function(require,module,exports){
+},{"base64-js":14,"buffer":16,"ieee754":19}],17:[function(require,module,exports){
 (function (Buffer){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3118,7 +3384,7 @@ function objectToString(o) {
 }
 
 }).call(this,{"isBuffer":require("../../is-buffer/index.js")})
-},{"../../is-buffer/index.js":19}],16:[function(require,module,exports){
+},{"../../is-buffer/index.js":21}],18:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3643,7 +3909,7 @@ function functionBindPolyfill(context) {
   };
 }
 
-},{}],17:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = (nBytes * 8) - mLen - 1
@@ -3729,7 +3995,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],18:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -3758,7 +4024,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],19:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 /*!
  * Determine if an object is a Buffer
  *
@@ -3781,14 +4047,14 @@ function isSlowBuffer (obj) {
   return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
 }
 
-},{}],20:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 var toString = {}.toString;
 
 module.exports = Array.isArray || function (arr) {
   return toString.call(arr) == '[object Array]';
 };
 
-},{}],21:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -3837,7 +4103,7 @@ function nextTick(fn, arg1, arg2, arg3) {
 
 
 }).call(this,require('_process'))
-},{"_process":22}],22:[function(require,module,exports){
+},{"_process":24}],24:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -4023,10 +4289,10 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],23:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 module.exports = require('./lib/_stream_duplex.js');
 
-},{"./lib/_stream_duplex.js":24}],24:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":26}],26:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4158,7 +4424,7 @@ Duplex.prototype._destroy = function (err, cb) {
 
   pna.nextTick(cb, err);
 };
-},{"./_stream_readable":26,"./_stream_writable":28,"core-util-is":15,"inherits":18,"process-nextick-args":21}],25:[function(require,module,exports){
+},{"./_stream_readable":28,"./_stream_writable":30,"core-util-is":17,"inherits":20,"process-nextick-args":23}],27:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4206,7 +4472,7 @@ function PassThrough(options) {
 PassThrough.prototype._transform = function (chunk, encoding, cb) {
   cb(null, chunk);
 };
-},{"./_stream_transform":27,"core-util-is":15,"inherits":18}],26:[function(require,module,exports){
+},{"./_stream_transform":29,"core-util-is":17,"inherits":20}],28:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -5228,7 +5494,7 @@ function indexOf(xs, x) {
   return -1;
 }
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./_stream_duplex":24,"./internal/streams/BufferList":29,"./internal/streams/destroy":30,"./internal/streams/stream":31,"_process":22,"core-util-is":15,"events":16,"inherits":18,"isarray":20,"process-nextick-args":21,"safe-buffer":32,"string_decoder/":33,"util":13}],27:[function(require,module,exports){
+},{"./_stream_duplex":26,"./internal/streams/BufferList":31,"./internal/streams/destroy":32,"./internal/streams/stream":33,"_process":24,"core-util-is":17,"events":18,"inherits":20,"isarray":22,"process-nextick-args":23,"safe-buffer":34,"string_decoder/":35,"util":15}],29:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -5443,7 +5709,7 @@ function done(stream, er, data) {
 
   return stream.push(null);
 }
-},{"./_stream_duplex":24,"core-util-is":15,"inherits":18}],28:[function(require,module,exports){
+},{"./_stream_duplex":26,"core-util-is":17,"inherits":20}],30:[function(require,module,exports){
 (function (process,global,setImmediate){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -6133,7 +6399,7 @@ Writable.prototype._destroy = function (err, cb) {
   cb(err);
 };
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("timers").setImmediate)
-},{"./_stream_duplex":24,"./internal/streams/destroy":30,"./internal/streams/stream":31,"_process":22,"core-util-is":15,"inherits":18,"process-nextick-args":21,"safe-buffer":32,"timers":42,"util-deprecate":43}],29:[function(require,module,exports){
+},{"./_stream_duplex":26,"./internal/streams/destroy":32,"./internal/streams/stream":33,"_process":24,"core-util-is":17,"inherits":20,"process-nextick-args":23,"safe-buffer":34,"timers":44,"util-deprecate":45}],31:[function(require,module,exports){
 'use strict';
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -6213,7 +6479,7 @@ if (util && util.inspect && util.inspect.custom) {
     return this.constructor.name + ' ' + obj;
   };
 }
-},{"safe-buffer":32,"util":13}],30:[function(require,module,exports){
+},{"safe-buffer":34,"util":15}],32:[function(require,module,exports){
 'use strict';
 
 /*<replacement>*/
@@ -6288,10 +6554,10 @@ module.exports = {
   destroy: destroy,
   undestroy: undestroy
 };
-},{"process-nextick-args":21}],31:[function(require,module,exports){
+},{"process-nextick-args":23}],33:[function(require,module,exports){
 module.exports = require('events').EventEmitter;
 
-},{"events":16}],32:[function(require,module,exports){
+},{"events":18}],34:[function(require,module,exports){
 /* eslint-disable node/no-deprecated-api */
 var buffer = require('buffer')
 var Buffer = buffer.Buffer
@@ -6355,7 +6621,7 @@ SafeBuffer.allocUnsafeSlow = function (size) {
   return buffer.SlowBuffer(size)
 }
 
-},{"buffer":14}],33:[function(require,module,exports){
+},{"buffer":16}],35:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -6652,10 +6918,10 @@ function simpleWrite(buf) {
 function simpleEnd(buf) {
   return buf && buf.length ? this.write(buf) : '';
 }
-},{"safe-buffer":32}],34:[function(require,module,exports){
+},{"safe-buffer":34}],36:[function(require,module,exports){
 module.exports = require('./readable').PassThrough
 
-},{"./readable":35}],35:[function(require,module,exports){
+},{"./readable":37}],37:[function(require,module,exports){
 exports = module.exports = require('./lib/_stream_readable.js');
 exports.Stream = exports;
 exports.Readable = exports;
@@ -6664,13 +6930,13 @@ exports.Duplex = require('./lib/_stream_duplex.js');
 exports.Transform = require('./lib/_stream_transform.js');
 exports.PassThrough = require('./lib/_stream_passthrough.js');
 
-},{"./lib/_stream_duplex.js":24,"./lib/_stream_passthrough.js":25,"./lib/_stream_readable.js":26,"./lib/_stream_transform.js":27,"./lib/_stream_writable.js":28}],36:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":26,"./lib/_stream_passthrough.js":27,"./lib/_stream_readable.js":28,"./lib/_stream_transform.js":29,"./lib/_stream_writable.js":30}],38:[function(require,module,exports){
 module.exports = require('./readable').Transform
 
-},{"./readable":35}],37:[function(require,module,exports){
+},{"./readable":37}],39:[function(require,module,exports){
 module.exports = require('./lib/_stream_writable.js');
 
-},{"./lib/_stream_writable.js":28}],38:[function(require,module,exports){
+},{"./lib/_stream_writable.js":30}],40:[function(require,module,exports){
 /*! safe-buffer. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */
 /* eslint-disable node/no-deprecated-api */
 var buffer = require('buffer')
@@ -6737,7 +7003,7 @@ SafeBuffer.allocUnsafeSlow = function (size) {
   return buffer.SlowBuffer(size)
 }
 
-},{"buffer":14}],39:[function(require,module,exports){
+},{"buffer":16}],41:[function(require,module,exports){
 (function (Buffer){
 ;(function (sax) { // wrapper for non-node envs
   sax.parser = function (strict, opt) { return new SAXParser(strict, opt) }
@@ -8306,7 +8572,7 @@ SafeBuffer.allocUnsafeSlow = function (size) {
 })(typeof exports === 'undefined' ? this.sax = {} : exports)
 
 }).call(this,require("buffer").Buffer)
-},{"buffer":14,"stream":40,"string_decoder":41}],40:[function(require,module,exports){
+},{"buffer":16,"stream":42,"string_decoder":43}],42:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -8435,9 +8701,9 @@ Stream.prototype.pipe = function(dest, options) {
   return dest;
 };
 
-},{"events":16,"inherits":18,"readable-stream/duplex.js":23,"readable-stream/passthrough.js":34,"readable-stream/readable.js":35,"readable-stream/transform.js":36,"readable-stream/writable.js":37}],41:[function(require,module,exports){
-arguments[4][33][0].apply(exports,arguments)
-},{"dup":33,"safe-buffer":38}],42:[function(require,module,exports){
+},{"events":18,"inherits":20,"readable-stream/duplex.js":25,"readable-stream/passthrough.js":36,"readable-stream/readable.js":37,"readable-stream/transform.js":38,"readable-stream/writable.js":39}],43:[function(require,module,exports){
+arguments[4][35][0].apply(exports,arguments)
+},{"dup":35,"safe-buffer":40}],44:[function(require,module,exports){
 (function (setImmediate,clearImmediate){
 var nextTick = require('process/browser.js').nextTick;
 var apply = Function.prototype.apply;
@@ -8516,7 +8782,7 @@ exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate :
   delete immediateIds[id];
 };
 }).call(this,require("timers").setImmediate,require("timers").clearImmediate)
-},{"process/browser.js":22,"timers":42}],43:[function(require,module,exports){
+},{"process/browser.js":24,"timers":44}],45:[function(require,module,exports){
 (function (global){
 
 /**
@@ -8587,7 +8853,7 @@ function config (name) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],44:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -8601,7 +8867,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],45:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -8730,7 +8996,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./defaults":46,"xmlbuilder":82}],46:[function(require,module,exports){
+},{"./defaults":48,"xmlbuilder":84}],48:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   exports.defaults = {
@@ -8804,7 +9070,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],47:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -9187,7 +9453,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./bom":44,"./defaults":46,"./processors":48,"events":16,"sax":39,"timers":42}],48:[function(require,module,exports){
+},{"./bom":46,"./defaults":48,"./processors":50,"events":18,"sax":41,"timers":44}],50:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -9223,7 +9489,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],49:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -9264,7 +9530,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./builder":45,"./defaults":46,"./parser":47,"./processors":48}],50:[function(require,module,exports){
+},{"./builder":47,"./defaults":48,"./parser":49,"./processors":50}],52:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   module.exports = {
@@ -9278,7 +9544,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],51:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   module.exports = {
@@ -9303,7 +9569,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],52:[function(require,module,exports){
+},{}],54:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var assign, getValue, isArray, isEmpty, isFunction, isObject, isPlainObject,
@@ -9388,7 +9654,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],53:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   module.exports = {
@@ -9400,7 +9666,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],54:[function(require,module,exports){
+},{}],56:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLAttribute, XMLNode;
@@ -9510,7 +9776,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./XMLNode":73}],55:[function(require,module,exports){
+},{"./NodeType":53,"./XMLNode":75}],57:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLCData, XMLCharacterData,
@@ -9548,7 +9814,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./XMLCharacterData":56}],56:[function(require,module,exports){
+},{"./NodeType":53,"./XMLCharacterData":58}],58:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLCharacterData, XMLNode,
@@ -9629,7 +9895,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./XMLNode":73}],57:[function(require,module,exports){
+},{"./XMLNode":75}],59:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLCharacterData, XMLComment,
@@ -9667,7 +9933,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./XMLCharacterData":56}],58:[function(require,module,exports){
+},{"./NodeType":53,"./XMLCharacterData":58}],60:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLDOMConfiguration, XMLDOMErrorHandler, XMLDOMStringList;
@@ -9733,7 +9999,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./XMLDOMErrorHandler":59,"./XMLDOMStringList":61}],59:[function(require,module,exports){
+},{"./XMLDOMErrorHandler":61,"./XMLDOMStringList":63}],61:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLDOMErrorHandler;
@@ -9751,7 +10017,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],60:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLDOMImplementation;
@@ -9785,7 +10051,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],61:[function(require,module,exports){
+},{}],63:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLDOMStringList;
@@ -9815,7 +10081,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],62:[function(require,module,exports){
+},{}],64:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDAttList, XMLNode,
@@ -9872,7 +10138,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./XMLNode":73}],63:[function(require,module,exports){
+},{"./NodeType":53,"./XMLNode":75}],65:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDElement, XMLNode,
@@ -9912,7 +10178,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./XMLNode":73}],64:[function(require,module,exports){
+},{"./NodeType":53,"./XMLNode":75}],66:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDEntity, XMLNode, isObject,
@@ -10011,7 +10277,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./Utility":52,"./XMLNode":73}],65:[function(require,module,exports){
+},{"./NodeType":53,"./Utility":54,"./XMLNode":75}],67:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDNotation, XMLNode,
@@ -10065,7 +10331,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./XMLNode":73}],66:[function(require,module,exports){
+},{"./NodeType":53,"./XMLNode":75}],68:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDeclaration, XMLNode, isObject,
@@ -10110,7 +10376,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./Utility":52,"./XMLNode":73}],67:[function(require,module,exports){
+},{"./NodeType":53,"./Utility":54,"./XMLNode":75}],69:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDocType, XMLNamedNodeMap, XMLNode, isObject,
@@ -10298,7 +10564,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./Utility":52,"./XMLDTDAttList":62,"./XMLDTDElement":63,"./XMLDTDEntity":64,"./XMLDTDNotation":65,"./XMLNamedNodeMap":72,"./XMLNode":73}],68:[function(require,module,exports){
+},{"./NodeType":53,"./Utility":54,"./XMLDTDAttList":64,"./XMLDTDElement":65,"./XMLDTDEntity":66,"./XMLDTDNotation":67,"./XMLNamedNodeMap":74,"./XMLNode":75}],70:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDOMConfiguration, XMLDOMImplementation, XMLDocument, XMLNode, XMLStringWriter, XMLStringifier, isPlainObject,
@@ -10542,7 +10808,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./Utility":52,"./XMLDOMConfiguration":58,"./XMLDOMImplementation":60,"./XMLNode":73,"./XMLStringWriter":78,"./XMLStringifier":79}],69:[function(require,module,exports){
+},{"./NodeType":53,"./Utility":54,"./XMLDOMConfiguration":60,"./XMLDOMImplementation":62,"./XMLNode":75,"./XMLStringWriter":80,"./XMLStringifier":81}],71:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, WriterState, XMLAttribute, XMLCData, XMLComment, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDeclaration, XMLDocType, XMLDocument, XMLDocumentCB, XMLElement, XMLProcessingInstruction, XMLRaw, XMLStringWriter, XMLStringifier, XMLText, getValue, isFunction, isObject, isPlainObject, ref,
@@ -11072,7 +11338,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./Utility":52,"./WriterState":53,"./XMLAttribute":54,"./XMLCData":55,"./XMLComment":57,"./XMLDTDAttList":62,"./XMLDTDElement":63,"./XMLDTDEntity":64,"./XMLDTDNotation":65,"./XMLDeclaration":66,"./XMLDocType":67,"./XMLDocument":68,"./XMLElement":71,"./XMLProcessingInstruction":75,"./XMLRaw":76,"./XMLStringWriter":78,"./XMLStringifier":79,"./XMLText":80}],70:[function(require,module,exports){
+},{"./NodeType":53,"./Utility":54,"./WriterState":55,"./XMLAttribute":56,"./XMLCData":57,"./XMLComment":59,"./XMLDTDAttList":64,"./XMLDTDElement":65,"./XMLDTDEntity":66,"./XMLDTDNotation":67,"./XMLDeclaration":68,"./XMLDocType":69,"./XMLDocument":70,"./XMLElement":73,"./XMLProcessingInstruction":77,"./XMLRaw":78,"./XMLStringWriter":80,"./XMLStringifier":81,"./XMLText":82}],72:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDummy, XMLNode,
@@ -11105,7 +11371,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./XMLNode":73}],71:[function(require,module,exports){
+},{"./NodeType":53,"./XMLNode":75}],73:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLAttribute, XMLElement, XMLNamedNodeMap, XMLNode, getValue, isFunction, isObject, ref,
@@ -11405,7 +11671,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./Utility":52,"./XMLAttribute":54,"./XMLNamedNodeMap":72,"./XMLNode":73}],72:[function(require,module,exports){
+},{"./NodeType":53,"./Utility":54,"./XMLAttribute":56,"./XMLNamedNodeMap":74,"./XMLNode":75}],74:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLNamedNodeMap;
@@ -11465,7 +11731,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],73:[function(require,module,exports){
+},{}],75:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var DocumentPosition, NodeType, XMLCData, XMLComment, XMLDeclaration, XMLDocType, XMLDummy, XMLElement, XMLNamedNodeMap, XMLNode, XMLNodeList, XMLProcessingInstruction, XMLRaw, XMLText, getValue, isEmpty, isFunction, isObject, ref1,
@@ -12252,7 +12518,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./DocumentPosition":50,"./NodeType":51,"./Utility":52,"./XMLCData":55,"./XMLComment":57,"./XMLDeclaration":66,"./XMLDocType":67,"./XMLDummy":70,"./XMLElement":71,"./XMLNamedNodeMap":72,"./XMLNodeList":74,"./XMLProcessingInstruction":75,"./XMLRaw":76,"./XMLText":80}],74:[function(require,module,exports){
+},{"./DocumentPosition":52,"./NodeType":53,"./Utility":54,"./XMLCData":57,"./XMLComment":59,"./XMLDeclaration":68,"./XMLDocType":69,"./XMLDummy":72,"./XMLElement":73,"./XMLNamedNodeMap":74,"./XMLNodeList":76,"./XMLProcessingInstruction":77,"./XMLRaw":78,"./XMLText":82}],76:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLNodeList;
@@ -12282,7 +12548,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],75:[function(require,module,exports){
+},{}],77:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLCharacterData, XMLProcessingInstruction,
@@ -12333,7 +12599,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./XMLCharacterData":56}],76:[function(require,module,exports){
+},{"./NodeType":53,"./XMLCharacterData":58}],78:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLNode, XMLRaw,
@@ -12370,7 +12636,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./XMLNode":73}],77:[function(require,module,exports){
+},{"./NodeType":53,"./XMLNode":75}],79:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, WriterState, XMLStreamWriter, XMLWriterBase,
@@ -12548,7 +12814,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./WriterState":53,"./XMLWriterBase":81}],78:[function(require,module,exports){
+},{"./NodeType":53,"./WriterState":55,"./XMLWriterBase":83}],80:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLStringWriter, XMLWriterBase,
@@ -12585,7 +12851,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./XMLWriterBase":81}],79:[function(require,module,exports){
+},{"./XMLWriterBase":83}],81:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLStringifier,
@@ -12827,7 +13093,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],80:[function(require,module,exports){
+},{}],82:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLCharacterData, XMLText,
@@ -12898,7 +13164,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./XMLCharacterData":56}],81:[function(require,module,exports){
+},{"./NodeType":53,"./XMLCharacterData":58}],83:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, WriterState, XMLCData, XMLComment, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDeclaration, XMLDocType, XMLDummy, XMLElement, XMLProcessingInstruction, XMLRaw, XMLText, XMLWriterBase, assign,
@@ -13328,7 +13594,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./Utility":52,"./WriterState":53,"./XMLCData":55,"./XMLComment":57,"./XMLDTDAttList":62,"./XMLDTDElement":63,"./XMLDTDEntity":64,"./XMLDTDNotation":65,"./XMLDeclaration":66,"./XMLDocType":67,"./XMLDummy":70,"./XMLElement":71,"./XMLProcessingInstruction":75,"./XMLRaw":76,"./XMLText":80}],82:[function(require,module,exports){
+},{"./NodeType":53,"./Utility":54,"./WriterState":55,"./XMLCData":57,"./XMLComment":59,"./XMLDTDAttList":64,"./XMLDTDElement":65,"./XMLDTDEntity":66,"./XMLDTDNotation":67,"./XMLDeclaration":68,"./XMLDocType":69,"./XMLDummy":72,"./XMLElement":73,"./XMLProcessingInstruction":77,"./XMLRaw":78,"./XMLText":82}],84:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, WriterState, XMLDOMImplementation, XMLDocument, XMLDocumentCB, XMLStreamWriter, XMLStringWriter, assign, isFunction, ref;
@@ -13395,4 +13661,4 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":51,"./Utility":52,"./WriterState":53,"./XMLDOMImplementation":60,"./XMLDocument":68,"./XMLDocumentCB":69,"./XMLStreamWriter":77,"./XMLStringWriter":78}]},{},[11]);
+},{"./NodeType":53,"./Utility":54,"./WriterState":55,"./XMLDOMImplementation":62,"./XMLDocument":70,"./XMLDocumentCB":71,"./XMLStreamWriter":79,"./XMLStringWriter":80}]},{},[13]);
