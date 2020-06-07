@@ -1,5 +1,5 @@
 import {SpellParserBase} from "./SpellParserBase";
-import {ImportHelper} from "../../importer/ImportHelper";
+import {ImportHelper} from "../../helper/ImportHelper";
 import Spell = Shadowrun.Spell;
 
 export class ManipulationSpellParser extends SpellParserBase {

@@ -1,6 +1,6 @@
 import {ItemParserBase} from "../item/ItemParserBase";
 import Mod = Shadowrun.Mod;
-import {ImportHelper} from "../../importer/ImportHelper";
+import {ImportHelper} from "../../helper/ImportHelper";
 import MountType = Shadowrun.MountType;
 
 export class ModParserBase extends ItemParserBase<Mod> {

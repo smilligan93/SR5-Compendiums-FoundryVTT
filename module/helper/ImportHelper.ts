@@ -1,4 +1,16 @@
-import {Constants} from "./Constants";
+import {Constants} from "../importer/Constants";
+import {XMLStrategy} from "./XMLStrategy";
+import {JSONStrategy} from "./JSONStrategy";
+import {ImportStrategy} from "./ImportStrategy";
+
+export enum ImportMode {
+    XML = 1,
+    JSON = 2
+}
+export enum LookupMode {
+    Directory = 0,
+    Actor = 1
+}
 
 /**
  * An import helper to standardize data extraction.
@@ -7,6 +19,21 @@ import {Constants} from "./Constants";
  */
 export class ImportHelper {
     public static readonly CHAR_KEY = "_TEXT";
+
+    private static m_Instance: ImportStrategy = new XMLStrategy();
+
+    public static SetMode(mode: ImportMode) {
+        switch (mode) {
+            case ImportMode.XML:
+                ImportHelper.m_Instance = new XMLStrategy();
+                break;
+            case ImportMode.JSON:
+                ImportHelper.m_Instance = new JSONStrategy();
+                break;
+        }
+    }
+
+    private constructor() { }
 
     /**
      * Helper method to create a new folder.
@@ -55,16 +82,7 @@ export class ImportHelper {
      * @param fallback An optional default value to return if the key is not found.
      */
     public static intValue(jsonData: object, key: string, fallback: number|undefined = undefined): number {
-        try {
-            return parseInt(jsonData[key][ImportHelper.CHAR_KEY]);
-        }
-        catch (e) {
-            if (fallback !== undefined) {
-                return fallback;
-            } else {
-                throw e;
-            }
-        }
+        return ImportHelper.m_Instance.intValue(jsonData, key, fallback);
     }
 
     /**
@@ -74,16 +92,7 @@ export class ImportHelper {
      * @param fallback An optional default value to return if the key is not found.
      */
     public static stringValue(jsonData: object, key: string|number, fallback: string|undefined = undefined): string {
-        try {
-            return jsonData[key][ImportHelper.CHAR_KEY];
-        }
-        catch (e) {
-            if (fallback !== undefined) {
-                return fallback;
-            } else {
-                throw e;
-            }
-        }
+        return ImportHelper.m_Instance.stringValue(jsonData, key, fallback);
     }
 
     /**
@@ -93,16 +102,7 @@ export class ImportHelper {
      * @param fallback An optional default value to return if the key is not found.
      */
     public static objectValue(jsonData: object, key: string|number, fallback: object|null|undefined = undefined): object|null {
-        try {
-            return jsonData[key];
-        }
-        catch (e) {
-            if (fallback !== undefined) {
-                return fallback;
-            } else {
-                throw e;
-            }
-        }
+        return ImportHelper.m_Instance.objectValue(jsonData, key, fallback);
     }
 
     /**
@@ -149,4 +149,4 @@ export class ImportHelper {
         return folders;
     }
 }
-type ItemComparer = (item: Item) => boolean;
+export type ItemComparer = (item: Item) => boolean;

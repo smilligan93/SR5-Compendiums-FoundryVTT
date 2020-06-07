@@ -1,5 +1,5 @@
 import {DataImporter} from "./DataImporter";
-import {ImportHelper} from "./ImportHelper";
+import {ImportHelper} from "../helper/ImportHelper";
 import {Constants} from "./Constants";
 import {RangedParser} from "../parser/weapon/RangedParser";
 import {MeleeParser} from "../parser/weapon/MeleeParser";

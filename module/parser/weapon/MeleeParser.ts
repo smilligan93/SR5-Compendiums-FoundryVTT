@@ -1,4 +1,4 @@
-import {ImportHelper} from "../../importer/ImportHelper";
+import {ImportHelper} from "../../helper/ImportHelper";
 import {WeaponParserBase} from "./WeaponParserBase";
 import DamageElement = Shadowrun.DamageElement;
 import ActorAttribute = Shadowrun.ActorAttribute;

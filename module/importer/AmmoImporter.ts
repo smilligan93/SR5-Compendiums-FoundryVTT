@@ -1,5 +1,5 @@
 import {DataImporter} from "./DataImporter";
-import {ImportHelper} from "./ImportHelper";
+import {ImportHelper} from "../helper/ImportHelper";
 import {Constants} from "./Constants";
 import Ammo = Shadowrun.Ammo;
 import Weapon = Shadowrun.Weapon;

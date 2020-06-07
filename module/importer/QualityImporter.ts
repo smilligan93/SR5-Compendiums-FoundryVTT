@@ -1,5 +1,5 @@
 import {DataImporter} from "./DataImporter";
-import {ImportHelper} from "./ImportHelper";
+import {ImportHelper} from "../helper/ImportHelper";
 import {QualityParserBase} from "../parser/quality/QualityParserBase";
 import Quality = Shadowrun.Quality;
 

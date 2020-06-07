@@ -1,5 +1,5 @@
 import {SpellParserBase} from "./SpellParserBase";
-import {ImportHelper} from "../../importer/ImportHelper";
+import {ImportHelper} from "../../helper/ImportHelper";
 
 export class IllusionSpellParser extends SpellParserBase {
     Parse(jsonData: object, data: Shadowrun.Spell): Shadowrun.Spell {

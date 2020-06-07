@@ -1,4 +1,4 @@
-import {ImportHelper} from "./ImportHelper";
+import {ImportHelper} from "../helper/ImportHelper";
 
 const xml2js = require("xml2js");
 

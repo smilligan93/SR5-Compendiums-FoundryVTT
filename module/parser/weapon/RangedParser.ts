@@ -1,4 +1,4 @@
-import {ImportHelper} from "../../importer/ImportHelper";
+import {ImportHelper} from "../../helper/ImportHelper";
 import {WeaponParserBase} from "./WeaponParserBase";
 import {Constants} from "../../importer/Constants";
 import DamageData = Shadowrun.DamageData;

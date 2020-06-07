@@ -1,5 +1,5 @@
 import {Parser} from "../Parser";
-import {ImportHelper} from "../../importer/ImportHelper";
+import {ImportHelper} from "../../helper/ImportHelper";
 import Item = Shadowrun.Item;
 
 export abstract class ItemParserBase<TResult extends Item> extends Parser<TResult> {

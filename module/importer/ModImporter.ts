@@ -1,8 +1,7 @@
 import {DataImporter} from "./DataImporter";
 import Mod = Shadowrun.Mod;
-import {ImportHelper} from "./ImportHelper";
+import {ImportHelper} from "../helper/ImportHelper";
 import {Constants} from "./Constants";
-import MountType = Shadowrun.MountType;
 import {ModParserBase} from "../parser/mod/ModParserBase";
 
 export class ModImporter extends DataImporter {

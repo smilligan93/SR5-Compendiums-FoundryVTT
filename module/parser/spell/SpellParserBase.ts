@@ -1,4 +1,4 @@
-import {ImportHelper} from "../../importer/ImportHelper";
+import {ImportHelper} from "../../helper/ImportHelper";
 import Spell = Shadowrun.Spell;
 import SpellCateogry = Shadowrun.SpellCateogry;
 import {Parser} from "../Parser";

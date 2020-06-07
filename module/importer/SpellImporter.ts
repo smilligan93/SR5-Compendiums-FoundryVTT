@@ -1,5 +1,5 @@
 import {DataImporter} from "./DataImporter";
-import {ImportHelper} from "./ImportHelper";
+import {ImportHelper} from "../helper/ImportHelper";
 import Spell = Shadowrun.Spell;
 import {SpellParserBase} from "../parser/spell/SpellParserBase";
 import {CombatSpellParser} from "../parser/spell/CombatSpellParser";

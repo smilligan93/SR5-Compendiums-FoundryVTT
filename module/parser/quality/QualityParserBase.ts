@@ -1,4 +1,4 @@
-import {ImportHelper} from "../../importer/ImportHelper";
+import {ImportHelper} from "../../helper/ImportHelper";
 import Quality = Shadowrun.Quality;
 import {Parser} from "../Parser";
 
