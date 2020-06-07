@@ -1,3 +1,5 @@
+import {Constants} from "./Constants";
+
 /**
  * An import helper to standardize data extraction.
  * Mostly conceived to reduced required refactoring if Chummer changes data file layout.
@@ -131,6 +133,20 @@ export class ImportHelper {
             result = game.items.find(nameOrCmp);
         }
         return result;
+    }
+
+    //TODO
+    public static async MakeCategoryFolders(jsonData: object, path: string): Promise<{ [name: string]: Folder }> {
+        let folders = {};
+        let jsonCategories = jsonData["categories"]["category"];
+        for (let i = 0; i < jsonCategories.length; i++) {
+            let categoryName = jsonCategories[i][ImportHelper.CHAR_KEY];
+            folders[categoryName.toLowerCase()] = await ImportHelper.GetFolderAtPath(
+                `${Constants.ROOT_IMPORT_FOLDER_NAME}/${path}/${categoryName}`,
+                true
+            );
+        }
+        return folders;
     }
 }
 type ItemComparer = (item: Item) => boolean;

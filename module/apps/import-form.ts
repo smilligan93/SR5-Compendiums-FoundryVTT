@@ -1,14 +1,10 @@
-import { ImportHelper } from "../importer/ImportHelper";
-import { Constants } from "../importer/Constants";
 import { WeaponImporter } from "../importer/WeaponImporter";
 import { ArmorImporter } from "../importer/ArmorImporter";
 import { DataImporter } from "../importer/DataImporter";
-import { RangedParser } from "../importer/weapon/RangedParser";
-import { MeleeParser } from "../importer/weapon/MeleeParser";
-import { ThrownParser } from "../importer/weapon/ThrownParser";
-import {WeaponParser} from "../importer/weapon/WeaponParser";
-import {AmmoImporter} from "../importer/AmmoImporter";
-import {ModImporter} from "../importer/ModImporter";
+import { AmmoImporter } from "../importer/AmmoImporter";
+import { ModImporter } from "../importer/ModImporter";
+import { SpellImporter } from "../importer/SpellImporter";
+import {QualityImporter} from "../importer/QualityImporter";
 
 export class Import extends Application {
     static get defaultOptions() {
@@ -28,11 +24,12 @@ export class Import extends Application {
         new WeaponImporter(),
         new ArmorImporter(),
         new AmmoImporter(),
+        new SpellImporter(),
+        new QualityImporter()
     ];
 
     async parseXML(xmlSource) {
         let jsonSource = await DataImporter.xml2json(xmlSource);
-        console.log(jsonSource);
 
         for (const di of Import.Importers) {
             if (di.CanParse(jsonSource)) {

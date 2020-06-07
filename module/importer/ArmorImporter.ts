@@ -65,22 +65,16 @@ export class ArmorImporter extends DataImporter {
     }
 
     async Parse(jsonObject: object): Promise<Entity> {
-        let armorCategoryFolders = {};
-        let jsonCategories = jsonObject["categories"]["category"];
-        for (let i = 0; i < jsonCategories.length; i++) {
-            let categoryName = ImportHelper.stringValue(jsonCategories, i);
-            armorCategoryFolders[categoryName]
-                = await ImportHelper.GetFolderAtPath(`${Constants.ROOT_IMPORT_FOLDER_NAME}/Armor/${categoryName}`, true);
-        }
+        const folders = await ImportHelper.MakeCategoryFolders(jsonObject, "Armor");
 
-        let armorDatas: Armor[] = [];
-        let jsonArmors = jsonObject["armors"]["armor"];
-        for (let i = 0; i < jsonArmors.length; i++) {
-            let jsonData = jsonArmors[i];
+        let datas: Armor[] = [];
+        let jsonDatas = jsonObject["armors"]["armor"];
+        for (let i = 0; i < jsonDatas.length; i++) {
+            let jsonData = jsonDatas[i];
             let data = this.ParseData(jsonData);
 
             let category = ImportHelper.stringValue(jsonData, "category");
-            let folder = armorCategoryFolders[category];
+            let folder = folders[category];
 
             if (game.items.find((item) => item.folder === folder.id && item.name === data.name)) {
                 continue;
@@ -88,9 +82,9 @@ export class ArmorImporter extends DataImporter {
 
             data.folder = folder.id;
 
-            armorDatas.push(data);
+            datas.push(data);
         }
 
-        return await Item.create(armorDatas);
+        return await Item.create(datas);
     }
 }

@@ -1,7 +1,7 @@
 declare namespace Shadowrun {
 
     export type PhysicalAttribute      = "body"|"agility"|"reaction"|"strength";
-    export type MentalAttribute        = "logic"|"intuition"|"charisma";
+    export type MentalAttribute        = "logic"|"intuition"|"charisma"|"willpower";
     export type SpecialAttribute       = "edge"|"essence"|"magic"|"resonance";
     export type MatrixAttribute        = "attack"|"sleaze"|"data processing"|"firewall";
 

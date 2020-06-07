@@ -1,12 +1,12 @@
-import {ImportHelper} from "../ImportHelper";
-import {WeaponParser} from "./WeaponParser";
-import {Constants} from "../Constants";
+import {ImportHelper} from "../../importer/ImportHelper";
+import {WeaponParserBase} from "./WeaponParserBase";
+import {Constants} from "../../importer/Constants";
 import DamageData = Shadowrun.DamageData;
 import DamageElement = Shadowrun.DamageElement;
 import DamageType = Shadowrun.DamageType;
 import Weapon = Shadowrun.Weapon;
 
-export class RangedParser extends WeaponParser {
+export class RangedParser extends WeaponParserBase {
     public GetDamage(jsonData: object): DamageData {
         let jsonDamage = ImportHelper.stringValue(jsonData, "damage");
         let damageCode = jsonDamage.match(/[0-9]+[PS]/g)?.[0];
@@ -65,15 +65,8 @@ export class RangedParser extends WeaponParser {
     }
 
     Parse(jsonData: object, data: Weapon): Weapon {
-        data.data.action.category = ImportHelper.stringValue(jsonData, "category");
+        data = super.Parse(jsonData, data);
 
-        data.data.action.skill = this.GetSkill(jsonData);
-        data.data.action.damage = this.GetDamage(jsonData);
-
-        data.data.action.limit.value = ImportHelper.intValue(jsonData, "accuracy");
-        data.data.action.limit.base = ImportHelper.intValue(jsonData, "accuracy");
-
-        //TODO: Derive from mods.
         data.data.range.rc.base = ImportHelper.intValue(jsonData, "rc");
         data.data.range.rc.value = ImportHelper.intValue(jsonData, "rc");
 

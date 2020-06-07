@@ -1,13 +1,12 @@
-import {ImportHelper} from "../ImportHelper";
-import {WeaponParser} from "./WeaponParser";
+import {ImportHelper} from "../../importer/ImportHelper";
+import {WeaponParserBase} from "./WeaponParserBase";
 import DamageElement = Shadowrun.DamageElement;
 import ActorAttribute = Shadowrun.ActorAttribute;
 import DamageData = Shadowrun.DamageData;
 import DamageType = Shadowrun.DamageType;
 import Weapon = Shadowrun.Weapon;
 
-export class MeleeParser extends WeaponParser {
-
+export class MeleeParser extends WeaponParserBase {
     GetDamage(jsonData: object): DamageData {
         let jsonDamage = ImportHelper.stringValue(jsonData, "damage");
         let damageCode: any = jsonDamage.match(/(STR)([+-]?)([1-9]*)\)([PS])/g)?.[0];
@@ -68,13 +67,7 @@ export class MeleeParser extends WeaponParser {
     };
 
     Parse(jsonData: object, data: Weapon): Weapon {
-        data.data.action.category = ImportHelper.stringValue(jsonData, "category");
-
-        data.data.action.skill = this.GetSkill(jsonData);
-        data.data.action.damage = this.GetDamage(jsonData);
-
-        data.data.action.limit.value = ImportHelper.intValue(jsonData, "accuracy");
-        data.data.action.limit.base = ImportHelper.intValue(jsonData, "accuracy");
+        data = super.Parse(jsonData, data);
 
         data.data.melee.reach = ImportHelper.intValue(jsonData, "reach");
 

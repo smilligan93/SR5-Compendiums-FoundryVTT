@@ -1,6 +1,6 @@
-import {ImportHelper} from "../ImportHelper";
-import {WeaponParser} from "./WeaponParser";
-import {Constants} from "../Constants";
+import {ImportHelper} from "../../importer/ImportHelper";
+import {WeaponParserBase} from "./WeaponParserBase";
+import {Constants} from "../../importer/Constants";
 import DamageElement = Shadowrun.DamageElement;
 import BlastData = Shadowrun.BlastData;
 import ActorAttribute = Shadowrun.ActorAttribute;
@@ -8,11 +8,10 @@ import DamageData = Shadowrun.DamageData;
 import DamageType = Shadowrun.DamageType;
 import Weapon = Shadowrun.Weapon;
 
-export class ThrownParser extends WeaponParser {
+export class ThrownParser extends WeaponParserBase {
     public GetDamage(jsonData: object): DamageData {
         let jsonDamage = ImportHelper.stringValue(jsonData, "damage");
 
-        let damageCode = "";
         let damageAmount = 0;
         let damageType = "physical";
         let damageAttribute = "";
@@ -97,9 +96,9 @@ export class ThrownParser extends WeaponParser {
             }
         }
 
-        let dropoffMatch = blastCode.match(/(\-[0-9]+\/m)/)?.[0];
+        let dropoffMatch = blastCode.match(/(-[0-9]+\/m)/)?.[0];
         if (dropoffMatch !== undefined) {
-            dropoffMatch = dropoffMatch.match(/\-[0-9]+/)?.[0];
+            dropoffMatch = dropoffMatch.match(/-[0-9]+/)?.[0];
             if (dropoffMatch !== undefined) {
                 blastData.dropoff = parseInt(dropoffMatch);
             }
@@ -113,11 +112,7 @@ export class ThrownParser extends WeaponParser {
     }
 
     Parse(jsonData: object, data: Weapon): Weapon {
-        data.data.action.skill = this.GetSkill(jsonData);
-        data.data.action.damage = this.GetDamage(jsonData);
-
-        data.data.action.limit.value = ImportHelper.intValue(jsonData, "accuracy");
-        data.data.action.limit.base = ImportHelper.intValue(jsonData, "accuracy");
+        data = super.Parse(jsonData, data);
 
         if (jsonData.hasOwnProperty("range")) {
             data.data.thrown.ranges = Constants.WEAPON_RANGES[ImportHelper.stringValue(jsonData, "range")];

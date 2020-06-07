@@ -16,6 +16,8 @@ const ArmorImporter_1 = require("../importer/ArmorImporter");
 const DataImporter_1 = require("../importer/DataImporter");
 const AmmoImporter_1 = require("../importer/AmmoImporter");
 const ModImporter_1 = require("../importer/ModImporter");
+const SpellImporter_1 = require("../importer/SpellImporter");
+const QualityImporter_1 = require("../importer/QualityImporter");
 let Import = /** @class */ (() => {
     class Import extends Application {
         static get defaultOptions() {
@@ -31,7 +33,6 @@ let Import = /** @class */ (() => {
         parseXML(xmlSource) {
             return __awaiter(this, void 0, void 0, function* () {
                 let jsonSource = yield DataImporter_1.DataImporter.xml2json(xmlSource);
-                console.log(jsonSource);
                 for (const di of Import.Importers) {
                     if (di.CanParse(jsonSource)) {
                         yield di.Parse(jsonSource);
@@ -53,12 +54,14 @@ let Import = /** @class */ (() => {
         new WeaponImporter_1.WeaponImporter(),
         new ArmorImporter_1.ArmorImporter(),
         new AmmoImporter_1.AmmoImporter(),
+        new SpellImporter_1.SpellImporter(),
+        new QualityImporter_1.QualityImporter()
     ];
     return Import;
 })();
 exports.Import = Import;
 
-},{"../importer/AmmoImporter":2,"../importer/ArmorImporter":3,"../importer/DataImporter":5,"../importer/ModImporter":7,"../importer/WeaponImporter":8}],2:[function(require,module,exports){
+},{"../importer/AmmoImporter":2,"../importer/ArmorImporter":3,"../importer/DataImporter":5,"../importer/ModImporter":7,"../importer/QualityImporter":8,"../importer/SpellImporter":9,"../importer/WeaponImporter":10}],2:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -201,7 +204,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ArmorImporter = void 0;
 const DataImporter_1 = require("./DataImporter");
 const ImportHelper_1 = require("./ImportHelper");
-const Constants_1 = require("./Constants");
 class ArmorImporter extends DataImporter_1.DataImporter {
     CanParse(jsonObject) {
         return jsonObject.hasOwnProperty("armors") && jsonObject["armors"].hasOwnProperty("armor");
@@ -260,33 +262,27 @@ class ArmorImporter extends DataImporter_1.DataImporter {
     }
     Parse(jsonObject) {
         return __awaiter(this, void 0, void 0, function* () {
-            let armorCategoryFolders = {};
-            let jsonCategories = jsonObject["categories"]["category"];
-            for (let i = 0; i < jsonCategories.length; i++) {
-                let categoryName = ImportHelper_1.ImportHelper.stringValue(jsonCategories, i);
-                armorCategoryFolders[categoryName]
-                    = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Armor/${categoryName}`, true);
-            }
-            let armorDatas = [];
-            let jsonArmors = jsonObject["armors"]["armor"];
-            for (let i = 0; i < jsonArmors.length; i++) {
-                let jsonData = jsonArmors[i];
+            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Armor");
+            let datas = [];
+            let jsonDatas = jsonObject["armors"]["armor"];
+            for (let i = 0; i < jsonDatas.length; i++) {
+                let jsonData = jsonDatas[i];
                 let data = this.ParseData(jsonData);
                 let category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category");
-                let folder = armorCategoryFolders[category];
+                let folder = folders[category];
                 if (game.items.find((item) => item.folder === folder.id && item.name === data.name)) {
                     continue;
                 }
                 data.folder = folder.id;
-                armorDatas.push(data);
+                datas.push(data);
             }
-            return yield Item.create(armorDatas);
+            return yield Item.create(datas);
         });
     }
 }
 exports.ArmorImporter = ArmorImporter;
 
-},{"./Constants":4,"./DataImporter":5,"./ImportHelper":6}],4:[function(require,module,exports){
+},{"./DataImporter":5,"./ImportHelper":6}],4:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Constants = void 0;
@@ -545,7 +541,7 @@ class DataImporter {
 }
 exports.DataImporter = DataImporter;
 
-},{"./ImportHelper":6,"xml2js":51}],6:[function(require,module,exports){
+},{"./ImportHelper":6,"xml2js":61}],6:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -558,6 +554,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ImportHelper = void 0;
+const Constants_1 = require("./Constants");
 /**
  * An import helper to standardize data extraction.
  * Mostly conceived to reduced required refactoring if Chummer changes data file layout.
@@ -693,13 +690,25 @@ let ImportHelper = /** @class */ (() => {
             }
             return result;
         }
+        //TODO
+        static MakeCategoryFolders(jsonData, path) {
+            return __awaiter(this, void 0, void 0, function* () {
+                let folders = {};
+                let jsonCategories = jsonData["categories"]["category"];
+                for (let i = 0; i < jsonCategories.length; i++) {
+                    let categoryName = jsonCategories[i][ImportHelper.CHAR_KEY];
+                    folders[categoryName.toLowerCase()] = yield ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/${path}/${categoryName}`, true);
+                }
+                return folders;
+            });
+        }
     }
     ImportHelper.CHAR_KEY = "_TEXT";
     return ImportHelper;
 })();
 exports.ImportHelper = ImportHelper;
 
-},{}],7:[function(require,module,exports){
+},{"./Constants":4}],7:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -801,13 +810,255 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.QualityImporter = void 0;
+const DataImporter_1 = require("./DataImporter");
+const ImportHelper_1 = require("./ImportHelper");
+const QualityParser_1 = require("../parser/quality/QualityParser");
+class QualityImporter extends DataImporter_1.DataImporter {
+    CanParse(jsonObject) {
+        return jsonObject.hasOwnProperty("qualities") && jsonObject["qualities"].hasOwnProperty("quality");
+    }
+    GetDefaultData() {
+        return {
+            name: "Unnamed Armor",
+            folder: null,
+            type: "quality",
+            data: {
+                description: {
+                    value: "",
+                    chat: "",
+                    source: ""
+                },
+                action: {
+                    type: "varies",
+                    category: "",
+                    attribute: "",
+                    attribute2: "",
+                    skill: "",
+                    spec: false,
+                    mod: 0,
+                    mod_description: "",
+                    damage: {
+                        type: {
+                            base: "",
+                            value: ""
+                        },
+                        element: {
+                            base: "",
+                            value: ""
+                        },
+                        base: 0,
+                        value: 0,
+                        ap: {
+                            base: 0,
+                            value: 0,
+                            mod: {}
+                        },
+                        attribute: "",
+                        mod: {}
+                    },
+                    limit: {
+                        value: 0,
+                        attribute: "",
+                        mod: {},
+                        base: 0
+                    },
+                    extended: false,
+                    opposed: {
+                        type: "",
+                        attribute: "",
+                        attribute2: "",
+                        skill: "",
+                        mod: 0,
+                        description: ""
+                    },
+                    alt_mod: 0,
+                    dice_pool_mod: {}
+                },
+                type: ""
+            },
+            permission: {
+                default: 2
+            }
+        };
+    }
+    Parse(jsonObject) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Qualities");
+            console.log(folders);
+            const parser = new QualityParser_1.QualityParser();
+            let datas = [];
+            let jsonDatas = jsonObject["qualities"]["quality"];
+            for (let i = 0; i < jsonDatas.length; i++) {
+                let jsonData = jsonDatas[i];
+                let data = parser.Parse(jsonData, this.GetDefaultData());
+                let category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category");
+                data.folder = folders[category.toLowerCase()].id;
+                datas.push(data);
+            }
+            return yield Item.create(datas);
+        });
+    }
+}
+exports.QualityImporter = QualityImporter;
+
+},{"../parser/quality/QualityParser":14,"./DataImporter":5,"./ImportHelper":6}],9:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SpellImporter = void 0;
+const DataImporter_1 = require("./DataImporter");
+const ImportHelper_1 = require("./ImportHelper");
+const SpellParserBase_1 = require("../parser/spell/SpellParserBase");
+const CombatSpellParser_1 = require("../parser/spell/CombatSpellParser");
+const ManipulationSpellParser_1 = require("../parser/spell/ManipulationSpellParser");
+const IllusionSpellParser_1 = require("../parser/spell/IllusionSpellParser");
+const DetectionSpellImporter_1 = require("../parser/spell/DetectionSpellImporter");
+const ParserMap_1 = require("../parser/ParserMap");
+class SpellImporter extends DataImporter_1.DataImporter {
+    CanParse(jsonObject) {
+        return jsonObject.hasOwnProperty("spells") && jsonObject["spells"].hasOwnProperty("spell");
+    }
+    GetDefaultData() {
+        return {
+            name: "Unnamed Item",
+            folder: null,
+            type: "spell",
+            data: {
+                description: {
+                    value: "",
+                    chat: "",
+                    source: ""
+                },
+                action: {
+                    type: "varies",
+                    category: "",
+                    attribute: "magic",
+                    attribute2: "",
+                    skill: "spellcasting",
+                    spec: false,
+                    mod: 0,
+                    mod_description: "",
+                    damage: {
+                        type: {
+                            base: "",
+                            value: ""
+                        },
+                        element: {
+                            base: "",
+                            value: ""
+                        },
+                        base: 0,
+                        value: 0,
+                        ap: {
+                            base: 0,
+                            value: 0,
+                            mod: {}
+                        },
+                        attribute: "",
+                        mod: {}
+                    },
+                    limit: {
+                        value: 0,
+                        attribute: "",
+                        mod: {},
+                        base: 0
+                    },
+                    extended: false,
+                    opposed: {
+                        type: "",
+                        attribute: "",
+                        attribute2: "",
+                        skill: "",
+                        mod: 0,
+                        description: ""
+                    },
+                    alt_mod: 0,
+                    dice_pool_mod: {}
+                },
+                drain: 0,
+                category: "",
+                type: "",
+                range: "",
+                duration: "",
+                combat: {
+                    type: ""
+                },
+                detection: {
+                    passive: false,
+                    type: "",
+                    extended: false
+                },
+                illusion: {
+                    type: "",
+                    sense: ""
+                },
+                manipulation: {
+                    damaging: false,
+                    mental: false,
+                    environmental: false,
+                    physical: false
+                }
+            },
+            permission: {
+                default: 2
+            }
+        };
+    }
+    Parse(jsonObject) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Spells");
+            const parser = new ParserMap_1.ParserMap("category", [
+                { key: "Combat", value: new CombatSpellParser_1.CombatSpellParser() },
+                { key: "Manipulation", value: new ManipulationSpellParser_1.ManipulationSpellParser() },
+                { key: "Illusion", value: new IllusionSpellParser_1.IllusionSpellParser() },
+                { key: "Detection", value: new DetectionSpellImporter_1.DetectionSpellImporter() },
+                { key: "Health", value: new SpellParserBase_1.SpellParserBase() },
+                { key: "Enchantments", value: new SpellParserBase_1.SpellParserBase() },
+                { key: "Rituals", value: new SpellParserBase_1.SpellParserBase() },
+            ]);
+            let datas = [];
+            let jsonDatas = jsonObject["spells"]["spell"];
+            for (let i = 0; i < jsonDatas.length; i++) {
+                let jsonData = jsonDatas[i];
+                let data = parser.Parse(jsonData, this.GetDefaultData());
+                data.folder = folders[data.data.category].id;
+                datas.push(data);
+            }
+            return yield Item.create(datas);
+        });
+    }
+}
+exports.SpellImporter = SpellImporter;
+
+},{"../parser/ParserMap":13,"../parser/spell/CombatSpellParser":15,"../parser/spell/DetectionSpellImporter":16,"../parser/spell/IllusionSpellParser":17,"../parser/spell/ManipulationSpellParser":18,"../parser/spell/SpellParserBase":19,"./DataImporter":5,"./ImportHelper":6}],10:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.WeaponImporter = void 0;
 const DataImporter_1 = require("./DataImporter");
 const ImportHelper_1 = require("./ImportHelper");
 const Constants_1 = require("./Constants");
-const RangedParser_1 = require("./weapon/RangedParser");
-const MeleeParser_1 = require("./weapon/MeleeParser");
-const ThrownParser_1 = require("./weapon/ThrownParser");
+const RangedParser_1 = require("../parser/weapon/RangedParser");
+const MeleeParser_1 = require("../parser/weapon/MeleeParser");
+const ThrownParser_1 = require("../parser/weapon/ThrownParser");
+const ParserMap_1 = require("../parser/ParserMap");
 class WeaponImporter extends DataImporter_1.DataImporter {
     CanParse(jsonObject) {
         return jsonObject.hasOwnProperty("weapons") && jsonObject["weapons"].hasOwnProperty("weapon");
@@ -938,7 +1189,7 @@ class WeaponImporter extends DataImporter_1.DataImporter {
             }
         };
     }
-    GetWeaponType(weaponJson) {
+    static GetWeaponType(weaponJson) {
         let type = ImportHelper_1.ImportHelper.stringValue(weaponJson, "type");
         //melee is the least specific, all melee entries are accurate
         if (type === "Melee") {
@@ -961,62 +1212,309 @@ class WeaponImporter extends DataImporter_1.DataImporter {
     }
     Parse(jsonObject) {
         return __awaiter(this, void 0, void 0, function* () {
-            let folders = {};
-            let jsonCategories = jsonObject["categories"]["category"];
-            for (let i = 0; i < jsonCategories.length; i++) {
-                let categoryName = jsonCategories[i][ImportHelper_1.ImportHelper.CHAR_KEY];
-                folders[categoryName] = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/${categoryName}`, true);
+            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Weapons");
+            folders["gear"] = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Gear`, true);
+            folders["quality"] = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Quality`, true);
+            console.log(folders);
+            const parser = new ParserMap_1.ParserMap(WeaponImporter.GetWeaponType, [
+                { key: "range", value: new RangedParser_1.RangedParser() },
+                { key: "melee", value: new MeleeParser_1.MeleeParser() },
+                { key: "thrown", value: new ThrownParser_1.ThrownParser() },
+            ]);
+            let datas = [];
+            let jsonDatas = jsonObject["weapons"]["weapon"];
+            for (let i = 0; i < jsonDatas.length; i++) {
+                let jsonData = jsonDatas[i];
+                let data = parser.Parse(jsonData, this.GetDefaultData());
+                data.folder = folders[data.data.category].id;
+                datas.push(data);
             }
-            folders["Gear"] = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Gear`, true);
-            folders["Quality"] = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Quality`, true);
-            let rangedParser = new RangedParser_1.RangedParser();
-            let meleeParser = new MeleeParser_1.MeleeParser();
-            let thrownParser = new ThrownParser_1.ThrownParser();
-            let weaponDatas = [];
-            let jsonWeapons = jsonObject["weapons"]["weapon"];
-            for (let i = 0; i < jsonWeapons.length; i++) {
-                let jsonData = jsonWeapons[i];
-                let category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category");
-                // A single item does not meet normal rules, thanks Chummer.
-                if (category === "Hold-outs") {
-                    category = "Holdouts";
-                }
-                let folder = folders[category];
-                let data = this.GetDefaultData();
-                data.name = ImportHelper_1.ImportHelper.stringValue(jsonData, "name");
-                data.folder = folder.id;
-                data.data.description.source = `${ImportHelper_1.ImportHelper.stringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.stringValue(jsonData, "page")}`;
-                data.data.technology.rating = 2;
-                data.data.technology.availability = ImportHelper_1.ImportHelper.stringValue(jsonData, "avail");
-                data.data.technology.cost = ImportHelper_1.ImportHelper.intValue(jsonData, "cost", 0);
-                data.data.technology.conceal.base = ImportHelper_1.ImportHelper.intValue(jsonData, "conceal");
-                data.data.category = this.GetWeaponType(jsonData);
-                switch (data.data.category) {
-                    case "range":
-                        data = rangedParser.Parse(jsonData, data);
-                        break;
-                    case "melee":
-                        data = meleeParser.Parse(jsonData, data);
-                        break;
-                    case "thrown":
-                        data = thrownParser.Parse(jsonData, data);
-                        break;
-                }
-                weaponDatas.push(data);
-            }
-            return yield Item.create(weaponDatas);
+            return yield Item.create(datas);
         });
     }
 }
 exports.WeaponImporter = WeaponImporter;
 
-},{"./Constants":4,"./DataImporter":5,"./ImportHelper":6,"./weapon/MeleeParser":9,"./weapon/RangedParser":10,"./weapon/ThrownParser":11}],9:[function(require,module,exports){
+},{"../parser/ParserMap":13,"../parser/weapon/MeleeParser":20,"../parser/weapon/RangedParser":21,"../parser/weapon/ThrownParser":22,"./Constants":4,"./DataImporter":5,"./ImportHelper":6}],11:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const import_form_1 = require("./apps/import-form");
+Hooks.on("renderItemDirectory", (app, html) => {
+    const button = $("<button>Import Chummer Data</button>");
+    html.find("footer").before(button);
+    button.on("click", (event) => {
+        new import_form_1.Import().render(true);
+    });
+});
+
+},{"./apps/import-form":1}],12:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Parser = void 0;
+class Parser {
+}
+exports.Parser = Parser;
+
+},{}],13:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ParserMap = void 0;
+const Parser_1 = require("./Parser");
+const ImportHelper_1 = require("../importer/ImportHelper");
+class ParserMap extends Parser_1.Parser {
+    constructor(branchKey, elements) {
+        super();
+        this.m_BranchKey = branchKey;
+        this.m_Map = new Map();
+        for (const { key, value } of elements) {
+            this.m_Map.set(key, value);
+        }
+    }
+    Parse(jsonData, data) {
+        let key;
+        if (typeof this.m_BranchKey === "function") {
+            key = this.m_BranchKey(jsonData);
+        }
+        else {
+            key = this.m_BranchKey;
+            key = ImportHelper_1.ImportHelper.stringValue(jsonData, key);
+        }
+        const parser = this.m_Map.get(key);
+        if (parser === undefined) {
+            console.warn(`Could not find mapped parser for category ${key}.`);
+            return data;
+        }
+        return parser.Parse(jsonData, data);
+    }
+}
+exports.ParserMap = ParserMap;
+
+},{"../importer/ImportHelper":6,"./Parser":12}],14:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.QualityParser = void 0;
+const ImportHelper_1 = require("../../importer/ImportHelper");
+class QualityParser {
+    Parse(jsonData, data) {
+        data.name = ImportHelper_1.ImportHelper.stringValue(jsonData, "name");
+        data.data.description.source = `${ImportHelper_1.ImportHelper.stringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.stringValue(jsonData, "page")}`;
+        data.data.type = (ImportHelper_1.ImportHelper.stringValue(jsonData, "category") === "Positive") ? "positive" : "negative";
+        return data;
+    }
+}
+exports.QualityParser = QualityParser;
+
+},{"../../importer/ImportHelper":6}],15:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CombatSpellParser = void 0;
+const SpellParserBase_1 = require("./SpellParserBase");
+const ImportHelper_1 = require("../../importer/ImportHelper");
+class CombatSpellParser extends SpellParserBase_1.SpellParserBase {
+    Parse(jsonData, data) {
+        data = super.Parse(jsonData, data);
+        let descriptor = ImportHelper_1.ImportHelper.stringValue(jsonData, "descriptor");
+        // A few spells have a missing descriptor instead of an empty string.
+        // The field is <descriptor /> rather than <descriptor></descriptor>
+        // which gets imported as undefined rather than empty string (sigh)
+        // Rather than refactor our ImportHelper we'll handle it in here.
+        if (descriptor === undefined) {
+            descriptor = "";
+        }
+        data.data.combat.type = (descriptor.includes("Indirect")) ? "indirect" : "direct";
+        if (data.data.combat.type === "direct") {
+            data.data.action.opposed.type = "custom";
+            switch (data.data.type) {
+                case "physical":
+                    data.data.action.opposed.attribute = "body";
+                    break;
+                case "mana":
+                    data.data.action.opposed.attribute = "willpower";
+                    break;
+                default:
+                    break;
+            }
+        }
+        else if (data.data.combat.type === "indirect") {
+            data.data.action.opposed.type = "defense";
+        }
+        return data;
+    }
+}
+exports.CombatSpellParser = CombatSpellParser;
+
+},{"../../importer/ImportHelper":6,"./SpellParserBase":19}],16:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DetectionSpellImporter = void 0;
+const SpellParserBase_1 = require("./SpellParserBase");
+const ImportHelper_1 = require("../../importer/ImportHelper");
+class DetectionSpellImporter extends SpellParserBase_1.SpellParserBase {
+    Parse(jsonData, data) {
+        data = super.Parse(jsonData, data);
+        let descriptor = ImportHelper_1.ImportHelper.stringValue(jsonData, "descriptor");
+        // A few spells have a missing descriptor instead of an empty string.
+        // The field is <descriptor /> rather than <descriptor></descriptor>
+        // which gets imported as undefined rather than empty string (sigh)
+        // Rather than refactor our ImportHelper we'll handle it in here.
+        if (descriptor === undefined) {
+            descriptor = "";
+        }
+        data.data.detection.passive = descriptor.includes("Passive");
+        if (!data.data.detection.passive) {
+            data.data.action.opposed.type = "custom";
+            data.data.action.opposed.attribute = "willpower";
+            data.data.action.opposed.attribute2 = "logic";
+        }
+        data.data.detection.extended = descriptor.includes("Extended");
+        if (descriptor.includes("Psychic")) {
+            data.data.detection.type = "psychic";
+        }
+        else if (descriptor.includes("Directional")) {
+            data.data.detection.type = "directional";
+        }
+        else if (descriptor.includes("Area")) {
+            data.data.detection.type = "area";
+        }
+        return data;
+    }
+}
+exports.DetectionSpellImporter = DetectionSpellImporter;
+
+},{"../../importer/ImportHelper":6,"./SpellParserBase":19}],17:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.IllusionSpellParser = void 0;
+const SpellParserBase_1 = require("./SpellParserBase");
+const ImportHelper_1 = require("../../importer/ImportHelper");
+class IllusionSpellParser extends SpellParserBase_1.SpellParserBase {
+    Parse(jsonData, data) {
+        data = super.Parse(jsonData, data);
+        let descriptor = ImportHelper_1.ImportHelper.stringValue(jsonData, "descriptor");
+        // A few spells have a missing descriptor instead of an empty string.
+        // The field is <descriptor /> rather than <descriptor></descriptor>
+        // which gets imported as undefined rather than empty string (sigh)
+        // Rather than refactor our ImportHelper we'll handle it in here.
+        if (descriptor === undefined) {
+            descriptor = "";
+        }
+        if (data.data.type === "mana") {
+            data.data.action.opposed.type = "custom";
+            data.data.action.opposed.attribute = "logic";
+            data.data.action.opposed.attribute2 = "willpower";
+        }
+        else if (data.data.type === "physical") {
+            data.data.action.opposed.type = "custom";
+            data.data.action.opposed.attribute = "intuition";
+            data.data.action.opposed.attribute2 = "logic";
+        }
+        return data;
+    }
+}
+exports.IllusionSpellParser = IllusionSpellParser;
+
+},{"../../importer/ImportHelper":6,"./SpellParserBase":19}],18:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ManipulationSpellParser = void 0;
+const SpellParserBase_1 = require("./SpellParserBase");
+const ImportHelper_1 = require("../../importer/ImportHelper");
+class ManipulationSpellParser extends SpellParserBase_1.SpellParserBase {
+    Parse(jsonData, data) {
+        data = super.Parse(jsonData, data);
+        let descriptor = ImportHelper_1.ImportHelper.stringValue(jsonData, "descriptor");
+        // A few spells have a missing descriptor instead of an empty string.
+        // The field is <descriptor /> rather than <descriptor></descriptor>
+        // which gets imported as undefined rather than empty string (sigh)
+        // Rather than refactor our ImportHelper we'll handle it in here.
+        if (descriptor === undefined) {
+            descriptor = "";
+        }
+        data.data.manipulation.environmental = descriptor.includes("Environmental");
+        // Generally no resistance roll.
+        data.data.manipulation.mental = descriptor.includes("Mental");
+        if (data.data.manipulation.mental) {
+            data.data.action.opposed.type = "custom";
+            data.data.action.opposed.attribute = "logic";
+            data.data.action.opposed.attribute2 = "willpower";
+        }
+        data.data.manipulation.physical = descriptor.includes("Physical");
+        if (data.data.manipulation.physical) {
+            data.data.action.opposed.type = "custom";
+            data.data.action.opposed.attribute = "body";
+            data.data.action.opposed.attribute2 = "strength";
+        }
+        data.data.manipulation.damaging = descriptor.includes("Damaging");
+        if (data.data.manipulation.damaging) {
+            data.data.action.opposed.type = "soak";
+        }
+        return data;
+    }
+}
+exports.ManipulationSpellParser = ManipulationSpellParser;
+
+},{"../../importer/ImportHelper":6,"./SpellParserBase":19}],19:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SpellParserBase = void 0;
+const ImportHelper_1 = require("../../importer/ImportHelper");
+class SpellParserBase {
+    Parse(jsonData, data) {
+        data.name = ImportHelper_1.ImportHelper.stringValue(jsonData, "name");
+        data.data.description.source = `${ImportHelper_1.ImportHelper.stringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.stringValue(jsonData, "page")}`;
+        data.data.category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category").toLowerCase();
+        let damage = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
+        if (damage === "P") {
+            data.data.action.damage.type.base = "physical";
+            data.data.action.damage.type.value = "physical";
+        }
+        else if (damage === "S") {
+            data.data.action.damage.type.base = "stun";
+            data.data.action.damage.type.value = "stun";
+        }
+        let duration = ImportHelper_1.ImportHelper.stringValue(jsonData, "duration");
+        if (duration === "I") {
+            data.data.duration = "instant";
+        }
+        else if (duration === "S") {
+            data.data.duration = "sustained";
+        }
+        else if (duration === "P") {
+            data.data.duration = "permanent";
+        }
+        let drain = ImportHelper_1.ImportHelper.stringValue(jsonData, "dv");
+        if (drain.includes("+") || drain.includes("-")) {
+            data.data.drain = parseInt(drain.substring(1, drain.length));
+        }
+        let range = ImportHelper_1.ImportHelper.stringValue(jsonData, "range");
+        if (range === "T") {
+            data.data.range = "touch";
+        }
+        else if (range === "LOS") {
+            data.data.range = "los";
+        }
+        else if (range === "LOS (A)") {
+            data.data.range = "los_a";
+        }
+        let type = ImportHelper_1.ImportHelper.stringValue(jsonData, "type");
+        if (type === "P") {
+            data.data.type = "physical";
+        }
+        else if (type === "M") {
+            data.data.type = "mana";
+        }
+        return data;
+    }
+}
+exports.SpellParserBase = SpellParserBase;
+
+},{"../../importer/ImportHelper":6}],20:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MeleeParser = void 0;
-const ImportHelper_1 = require("../ImportHelper");
-const WeaponParser_1 = require("./WeaponParser");
-class MeleeParser extends WeaponParser_1.WeaponParser {
+const ImportHelper_1 = require("../../importer/ImportHelper");
+const WeaponParserBase_1 = require("./WeaponParserBase");
+class MeleeParser extends WeaponParserBase_1.WeaponParserBase {
     GetDamage(jsonData) {
         var _a;
         let jsonDamage = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
@@ -1073,11 +1571,7 @@ class MeleeParser extends WeaponParser_1.WeaponParser {
     }
     ;
     Parse(jsonData, data) {
-        data.data.action.category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category");
-        data.data.action.skill = this.GetSkill(jsonData);
-        data.data.action.damage = this.GetDamage(jsonData);
-        data.data.action.limit.value = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy");
-        data.data.action.limit.base = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy");
+        data = super.Parse(jsonData, data);
         data.data.melee.reach = ImportHelper_1.ImportHelper.intValue(jsonData, "reach");
         return data;
     }
@@ -1085,14 +1579,14 @@ class MeleeParser extends WeaponParser_1.WeaponParser {
 }
 exports.MeleeParser = MeleeParser;
 
-},{"../ImportHelper":6,"./WeaponParser":12}],10:[function(require,module,exports){
+},{"../../importer/ImportHelper":6,"./WeaponParserBase":23}],21:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RangedParser = void 0;
-const ImportHelper_1 = require("../ImportHelper");
-const WeaponParser_1 = require("./WeaponParser");
-const Constants_1 = require("../Constants");
-class RangedParser extends WeaponParser_1.WeaponParser {
+const ImportHelper_1 = require("../../importer/ImportHelper");
+const WeaponParserBase_1 = require("./WeaponParserBase");
+const Constants_1 = require("../../importer/Constants");
+class RangedParser extends WeaponParserBase_1.WeaponParserBase {
     GetDamage(jsonData) {
         var _a;
         let jsonDamage = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
@@ -1149,12 +1643,7 @@ class RangedParser extends WeaponParser_1.WeaponParser {
         return (match !== undefined) ? parseInt(match) : 0;
     }
     Parse(jsonData, data) {
-        data.data.action.category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category");
-        data.data.action.skill = this.GetSkill(jsonData);
-        data.data.action.damage = this.GetDamage(jsonData);
-        data.data.action.limit.value = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy");
-        data.data.action.limit.base = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy");
-        //TODO: Derive from mods.
+        data = super.Parse(jsonData, data);
         data.data.range.rc.base = ImportHelper_1.ImportHelper.intValue(jsonData, "rc");
         data.data.range.rc.value = ImportHelper_1.ImportHelper.intValue(jsonData, "rc");
         if (jsonData.hasOwnProperty("range")) {
@@ -1175,18 +1664,17 @@ class RangedParser extends WeaponParser_1.WeaponParser {
 }
 exports.RangedParser = RangedParser;
 
-},{"../Constants":4,"../ImportHelper":6,"./WeaponParser":12}],11:[function(require,module,exports){
+},{"../../importer/Constants":4,"../../importer/ImportHelper":6,"./WeaponParserBase":23}],22:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ThrownParser = void 0;
-const ImportHelper_1 = require("../ImportHelper");
-const WeaponParser_1 = require("./WeaponParser");
-const Constants_1 = require("../Constants");
-class ThrownParser extends WeaponParser_1.WeaponParser {
+const ImportHelper_1 = require("../../importer/ImportHelper");
+const WeaponParserBase_1 = require("./WeaponParserBase");
+const Constants_1 = require("../../importer/Constants");
+class ThrownParser extends WeaponParserBase_1.WeaponParserBase {
     GetDamage(jsonData) {
         var _a, _b, _c, _d;
         let jsonDamage = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
-        let damageCode = "";
         let damageAmount = 0;
         let damageType = "physical";
         let damageAttribute = "";
@@ -1266,9 +1754,9 @@ class ThrownParser extends WeaponParser_1.WeaponParser {
                 blastData.radius = parseInt(radiusMatch);
             }
         }
-        let dropoffMatch = (_c = blastCode.match(/(\-[0-9]+\/m)/)) === null || _c === void 0 ? void 0 : _c[0];
+        let dropoffMatch = (_c = blastCode.match(/(-[0-9]+\/m)/)) === null || _c === void 0 ? void 0 : _c[0];
         if (dropoffMatch !== undefined) {
-            dropoffMatch = (_d = dropoffMatch.match(/\-[0-9]+/)) === null || _d === void 0 ? void 0 : _d[0];
+            dropoffMatch = (_d = dropoffMatch.match(/-[0-9]+/)) === null || _d === void 0 ? void 0 : _d[0];
             if (dropoffMatch !== undefined) {
                 blastData.dropoff = parseInt(dropoffMatch);
             }
@@ -1279,10 +1767,7 @@ class ThrownParser extends WeaponParser_1.WeaponParser {
         return blastData;
     }
     Parse(jsonData, data) {
-        data.data.action.skill = this.GetSkill(jsonData);
-        data.data.action.damage = this.GetDamage(jsonData);
-        data.data.action.limit.value = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy");
-        data.data.action.limit.base = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy");
+        data = super.Parse(jsonData, data);
         if (jsonData.hasOwnProperty("range")) {
             data.data.thrown.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.stringValue(jsonData, "range")];
         }
@@ -1296,13 +1781,14 @@ class ThrownParser extends WeaponParser_1.WeaponParser {
 }
 exports.ThrownParser = ThrownParser;
 
-},{"../Constants":4,"../ImportHelper":6,"./WeaponParser":12}],12:[function(require,module,exports){
+},{"../../importer/Constants":4,"../../importer/ImportHelper":6,"./WeaponParserBase":23}],23:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.WeaponParser = void 0;
-const ImportHelper_1 = require("../ImportHelper");
-const Constants_1 = require("../Constants");
-class WeaponParser {
+exports.WeaponParserBase = void 0;
+const ImportHelper_1 = require("../../importer/ImportHelper");
+const Constants_1 = require("../../importer/Constants");
+const Parser_1 = require("../Parser");
+class WeaponParserBase extends Parser_1.Parser {
     GetSkill(weaponJson) {
         if (weaponJson.hasOwnProperty("useskill")) {
             let jsonSkill = ImportHelper_1.ImportHelper.stringValue(weaponJson, "useskill");
@@ -1321,22 +1807,29 @@ class WeaponParser {
         }
     }
     ;
+    Parse(jsonData, data) {
+        data.name = ImportHelper_1.ImportHelper.stringValue(jsonData, "name");
+        let category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category");
+        // A single item does not meet normal rules, thanks Chummer!
+        if (category === "Hold-outs") {
+            category = "Holdouts";
+        }
+        data.data.category = category.toLowerCase();
+        data.data.description.source = `${ImportHelper_1.ImportHelper.stringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.stringValue(jsonData, "page")}`;
+        data.data.technology.rating = 2;
+        data.data.technology.availability = ImportHelper_1.ImportHelper.stringValue(jsonData, "avail");
+        data.data.technology.cost = ImportHelper_1.ImportHelper.intValue(jsonData, "cost", 0);
+        data.data.action.skill = this.GetSkill(jsonData);
+        data.data.action.damage = this.GetDamage(jsonData);
+        data.data.action.limit.value = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy");
+        data.data.action.limit.base = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy");
+        data.data.technology.conceal.base = ImportHelper_1.ImportHelper.intValue(jsonData, "conceal");
+        return data;
+    }
 }
-exports.WeaponParser = WeaponParser;
+exports.WeaponParserBase = WeaponParserBase;
 
-},{"../Constants":4,"../ImportHelper":6}],13:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const import_form_1 = require("./apps/import-form");
-Hooks.on("renderItemDirectory", (app, html) => {
-    const button = $("<button>Import Chummer Data</button>");
-    html.find("footer").before(button);
-    button.on("click", (event) => {
-        new import_form_1.Import().render(true);
-    });
-});
-
-},{"./apps/import-form":1}],14:[function(require,module,exports){
+},{"../../importer/Constants":4,"../../importer/ImportHelper":6,"../Parser":12}],24:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -1490,9 +1983,9 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],15:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 
-},{}],16:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 (function (Buffer){
 /*!
  * The buffer module from node.js, for the browser.
@@ -3273,7 +3766,7 @@ function numberIsNaN (obj) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"base64-js":14,"buffer":16,"ieee754":19}],17:[function(require,module,exports){
+},{"base64-js":24,"buffer":26,"ieee754":29}],27:[function(require,module,exports){
 (function (Buffer){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3384,7 +3877,7 @@ function objectToString(o) {
 }
 
 }).call(this,{"isBuffer":require("../../is-buffer/index.js")})
-},{"../../is-buffer/index.js":21}],18:[function(require,module,exports){
+},{"../../is-buffer/index.js":31}],28:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3909,7 +4402,7 @@ function functionBindPolyfill(context) {
   };
 }
 
-},{}],19:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = (nBytes * 8) - mLen - 1
@@ -3995,7 +4488,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],20:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -4024,7 +4517,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],21:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 /*!
  * Determine if an object is a Buffer
  *
@@ -4047,14 +4540,14 @@ function isSlowBuffer (obj) {
   return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
 }
 
-},{}],22:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 var toString = {}.toString;
 
 module.exports = Array.isArray || function (arr) {
   return toString.call(arr) == '[object Array]';
 };
 
-},{}],23:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -4103,7 +4596,7 @@ function nextTick(fn, arg1, arg2, arg3) {
 
 
 }).call(this,require('_process'))
-},{"_process":24}],24:[function(require,module,exports){
+},{"_process":34}],34:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -4289,10 +4782,10 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],25:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 module.exports = require('./lib/_stream_duplex.js');
 
-},{"./lib/_stream_duplex.js":26}],26:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":36}],36:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4424,7 +4917,7 @@ Duplex.prototype._destroy = function (err, cb) {
 
   pna.nextTick(cb, err);
 };
-},{"./_stream_readable":28,"./_stream_writable":30,"core-util-is":17,"inherits":20,"process-nextick-args":23}],27:[function(require,module,exports){
+},{"./_stream_readable":38,"./_stream_writable":40,"core-util-is":27,"inherits":30,"process-nextick-args":33}],37:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4472,7 +4965,7 @@ function PassThrough(options) {
 PassThrough.prototype._transform = function (chunk, encoding, cb) {
   cb(null, chunk);
 };
-},{"./_stream_transform":29,"core-util-is":17,"inherits":20}],28:[function(require,module,exports){
+},{"./_stream_transform":39,"core-util-is":27,"inherits":30}],38:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -5494,7 +5987,7 @@ function indexOf(xs, x) {
   return -1;
 }
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./_stream_duplex":26,"./internal/streams/BufferList":31,"./internal/streams/destroy":32,"./internal/streams/stream":33,"_process":24,"core-util-is":17,"events":18,"inherits":20,"isarray":22,"process-nextick-args":23,"safe-buffer":34,"string_decoder/":35,"util":15}],29:[function(require,module,exports){
+},{"./_stream_duplex":36,"./internal/streams/BufferList":41,"./internal/streams/destroy":42,"./internal/streams/stream":43,"_process":34,"core-util-is":27,"events":28,"inherits":30,"isarray":32,"process-nextick-args":33,"safe-buffer":44,"string_decoder/":45,"util":25}],39:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -5709,7 +6202,7 @@ function done(stream, er, data) {
 
   return stream.push(null);
 }
-},{"./_stream_duplex":26,"core-util-is":17,"inherits":20}],30:[function(require,module,exports){
+},{"./_stream_duplex":36,"core-util-is":27,"inherits":30}],40:[function(require,module,exports){
 (function (process,global,setImmediate){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -6399,7 +6892,7 @@ Writable.prototype._destroy = function (err, cb) {
   cb(err);
 };
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("timers").setImmediate)
-},{"./_stream_duplex":26,"./internal/streams/destroy":32,"./internal/streams/stream":33,"_process":24,"core-util-is":17,"inherits":20,"process-nextick-args":23,"safe-buffer":34,"timers":44,"util-deprecate":45}],31:[function(require,module,exports){
+},{"./_stream_duplex":36,"./internal/streams/destroy":42,"./internal/streams/stream":43,"_process":34,"core-util-is":27,"inherits":30,"process-nextick-args":33,"safe-buffer":44,"timers":54,"util-deprecate":55}],41:[function(require,module,exports){
 'use strict';
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -6479,7 +6972,7 @@ if (util && util.inspect && util.inspect.custom) {
     return this.constructor.name + ' ' + obj;
   };
 }
-},{"safe-buffer":34,"util":15}],32:[function(require,module,exports){
+},{"safe-buffer":44,"util":25}],42:[function(require,module,exports){
 'use strict';
 
 /*<replacement>*/
@@ -6554,10 +7047,10 @@ module.exports = {
   destroy: destroy,
   undestroy: undestroy
 };
-},{"process-nextick-args":23}],33:[function(require,module,exports){
+},{"process-nextick-args":33}],43:[function(require,module,exports){
 module.exports = require('events').EventEmitter;
 
-},{"events":18}],34:[function(require,module,exports){
+},{"events":28}],44:[function(require,module,exports){
 /* eslint-disable node/no-deprecated-api */
 var buffer = require('buffer')
 var Buffer = buffer.Buffer
@@ -6621,7 +7114,7 @@ SafeBuffer.allocUnsafeSlow = function (size) {
   return buffer.SlowBuffer(size)
 }
 
-},{"buffer":16}],35:[function(require,module,exports){
+},{"buffer":26}],45:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -6918,10 +7411,10 @@ function simpleWrite(buf) {
 function simpleEnd(buf) {
   return buf && buf.length ? this.write(buf) : '';
 }
-},{"safe-buffer":34}],36:[function(require,module,exports){
+},{"safe-buffer":44}],46:[function(require,module,exports){
 module.exports = require('./readable').PassThrough
 
-},{"./readable":37}],37:[function(require,module,exports){
+},{"./readable":47}],47:[function(require,module,exports){
 exports = module.exports = require('./lib/_stream_readable.js');
 exports.Stream = exports;
 exports.Readable = exports;
@@ -6930,13 +7423,13 @@ exports.Duplex = require('./lib/_stream_duplex.js');
 exports.Transform = require('./lib/_stream_transform.js');
 exports.PassThrough = require('./lib/_stream_passthrough.js');
 
-},{"./lib/_stream_duplex.js":26,"./lib/_stream_passthrough.js":27,"./lib/_stream_readable.js":28,"./lib/_stream_transform.js":29,"./lib/_stream_writable.js":30}],38:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":36,"./lib/_stream_passthrough.js":37,"./lib/_stream_readable.js":38,"./lib/_stream_transform.js":39,"./lib/_stream_writable.js":40}],48:[function(require,module,exports){
 module.exports = require('./readable').Transform
 
-},{"./readable":37}],39:[function(require,module,exports){
+},{"./readable":47}],49:[function(require,module,exports){
 module.exports = require('./lib/_stream_writable.js');
 
-},{"./lib/_stream_writable.js":30}],40:[function(require,module,exports){
+},{"./lib/_stream_writable.js":40}],50:[function(require,module,exports){
 /*! safe-buffer. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */
 /* eslint-disable node/no-deprecated-api */
 var buffer = require('buffer')
@@ -7003,7 +7496,7 @@ SafeBuffer.allocUnsafeSlow = function (size) {
   return buffer.SlowBuffer(size)
 }
 
-},{"buffer":16}],41:[function(require,module,exports){
+},{"buffer":26}],51:[function(require,module,exports){
 (function (Buffer){
 ;(function (sax) { // wrapper for non-node envs
   sax.parser = function (strict, opt) { return new SAXParser(strict, opt) }
@@ -8572,7 +9065,7 @@ SafeBuffer.allocUnsafeSlow = function (size) {
 })(typeof exports === 'undefined' ? this.sax = {} : exports)
 
 }).call(this,require("buffer").Buffer)
-},{"buffer":16,"stream":42,"string_decoder":43}],42:[function(require,module,exports){
+},{"buffer":26,"stream":52,"string_decoder":53}],52:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -8701,9 +9194,9 @@ Stream.prototype.pipe = function(dest, options) {
   return dest;
 };
 
-},{"events":18,"inherits":20,"readable-stream/duplex.js":25,"readable-stream/passthrough.js":36,"readable-stream/readable.js":37,"readable-stream/transform.js":38,"readable-stream/writable.js":39}],43:[function(require,module,exports){
-arguments[4][35][0].apply(exports,arguments)
-},{"dup":35,"safe-buffer":40}],44:[function(require,module,exports){
+},{"events":28,"inherits":30,"readable-stream/duplex.js":35,"readable-stream/passthrough.js":46,"readable-stream/readable.js":47,"readable-stream/transform.js":48,"readable-stream/writable.js":49}],53:[function(require,module,exports){
+arguments[4][45][0].apply(exports,arguments)
+},{"dup":45,"safe-buffer":50}],54:[function(require,module,exports){
 (function (setImmediate,clearImmediate){
 var nextTick = require('process/browser.js').nextTick;
 var apply = Function.prototype.apply;
@@ -8782,7 +9275,7 @@ exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate :
   delete immediateIds[id];
 };
 }).call(this,require("timers").setImmediate,require("timers").clearImmediate)
-},{"process/browser.js":24,"timers":44}],45:[function(require,module,exports){
+},{"process/browser.js":34,"timers":54}],55:[function(require,module,exports){
 (function (global){
 
 /**
@@ -8853,7 +9346,7 @@ function config (name) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],46:[function(require,module,exports){
+},{}],56:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -8867,7 +9360,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],47:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -8996,7 +9489,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./defaults":48,"xmlbuilder":84}],48:[function(require,module,exports){
+},{"./defaults":58,"xmlbuilder":94}],58:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   exports.defaults = {
@@ -9070,7 +9563,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],49:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -9453,7 +9946,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./bom":46,"./defaults":48,"./processors":50,"events":18,"sax":41,"timers":44}],50:[function(require,module,exports){
+},{"./bom":56,"./defaults":58,"./processors":60,"events":28,"sax":51,"timers":54}],60:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -9489,7 +9982,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],51:[function(require,module,exports){
+},{}],61:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -9530,7 +10023,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./builder":47,"./defaults":48,"./parser":49,"./processors":50}],52:[function(require,module,exports){
+},{"./builder":57,"./defaults":58,"./parser":59,"./processors":60}],62:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   module.exports = {
@@ -9544,7 +10037,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],53:[function(require,module,exports){
+},{}],63:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   module.exports = {
@@ -9569,7 +10062,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],54:[function(require,module,exports){
+},{}],64:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var assign, getValue, isArray, isEmpty, isFunction, isObject, isPlainObject,
@@ -9654,7 +10147,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],55:[function(require,module,exports){
+},{}],65:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   module.exports = {
@@ -9666,7 +10159,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],56:[function(require,module,exports){
+},{}],66:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLAttribute, XMLNode;
@@ -9776,7 +10269,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./XMLNode":75}],57:[function(require,module,exports){
+},{"./NodeType":63,"./XMLNode":85}],67:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLCData, XMLCharacterData,
@@ -9814,7 +10307,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./XMLCharacterData":58}],58:[function(require,module,exports){
+},{"./NodeType":63,"./XMLCharacterData":68}],68:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLCharacterData, XMLNode,
@@ -9895,7 +10388,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./XMLNode":75}],59:[function(require,module,exports){
+},{"./XMLNode":85}],69:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLCharacterData, XMLComment,
@@ -9933,7 +10426,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./XMLCharacterData":58}],60:[function(require,module,exports){
+},{"./NodeType":63,"./XMLCharacterData":68}],70:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLDOMConfiguration, XMLDOMErrorHandler, XMLDOMStringList;
@@ -9999,7 +10492,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./XMLDOMErrorHandler":61,"./XMLDOMStringList":63}],61:[function(require,module,exports){
+},{"./XMLDOMErrorHandler":71,"./XMLDOMStringList":73}],71:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLDOMErrorHandler;
@@ -10017,7 +10510,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],62:[function(require,module,exports){
+},{}],72:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLDOMImplementation;
@@ -10051,7 +10544,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],63:[function(require,module,exports){
+},{}],73:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLDOMStringList;
@@ -10081,7 +10574,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],64:[function(require,module,exports){
+},{}],74:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDAttList, XMLNode,
@@ -10138,7 +10631,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./XMLNode":75}],65:[function(require,module,exports){
+},{"./NodeType":63,"./XMLNode":85}],75:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDElement, XMLNode,
@@ -10178,7 +10671,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./XMLNode":75}],66:[function(require,module,exports){
+},{"./NodeType":63,"./XMLNode":85}],76:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDEntity, XMLNode, isObject,
@@ -10277,7 +10770,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./Utility":54,"./XMLNode":75}],67:[function(require,module,exports){
+},{"./NodeType":63,"./Utility":64,"./XMLNode":85}],77:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDNotation, XMLNode,
@@ -10331,7 +10824,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./XMLNode":75}],68:[function(require,module,exports){
+},{"./NodeType":63,"./XMLNode":85}],78:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDeclaration, XMLNode, isObject,
@@ -10376,7 +10869,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./Utility":54,"./XMLNode":75}],69:[function(require,module,exports){
+},{"./NodeType":63,"./Utility":64,"./XMLNode":85}],79:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDocType, XMLNamedNodeMap, XMLNode, isObject,
@@ -10564,7 +11057,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./Utility":54,"./XMLDTDAttList":64,"./XMLDTDElement":65,"./XMLDTDEntity":66,"./XMLDTDNotation":67,"./XMLNamedNodeMap":74,"./XMLNode":75}],70:[function(require,module,exports){
+},{"./NodeType":63,"./Utility":64,"./XMLDTDAttList":74,"./XMLDTDElement":75,"./XMLDTDEntity":76,"./XMLDTDNotation":77,"./XMLNamedNodeMap":84,"./XMLNode":85}],80:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDOMConfiguration, XMLDOMImplementation, XMLDocument, XMLNode, XMLStringWriter, XMLStringifier, isPlainObject,
@@ -10808,7 +11301,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./Utility":54,"./XMLDOMConfiguration":60,"./XMLDOMImplementation":62,"./XMLNode":75,"./XMLStringWriter":80,"./XMLStringifier":81}],71:[function(require,module,exports){
+},{"./NodeType":63,"./Utility":64,"./XMLDOMConfiguration":70,"./XMLDOMImplementation":72,"./XMLNode":85,"./XMLStringWriter":90,"./XMLStringifier":91}],81:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, WriterState, XMLAttribute, XMLCData, XMLComment, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDeclaration, XMLDocType, XMLDocument, XMLDocumentCB, XMLElement, XMLProcessingInstruction, XMLRaw, XMLStringWriter, XMLStringifier, XMLText, getValue, isFunction, isObject, isPlainObject, ref,
@@ -11338,7 +11831,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./Utility":54,"./WriterState":55,"./XMLAttribute":56,"./XMLCData":57,"./XMLComment":59,"./XMLDTDAttList":64,"./XMLDTDElement":65,"./XMLDTDEntity":66,"./XMLDTDNotation":67,"./XMLDeclaration":68,"./XMLDocType":69,"./XMLDocument":70,"./XMLElement":73,"./XMLProcessingInstruction":77,"./XMLRaw":78,"./XMLStringWriter":80,"./XMLStringifier":81,"./XMLText":82}],72:[function(require,module,exports){
+},{"./NodeType":63,"./Utility":64,"./WriterState":65,"./XMLAttribute":66,"./XMLCData":67,"./XMLComment":69,"./XMLDTDAttList":74,"./XMLDTDElement":75,"./XMLDTDEntity":76,"./XMLDTDNotation":77,"./XMLDeclaration":78,"./XMLDocType":79,"./XMLDocument":80,"./XMLElement":83,"./XMLProcessingInstruction":87,"./XMLRaw":88,"./XMLStringWriter":90,"./XMLStringifier":91,"./XMLText":92}],82:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDummy, XMLNode,
@@ -11371,7 +11864,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./XMLNode":75}],73:[function(require,module,exports){
+},{"./NodeType":63,"./XMLNode":85}],83:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLAttribute, XMLElement, XMLNamedNodeMap, XMLNode, getValue, isFunction, isObject, ref,
@@ -11671,7 +12164,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./Utility":54,"./XMLAttribute":56,"./XMLNamedNodeMap":74,"./XMLNode":75}],74:[function(require,module,exports){
+},{"./NodeType":63,"./Utility":64,"./XMLAttribute":66,"./XMLNamedNodeMap":84,"./XMLNode":85}],84:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLNamedNodeMap;
@@ -11731,7 +12224,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],75:[function(require,module,exports){
+},{}],85:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var DocumentPosition, NodeType, XMLCData, XMLComment, XMLDeclaration, XMLDocType, XMLDummy, XMLElement, XMLNamedNodeMap, XMLNode, XMLNodeList, XMLProcessingInstruction, XMLRaw, XMLText, getValue, isEmpty, isFunction, isObject, ref1,
@@ -12518,7 +13011,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./DocumentPosition":52,"./NodeType":53,"./Utility":54,"./XMLCData":57,"./XMLComment":59,"./XMLDeclaration":68,"./XMLDocType":69,"./XMLDummy":72,"./XMLElement":73,"./XMLNamedNodeMap":74,"./XMLNodeList":76,"./XMLProcessingInstruction":77,"./XMLRaw":78,"./XMLText":82}],76:[function(require,module,exports){
+},{"./DocumentPosition":62,"./NodeType":63,"./Utility":64,"./XMLCData":67,"./XMLComment":69,"./XMLDeclaration":78,"./XMLDocType":79,"./XMLDummy":82,"./XMLElement":83,"./XMLNamedNodeMap":84,"./XMLNodeList":86,"./XMLProcessingInstruction":87,"./XMLRaw":88,"./XMLText":92}],86:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLNodeList;
@@ -12548,7 +13041,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],77:[function(require,module,exports){
+},{}],87:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLCharacterData, XMLProcessingInstruction,
@@ -12599,7 +13092,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./XMLCharacterData":58}],78:[function(require,module,exports){
+},{"./NodeType":63,"./XMLCharacterData":68}],88:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLNode, XMLRaw,
@@ -12636,7 +13129,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./XMLNode":75}],79:[function(require,module,exports){
+},{"./NodeType":63,"./XMLNode":85}],89:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, WriterState, XMLStreamWriter, XMLWriterBase,
@@ -12814,7 +13307,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./WriterState":55,"./XMLWriterBase":83}],80:[function(require,module,exports){
+},{"./NodeType":63,"./WriterState":65,"./XMLWriterBase":93}],90:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLStringWriter, XMLWriterBase,
@@ -12851,7 +13344,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./XMLWriterBase":83}],81:[function(require,module,exports){
+},{"./XMLWriterBase":93}],91:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLStringifier,
@@ -13093,7 +13586,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],82:[function(require,module,exports){
+},{}],92:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLCharacterData, XMLText,
@@ -13164,7 +13657,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./XMLCharacterData":58}],83:[function(require,module,exports){
+},{"./NodeType":63,"./XMLCharacterData":68}],93:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, WriterState, XMLCData, XMLComment, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDeclaration, XMLDocType, XMLDummy, XMLElement, XMLProcessingInstruction, XMLRaw, XMLText, XMLWriterBase, assign,
@@ -13594,7 +14087,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./Utility":54,"./WriterState":55,"./XMLCData":57,"./XMLComment":59,"./XMLDTDAttList":64,"./XMLDTDElement":65,"./XMLDTDEntity":66,"./XMLDTDNotation":67,"./XMLDeclaration":68,"./XMLDocType":69,"./XMLDummy":72,"./XMLElement":73,"./XMLProcessingInstruction":77,"./XMLRaw":78,"./XMLText":82}],84:[function(require,module,exports){
+},{"./NodeType":63,"./Utility":64,"./WriterState":65,"./XMLCData":67,"./XMLComment":69,"./XMLDTDAttList":74,"./XMLDTDElement":75,"./XMLDTDEntity":76,"./XMLDTDNotation":77,"./XMLDeclaration":78,"./XMLDocType":79,"./XMLDummy":82,"./XMLElement":83,"./XMLProcessingInstruction":87,"./XMLRaw":88,"./XMLText":92}],94:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, WriterState, XMLDOMImplementation, XMLDocument, XMLDocumentCB, XMLStreamWriter, XMLStringWriter, assign, isFunction, ref;
@@ -13661,4 +14154,4 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":53,"./Utility":54,"./WriterState":55,"./XMLDOMImplementation":62,"./XMLDocument":70,"./XMLDocumentCB":71,"./XMLStreamWriter":79,"./XMLStringWriter":80}]},{},[13]);
+},{"./NodeType":63,"./Utility":64,"./WriterState":65,"./XMLDOMImplementation":72,"./XMLDocument":80,"./XMLDocumentCB":81,"./XMLStreamWriter":89,"./XMLStringWriter":90}]},{},[11]);

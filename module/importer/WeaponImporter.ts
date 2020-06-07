@@ -1,14 +1,15 @@
 import {DataImporter} from "./DataImporter";
 import {ImportHelper} from "./ImportHelper";
 import {Constants} from "./Constants";
-import {RangedParser} from "./weapon/RangedParser";
-import {MeleeParser} from "./weapon/MeleeParser";
-import {ThrownParser} from "./weapon/ThrownParser";
+import {RangedParser} from "../parser/weapon/RangedParser";
+import {MeleeParser} from "../parser/weapon/MeleeParser";
+import {ThrownParser} from "../parser/weapon/ThrownParser";
 import DamageElement = Shadowrun.DamageElement;
 import WeaponCategory = Shadowrun.WeaponCategory;
 import OpposedType = Shadowrun.OpposedType;
 import Weapon = Shadowrun.Weapon;
 import DamageType = Shadowrun.DamageType;
+import {ParserMap} from "../parser/ParserMap";
 
 export class WeaponImporter extends DataImporter {
     CanParse(jsonObject: object): boolean {
@@ -142,7 +143,7 @@ export class WeaponImporter extends DataImporter {
         };
     }
 
-    protected GetWeaponType(weaponJson: object): WeaponCategory {
+    private static GetWeaponType(weaponJson: object): WeaponCategory {
         let type = ImportHelper.stringValue(weaponJson, "type");
         //melee is the least specific, all melee entries are accurate
         if (type === "Melee") {
@@ -163,70 +164,35 @@ export class WeaponImporter extends DataImporter {
     }
 
     async Parse(jsonObject: object): Promise<Entity> {
-        let folders = {};
-        let jsonCategories = jsonObject["categories"]["category"];
-        for (let i = 0; i < jsonCategories.length; i++) {
-            let categoryName = jsonCategories[i][ImportHelper.CHAR_KEY];
-            folders[categoryName] = await ImportHelper.GetFolderAtPath(
-                `${Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/${categoryName}`,
-                true
-            );
-        }
-
-        folders["Gear"] = await ImportHelper.GetFolderAtPath(
+        const folders = await ImportHelper.MakeCategoryFolders(jsonObject, "Weapons");
+        folders["gear"] = await ImportHelper.GetFolderAtPath(
             `${Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Gear`,
             true
         );
-        folders["Quality"] = await ImportHelper.GetFolderAtPath(
+        folders["quality"] = await ImportHelper.GetFolderAtPath(
             `${Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Quality`,
             true
         );
 
-        let rangedParser = new RangedParser();
-        let meleeParser = new MeleeParser();
-        let thrownParser = new ThrownParser();
+        console.log(folders);
 
-        let weaponDatas: Weapon[] = [];
-        let jsonWeapons = jsonObject["weapons"]["weapon"];
-        for (let i = 0; i < jsonWeapons.length; i++) {
-            let jsonData = jsonWeapons[i];
+        const parser = new ParserMap<Weapon>(WeaponImporter.GetWeaponType, [
+            { key: "range", value: new RangedParser() },
+            { key: "melee", value: new MeleeParser() },
+            { key: "thrown", value: new ThrownParser() },
+        ]);
 
-            let category = ImportHelper.stringValue(jsonData, "category");
-            // A single item does not meet normal rules, thanks Chummer.
-            if (category === "Hold-outs") {
-                category = "Holdouts";
-            }
+        let datas: Weapon[] = [];
+        let jsonDatas = jsonObject["weapons"]["weapon"];
+        for (let i = 0; i < jsonDatas.length; i++) {
+            let jsonData = jsonDatas[i];
 
-            let folder = folders[category];
+            let data = parser.Parse(jsonData, this.GetDefaultData());
+            data.folder = folders[data.data.category].id;
 
-            let data = this.GetDefaultData();
-            data.name = ImportHelper.stringValue(jsonData, "name");
-            data.folder = folder.id;
-
-            data.data.description.source = `${ImportHelper.stringValue(jsonData, "source")} ${ImportHelper.stringValue(jsonData, "page")}`;
-            data.data.technology.rating = 2;
-            data.data.technology.availability = ImportHelper.stringValue(jsonData, "avail");
-            data.data.technology.cost = ImportHelper.intValue(jsonData, "cost", 0);
-
-            data.data.technology.conceal.base = ImportHelper.intValue(jsonData, "conceal");
-
-            data.data.category = this.GetWeaponType(jsonData);
-
-            switch (data.data.category) {
-                case "range":
-                    data = rangedParser.Parse(jsonData, data);
-                    break;
-                case "melee":
-                    data = meleeParser.Parse(jsonData, data);
-                    break;
-                case "thrown":
-                    data = thrownParser.Parse(jsonData, data);
-                    break;
-            }
-
-            weaponDatas.push(data);
+            datas.push(data);
         }
 
-        return await Item.create(weaponDatas);
+        return await Item.create(datas);
     }
 }
