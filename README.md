@@ -4,5 +4,15 @@
 
 > You may get *way* more items than you expect, at least until we implement options for imports.
 
-For use with https://github.com/smilligan93/SR5-FoundryVTT
+### Instructions for Use
 
+1. Click on the `Items Directory` in Foundry
+2. Click `Import Chummer Data` at the bottom.
+3. Paste the **entire** contents of one of the following files into the text box.
+ - `armor.xml` (for armor)
+ - `weapons.xml` (for weapons & weapon mods)
+ - `gear.xml` (for ammo)
+ - `spells.xml` (for spells)
+ 4. If you wish to import another file, ensure you ***completely*** empty the text box first.
+
+For use with https://github.com/smilligan93/SR5-FoundryVTT
