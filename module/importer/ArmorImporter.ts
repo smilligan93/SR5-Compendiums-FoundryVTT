@@ -2,6 +2,7 @@ import { DataImporter } from "./DataImporter";
 import {ImportHelper} from "./ImportHelper";
 import {Constants} from "./Constants";
 import Armor = Shadowrun.Armor;
+import {ArmorParserBase} from "../parser/armor/ArmorParserBase";
 
 export class ArmorImporter extends DataImporter {
     CanParse(jsonObject: object): boolean {
@@ -51,27 +52,16 @@ export class ArmorImporter extends DataImporter {
         };
     }
 
-    ParseData(jsonObject: object) {
-        let data = this.GetDefaultData();
-        data.name = ImportHelper.stringValue(jsonObject, "name");
-        data.data.description.source = `${ImportHelper.stringValue(jsonObject, "source")} ${ImportHelper.stringValue(jsonObject, "page")}`;
-
-        data.data.technology.availability = ImportHelper.stringValue(jsonObject, "avail");
-        data.data.technology.cost = ImportHelper.intValue(jsonObject, "cost");
-
-        data.data.armor.value = ImportHelper.intValue(jsonObject, "armor", 0);
-        data.data.armor.mod = ImportHelper.stringValue(jsonObject, "armor").includes("+");
-        return data;
-    }
-
     async Parse(jsonObject: object): Promise<Entity> {
         const folders = await ImportHelper.MakeCategoryFolders(jsonObject, "Armor");
+
+        const parser = new ArmorParserBase();
 
         let datas: Armor[] = [];
         let jsonDatas = jsonObject["armors"]["armor"];
         for (let i = 0; i < jsonDatas.length; i++) {
             let jsonData = jsonDatas[i];
-            let data = this.ParseData(jsonData);
+            let data = parser.Parse(jsonData, this.GetDefaultData());
 
             let category = ImportHelper.stringValue(jsonData, "category");
             let folder = folders[category];
