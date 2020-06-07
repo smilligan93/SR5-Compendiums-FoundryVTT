@@ -61,16 +61,10 @@ export class ArmorImporter extends DataImporter {
         let jsonDatas = jsonObject["armors"]["armor"];
         for (let i = 0; i < jsonDatas.length; i++) {
             let jsonData = jsonDatas[i];
+
             let data = parser.Parse(jsonData, this.GetDefaultData());
-
-            let category = ImportHelper.stringValue(jsonData, "category");
-            let folder = folders[category];
-
-            if (game.items.find((item) => item.folder === folder.id && item.name === data.name)) {
-                continue;
-            }
-
-            data.folder = folder.id;
+            const category = ImportHelper.stringValue(jsonData, "category").toLowerCase();
+            data.folder = folders[category].id;
 
             datas.push(data);
         }
