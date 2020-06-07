@@ -48,7 +48,6 @@ export class ModImporter extends DataImporter {
         }
     }
 
-
     async Parse(jsonObject: object): Promise<Entity> {
         let modDatas: Mod[] = [];
         let jsonAccs = jsonObject["accessories"]["accessory"];

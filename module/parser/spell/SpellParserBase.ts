@@ -1,8 +1,9 @@
 import {ImportHelper} from "../../importer/ImportHelper";
 import Spell = Shadowrun.Spell;
 import SpellCateogry = Shadowrun.SpellCateogry;
+import {Parser} from "../Parser";
 
-export class SpellParserBase {
+export class SpellParserBase extends Parser<Spell> {
     public Parse(jsonData: object, data: Spell): Spell {
         data.name = ImportHelper.stringValue(jsonData, "name");
 

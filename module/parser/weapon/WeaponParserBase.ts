@@ -5,8 +5,9 @@ import DamageData = Shadowrun.DamageData;
 import Weapon = Shadowrun.Weapon;
 import WeaponCategory = Shadowrun.WeaponCategory;
 import {Parser} from "../Parser";
+import {ItemParserBase} from "../item/ItemParserBase";
 
-export abstract class WeaponParserBase extends Parser<Weapon> {
+export abstract class WeaponParserBase extends ItemParserBase<Weapon> {
     public abstract GetDamage(jsonData: object): DamageData;
 
     protected GetSkill(weaponJson: object): Skill {
@@ -28,18 +29,13 @@ export abstract class WeaponParserBase extends Parser<Weapon> {
     };
 
     public Parse(jsonData: object, data: Weapon): Weapon {
-        data.name = ImportHelper.stringValue(jsonData, "name");
+        data = super.Parse(jsonData, data);
 
         let category = ImportHelper.stringValue(jsonData, "category");
         // A single item does not meet normal rules, thanks Chummer!
         if (category === "Hold-outs") { category = "Holdouts"; }
 
         data.data.category = category.toLowerCase() as WeaponCategory;
-
-        data.data.description.source = `${ImportHelper.stringValue(jsonData, "source")} ${ImportHelper.stringValue(jsonData, "page")}`;
-        data.data.technology.rating = 2;
-        data.data.technology.availability = ImportHelper.stringValue(jsonData, "avail");
-        data.data.technology.cost = ImportHelper.intValue(jsonData, "cost", 0);
 
         data.data.action.skill = this.GetSkill(jsonData);
         data.data.action.damage = this.GetDamage(jsonData);

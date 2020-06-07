@@ -1,6 +1,6 @@
 import {DataImporter} from "./DataImporter";
 import {ImportHelper} from "./ImportHelper";
-import {QualityParser} from "../parser/quality/QualityParser";
+import {QualityParserBase} from "../parser/quality/QualityParserBase";
 import Quality = Shadowrun.Quality;
 
 export class QualityImporter extends DataImporter {
@@ -77,7 +77,7 @@ export class QualityImporter extends DataImporter {
         const folders = await ImportHelper.MakeCategoryFolders(jsonObject, "Qualities");
         console.log(folders);
 
-        const parser = new QualityParser();
+        const parser = new QualityParserBase();
 
         let datas: Quality[] = [];
         let jsonDatas = jsonObject["qualities"]["quality"];
