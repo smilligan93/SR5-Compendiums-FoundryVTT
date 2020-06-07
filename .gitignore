@@ -2,3 +2,4 @@
 .idea
 ChummerData/*
 node_modules/*
+module/**/*.js
