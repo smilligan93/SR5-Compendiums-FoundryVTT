@@ -94,10 +94,10 @@ class ImportHelper {
     static SetMode(mode) {
         switch (mode) {
             case ImportMode.XML:
-                ImportHelper.m_Instance = new XMLStrategy_1.XMLStrategy();
+                ImportHelper.s_Strategy = new XMLStrategy_1.XMLStrategy();
                 break;
             case ImportMode.JSON:
-                ImportHelper.m_Instance = new JSONStrategy_1.JSONStrategy();
+                ImportHelper.s_Strategy = new JSONStrategy_1.JSONStrategy();
                 break;
         }
     }
@@ -149,7 +149,7 @@ class ImportHelper {
      * @param fallback An optional default value to return if the key is not found.
      */
     static intValue(jsonData, key, fallback = undefined) {
-        return ImportHelper.m_Instance.intValue(jsonData, key, fallback);
+        return ImportHelper.s_Strategy.intValue(jsonData, key, fallback);
     }
     /**
      * Get a value from the the provided jsonData, optionally returning a default value if it is not found.
@@ -158,7 +158,7 @@ class ImportHelper {
      * @param fallback An optional default value to return if the key is not found.
      */
     static stringValue(jsonData, key, fallback = undefined) {
-        return ImportHelper.m_Instance.stringValue(jsonData, key, fallback);
+        return ImportHelper.s_Strategy.stringValue(jsonData, key, fallback);
     }
     /**
      * Get an object from the the provided jsonData, optionally returning a default value if it is not found.
@@ -167,7 +167,7 @@ class ImportHelper {
      * @param fallback An optional default value to return if the key is not found.
      */
     static objectValue(jsonData, key, fallback = undefined) {
-        return ImportHelper.m_Instance.objectValue(jsonData, key, fallback);
+        return ImportHelper.s_Strategy.objectValue(jsonData, key, fallback);
     }
     /**
      * A decorated parseInt which supports error suppression by providing a default value to
@@ -214,7 +214,7 @@ class ImportHelper {
 }
 exports.ImportHelper = ImportHelper;
 ImportHelper.CHAR_KEY = "_TEXT";
-ImportHelper.m_Instance = new XMLStrategy_1.XMLStrategy();
+ImportHelper.s_Strategy = new XMLStrategy_1.XMLStrategy();
 
 },{"../importer/Constants":8,"./JSONStrategy":4,"./XMLStrategy":5}],3:[function(require,module,exports){
 "use strict";

@@ -20,15 +20,15 @@ export enum LookupMode {
 export class ImportHelper {
     public static readonly CHAR_KEY = "_TEXT";
 
-    private static m_Instance: ImportStrategy = new XMLStrategy();
+    private static s_Strategy: ImportStrategy = new XMLStrategy();
 
     public static SetMode(mode: ImportMode) {
         switch (mode) {
             case ImportMode.XML:
-                ImportHelper.m_Instance = new XMLStrategy();
+                ImportHelper.s_Strategy = new XMLStrategy();
                 break;
             case ImportMode.JSON:
-                ImportHelper.m_Instance = new JSONStrategy();
+                ImportHelper.s_Strategy = new JSONStrategy();
                 break;
         }
     }
@@ -82,7 +82,7 @@ export class ImportHelper {
      * @param fallback An optional default value to return if the key is not found.
      */
     public static intValue(jsonData: object, key: string, fallback: number|undefined = undefined): number {
-        return ImportHelper.m_Instance.intValue(jsonData, key, fallback);
+        return ImportHelper.s_Strategy.intValue(jsonData, key, fallback);
     }
 
     /**
@@ -92,7 +92,7 @@ export class ImportHelper {
      * @param fallback An optional default value to return if the key is not found.
      */
     public static stringValue(jsonData: object, key: string|number, fallback: string|undefined = undefined): string {
-        return ImportHelper.m_Instance.stringValue(jsonData, key, fallback);
+        return ImportHelper.s_Strategy.stringValue(jsonData, key, fallback);
     }
 
     /**
@@ -102,7 +102,7 @@ export class ImportHelper {
      * @param fallback An optional default value to return if the key is not found.
      */
     public static objectValue(jsonData: object, key: string|number, fallback: object|null|undefined = undefined): object|null {
-        return ImportHelper.m_Instance.objectValue(jsonData, key, fallback);
+        return ImportHelper.s_Strategy.objectValue(jsonData, key, fallback);
     }
 
     /**
