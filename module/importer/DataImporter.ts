@@ -3,18 +3,32 @@ import {ImportHelper} from "./ImportHelper";
 const xml2js = require("xml2js");
 
 export abstract class DataImporter {
-    // Stores translations as a whole for implementing classes to extract from without reparsing.
     public static jsoni18n: any;
     /**
      * Get default data for constructing a TItem.
      */
     public abstract GetDefaultData(): any;
 
+    /**
+     * 
+     * @param jsonObject JSON Data with all data translations for one language.
+     */
+    public static CanParseI18n(jsonObject: any): boolean {
+        return jsonObject.hasOwnProperty("chummer") && jsonObject.chummer.length > 0 && jsonObject.chummer[0].$.hasOwnProperty("file");
+    }
+
+    /** 
+     * Stores translations as a whole for all implementing classes to extract from without reparsing.
+     * @param jsonObject JSON Data with all data translations for one language.
+     */
     public static ParseTranslation(jsonObject: object) {
         if (jsonObject && jsonObject.hasOwnProperty("chummer")) {
             DataImporter.jsoni18n = jsonObject["chummer"];
         }
     }
+    /**
+     * Implementing classes can use ExtractTranslation to only extract needed translations.
+     */
     public abstract ExtractTranslation();
 
     /**
@@ -30,10 +44,6 @@ export abstract class DataImporter {
      * @returns An array of created objects.
      */
     public abstract async Parse(jsonObject: object): Promise<Entity>;
-
-    public static CanParseI18n(jsonObject: any): boolean {
-        return jsonObject.hasOwnProperty("chummer") && jsonObject.chummer.length > 0 && jsonObject.chummer[0].$.hasOwnProperty("file");
-    }
     
     /**
      * Parse an XML string into a JSON object.
