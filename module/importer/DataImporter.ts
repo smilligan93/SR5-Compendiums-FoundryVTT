@@ -3,6 +3,7 @@ import {ImportHelper} from "./ImportHelper";
 const xml2js = require("xml2js");
 
 export abstract class DataImporter {
+    // Stores translations as a whole for implementing classes to extract from without reparsing.
     public static jsoni18n: any;
     /**
      * Get default data for constructing a TItem.

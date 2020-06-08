@@ -60,39 +60,9 @@ export class ArmorImporter extends DataImporter {
             return;
         }
 
-        let jsonArmori18n;
-        for (let i = 0; i < DataImporter.jsoni18n.length; i++) {
-            const translation = DataImporter.jsoni18n[i];
-            if (translation.$.file === 'armor.xml') {
-                jsonArmori18n = translation;
-                break;
-            }
-        }
-
-        if (!jsonArmori18n) {
-            return;
-        }
-
-        this.categoryTranslations = {};
-        // TODO: Refactor into pretty method
-        if (jsonArmori18n && jsonArmori18n.hasOwnProperty("categories")) {
-            jsonArmori18n.categories.category.forEach(category => {
-                const name = category[ImportHelper.CHAR_KEY];
-                const translate = category.$.translate;
-                this.categoryTranslations[name] = translate;
-            })
-        }
-
-        this.armorTranslations = {};
-        if (jsonArmori18n && jsonArmori18n.hasOwnProperty('armors')) {
-            jsonArmori18n.armors.armor.forEach(armor => {
-                const name = armor.name[ImportHelper.CHAR_KEY];
-                const translate = armor.translate[ImportHelper.CHAR_KEY];
-                this.armorTranslations[name] = translate;
-            });
-        }
-
-        console.error(this.categoryTranslations, this.armorTranslations);
+        let jsonArmori18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'armor.xml');
+        this.categoryTranslations = ImportHelper.ExtractCategoriesTranslation(jsonArmori18n);
+        this.armorTranslations = ImportHelper.ExtractItemTranslation(jsonArmori18n, 'armors', 'armor');
     }
 
     async Parse(jsonObject: object): Promise<Entity> {
@@ -107,9 +77,7 @@ export class ArmorImporter extends DataImporter {
 
             let data = parser.Parse(jsonData, this.GetDefaultData());
             const category = ImportHelper.stringValue(jsonData, "category").toLowerCase();
-            if (this.armorTranslations && this.armorTranslations.hasOwnProperty(data.name)) {
-                data.name = this.armorTranslations[data.name];
-            }
+            data.name = ImportHelper.MapNameToTranslation(this.armorTranslations, data.name);
             data.folder = folders[category].id;
 
             datas.push(data);

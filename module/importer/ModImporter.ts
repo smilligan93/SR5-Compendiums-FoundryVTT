@@ -5,7 +5,9 @@ import {Constants} from "./Constants";
 import MountType = Shadowrun.MountType;
 
 export class ModImporter extends DataImporter {
-    public jsoni18n: any;
+    public categoryTranslations: any;
+    public accessoryTranslations: any;
+
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("accessories") && jsonObject["accessories"].hasOwnProperty("accessory");
     }
@@ -50,11 +52,16 @@ export class ModImporter extends DataImporter {
     }
 
     ExtractTranslation() {
+        if (!DataImporter.jsoni18n) {
+            return;
+        }
 
+        let jsonWeaponsi18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'weapons.xml');
+        // Parts of weapon accessory translations are within the application translation. Currently only data translation is used.
+        this.accessoryTranslations = ImportHelper.ExtractItemTranslation(jsonWeaponsi18n, 'accessories', 'accessory');
     }
 
     async Parse(jsonObject: object): Promise<Entity> {
-        const jsonNameTranslations = {};
         let modDatas: Mod[] = [];
         let jsonAccs = jsonObject["accessories"]["accessory"];
         for (let i = 0; i < jsonAccs.length; i++) {
@@ -63,6 +70,7 @@ export class ModImporter extends DataImporter {
             let data = this.GetDefaultData();
 
             data.name = ImportHelper.stringValue(jsonData, "name");
+            data.name = ImportHelper.MapNameToTranslation(this.accessoryTranslations, data.name);
 
             data.data.description.source = `${ImportHelper.stringValue(jsonData, "source")} ${ImportHelper.stringValue(jsonData, "page")}`;
 

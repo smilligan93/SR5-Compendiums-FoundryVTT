@@ -148,7 +148,13 @@ export class WeaponImporter extends DataImporter {
     }
 
     ExtractTranslation() {
+        if (!DataImporter.jsoni18n) {
+            return;
+        }
 
+        let jsonWeaponi18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'weapons.xml');
+        this.categoryTranslations = ImportHelper.ExtractCategoriesTranslation(jsonWeaponi18n);
+        this.weaponTranslations = ImportHelper.ExtractItemTranslation(jsonWeaponi18n, 'weapons', 'weapon');
     }
 
     private static GetWeaponType(weaponJson: object): WeaponCategory {
@@ -173,20 +179,15 @@ export class WeaponImporter extends DataImporter {
 
     async Parse(jsonObject: object): Promise<Entity> {
         const folders = await ImportHelper.MakeCategoryFolders(jsonObject, "Weapons", this.categoryTranslations);
-        const gearCategory = "gear";
-        const qualityCategory = "quality";
-
-
-        folders[gearCategory] = await ImportHelper.GetFolderAtPath(
+        
+        folders["gear"] = await ImportHelper.GetFolderAtPath(
             `${Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Gear`,
             true
         );
-        folders[gearCategory] = await ImportHelper.GetFolderAtPath(
+        folders["quality"] = await ImportHelper.GetFolderAtPath(
             `${Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Quality`,
             true
         );
-
-        console.log(folders);
 
         const parser = new ParserMap<Weapon>(WeaponImporter.GetWeaponType, [
             { key: "range", value: new RangedParser() },
@@ -201,6 +202,8 @@ export class WeaponImporter extends DataImporter {
 
             let data = parser.Parse(jsonData, this.GetDefaultData());
             data.folder = folders[data.data.category].id;
+
+            data.name = ImportHelper.MapNameToTranslation(this.weaponTranslations, data.name);
 
             datas.push(data);
         }

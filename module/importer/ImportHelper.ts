@@ -155,5 +155,47 @@ export class ImportHelper {
 
         return folders;
     }
+
+    public static ExtractDataFileTranslation(jsoni18n, dataFileName): object {
+        for (let i = 0; i < jsoni18n.length; i++) {
+            const translation = jsoni18n[i];
+            if (translation.$.file === dataFileName) {
+                return translation;
+            }
+        }
+        return {};
+    };
+
+    public static ExtractCategoriesTranslation(jsonChummeri18n) {
+        const categoryTranslations = {};
+        if (jsonChummeri18n && jsonChummeri18n.hasOwnProperty("categories")) {
+            jsonChummeri18n.categories.category.forEach(category => {
+                const name = category[ImportHelper.CHAR_KEY];
+                const translate = category.$.translate;
+                categoryTranslations[name] = translate;
+            })
+        }
+        return categoryTranslations;
+    }
+
+    public static ExtractItemTranslation(jsonItemsi18n, typeKey, listKey) {
+        const itemTranslation = {};
+        if (jsonItemsi18n && jsonItemsi18n[typeKey] && jsonItemsi18n[typeKey][listKey] && jsonItemsi18n[typeKey][listKey].length > 0) {
+            jsonItemsi18n[typeKey][listKey].forEach(item => {
+                const name = item.name[ImportHelper.CHAR_KEY];
+                const translate = item.translate[ImportHelper.CHAR_KEY];
+                itemTranslation[name] = translate;
+            })
+        }
+
+        return itemTranslation;
+    }
+
+    public static MapNameToTranslation(translationMap, name): string {
+        if (translationMap && translationMap.hasOwnProperty(name)) {
+            return translationMap[name];
+        }
+        return name;
+    }
 }
 type ItemComparer = (item: Item) => boolean;
