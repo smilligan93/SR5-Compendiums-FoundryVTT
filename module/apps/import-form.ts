@@ -42,6 +42,9 @@ export class Import extends Application {
         html.find("button[type='submit']").on("click", async (event) => {
             event.preventDefault();
 
+            let i18nXmlSource = html.find("#i18n-xml-source").val();
+            
+
             let xmlSource = html.find("#xml-source").val();
             await this.parseXML(xmlSource);
         });
