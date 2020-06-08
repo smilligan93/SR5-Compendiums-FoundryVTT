@@ -15,7 +15,6 @@ export class WeaponImporter extends DataImporter {
     public categoryTranslations: any;
     public weaponTranslations: any;
 
-    public jsoni18n: any;
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("weapons") && jsonObject["weapons"].hasOwnProperty("weapon");
     }
