@@ -40,6 +40,9 @@ export class Import extends Application {
     }
 
     async parseXmli18n(xmlSource) {
+        if (!xmlSource) {
+            return;
+        }
         let jsonSource = await DataImporter.xml2json(xmlSource);
         
         if (DataImporter.CanParseI18n(jsonSource)) {
@@ -52,6 +55,7 @@ export class Import extends Application {
         html.find("button[type='submit']").on("click", async (event) => {
             event.preventDefault();
 
+            // Don't change order. Translations are needed for Item parsing.
             let i18nXmlSource = html.find("#i18n-xml-source").val();
             await this.parseXmli18n(i18nXmlSource);
 
