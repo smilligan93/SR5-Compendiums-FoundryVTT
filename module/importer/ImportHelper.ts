@@ -136,16 +136,23 @@ export class ImportHelper {
     }
 
     //TODO
-    public static async MakeCategoryFolders(jsonData: object, path: string): Promise<{ [name: string]: Folder }> {
+    public static async MakeCategoryFolders(jsonData: object, path: string, jsonCategoryTranslations?: object | undefined): Promise<{ [name: string]: Folder }> {
         let folders = {};
         let jsonCategories = jsonData["categories"]["category"];
+
         for (let i = 0; i < jsonCategories.length; i++) {
             let categoryName = jsonCategories[i][ImportHelper.CHAR_KEY];
-            folders[categoryName.toLowerCase()] = await ImportHelper.GetFolderAtPath(
+            // use untranslated category name for easier mapping during DataImporter.Parse implementations.
+            let origCategoryName = categoryName;
+            if (jsonCategoryTranslations && jsonCategoryTranslations.hasOwnProperty(categoryName)) {
+                categoryName = jsonCategoryTranslations[categoryName];
+            }
+            folders[origCategoryName.toLowerCase()] = await ImportHelper.GetFolderAtPath(
                 `${Constants.ROOT_IMPORT_FOLDER_NAME}/${path}/${categoryName}`,
                 true
             );
         }
+
         return folders;
     }
 }

@@ -5,6 +5,7 @@ import {Constants} from "./Constants";
 import MountType = Shadowrun.MountType;
 
 export class ModImporter extends DataImporter {
+    public jsoni18n: any;
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("accessories") && jsonObject["accessories"].hasOwnProperty("accessory");
     }
@@ -48,7 +49,12 @@ export class ModImporter extends DataImporter {
         }
     }
 
+    ParseTranslation(jsonObject: object) {
+        
+    }
+
     async Parse(jsonObject: object): Promise<Entity> {
+        const jsonNameTranslations = {};
         let modDatas: Mod[] = [];
         let jsonAccs = jsonObject["accessories"]["accessory"];
         for (let i = 0; i < jsonAccs.length; i++) {

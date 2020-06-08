@@ -12,6 +12,7 @@ import DamageType = Shadowrun.DamageType;
 import {ParserMap} from "../parser/ParserMap";
 
 export class WeaponImporter extends DataImporter {
+    public jsoni18n: any;
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("weapons") && jsonObject["weapons"].hasOwnProperty("weapon");
     }
@@ -143,6 +144,9 @@ export class WeaponImporter extends DataImporter {
         };
     }
 
+    ParseTranslation(jsonObject: object) {
+    }
+
     private static GetWeaponType(weaponJson: object): WeaponCategory {
         let type = ImportHelper.stringValue(weaponJson, "type");
         //melee is the least specific, all melee entries are accurate
@@ -164,6 +168,8 @@ export class WeaponImporter extends DataImporter {
     }
 
     async Parse(jsonObject: object): Promise<Entity> {
+        const jsonNameTranslations = {};
+
         const folders = await ImportHelper.MakeCategoryFolders(jsonObject, "Weapons");
         folders["gear"] = await ImportHelper.GetFolderAtPath(
             `${Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Gear`,

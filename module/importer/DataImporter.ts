@@ -3,11 +3,12 @@ import {ImportHelper} from "./ImportHelper";
 const xml2js = require("xml2js");
 
 export abstract class DataImporter {
-
     /**
      * Get default data for constructing a TItem.
      */
     public abstract GetDefaultData(): any;
+
+    public abstract ParseTranslation(jsonObject: object);
 
     /**
      * Validate if this importer is capable of parsing the provided JSON data.
@@ -23,6 +24,10 @@ export abstract class DataImporter {
      */
     public abstract async Parse(jsonObject: object): Promise<Entity>;
 
+    public static CanParseI18n(jsonObject: any): boolean {
+        return jsonObject.hasOwnProperty("chummer") && jsonObject.chummer.length > 0 && jsonObject.chummer[0].$.hasOwnProperty("file");
+    }
+    
     /**
      * Parse an XML string into a JSON object.
      * @param xmlString The string to parse as XML.
@@ -34,6 +39,7 @@ export abstract class DataImporter {
             explicitCharkey: true,
             charkey: ImportHelper.CHAR_KEY
         });
+    
         return (await parser.parseStringPromise(xmlString))["chummer"];
     }
 }

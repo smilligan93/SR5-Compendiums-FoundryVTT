@@ -38,12 +38,22 @@ export class Import extends Application {
         }
     }
 
+    async parseXmli18n(xmlSource) {
+        let jsonSource = await DataImporter.xml2json(xmlSource);
+        
+        if (DataImporter.CanParseI18n(jsonSource)) {
+            const armorImporter = Import.Importers[2];
+            armorImporter.ParseTranslation(jsonSource);
+        }
+    }
+    
+
     activateListeners(html) {
         html.find("button[type='submit']").on("click", async (event) => {
             event.preventDefault();
 
             let i18nXmlSource = html.find("#i18n-xml-source").val();
-            
+            await this.parseXmli18n(i18nXmlSource);
 
             let xmlSource = html.find("#xml-source").val();
             await this.parseXML(xmlSource);

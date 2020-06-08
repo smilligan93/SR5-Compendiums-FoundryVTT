@@ -9,6 +9,7 @@ import {DetectionSpellImporter} from "../parser/spell/DetectionSpellImporter";
 import {ParserMap} from "../parser/ParserMap";
 
 export class SpellImporter extends DataImporter {
+    public jsoni18n: any;
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("spells") && jsonObject["spells"].hasOwnProperty("spell");
     }
@@ -100,7 +101,12 @@ export class SpellImporter extends DataImporter {
         };
     }
 
+    ParseTranslation(jsonObject: object) {
+        
+    }
+
     async Parse(jsonObject: object): Promise<Entity> {
+        const jsonNameTranslations = {};
         const folders = await ImportHelper.MakeCategoryFolders(jsonObject, "Spells");
 
         const parser = new ParserMap<Spell>("category", [

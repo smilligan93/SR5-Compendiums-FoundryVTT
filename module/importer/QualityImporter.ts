@@ -4,6 +4,7 @@ import {QualityParserBase} from "../parser/quality/QualityParserBase";
 import Quality = Shadowrun.Quality;
 
 export class QualityImporter extends DataImporter {
+    public jsoni18n: any;
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("qualities") && jsonObject["qualities"].hasOwnProperty("quality");
     }
@@ -73,7 +74,11 @@ export class QualityImporter extends DataImporter {
         };
     }
 
+    ParseTranslation(jsonObject: object) {
+    }
+
     async Parse(jsonObject: object): Promise<Entity> {
+        const jsonNameTranslations = {};
         const folders = await ImportHelper.MakeCategoryFolders(jsonObject, "Qualities");
         console.log(folders);
 

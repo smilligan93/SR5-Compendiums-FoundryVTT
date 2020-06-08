@@ -5,6 +5,7 @@ import Ammo = Shadowrun.Ammo;
 import Weapon = Shadowrun.Weapon;
 
 export class AmmoImporter extends DataImporter {
+    public jsoni18n: any;
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("gears") && jsonObject["gears"].hasOwnProperty("gear");
     }
@@ -52,7 +53,12 @@ export class AmmoImporter extends DataImporter {
         }
     }
 
+    async ParseTranslation(jsonObject: object) {
+        console.error('implement');
+    }
+
     async Parse(jsonObject: object): Promise<Entity> {
+        const jsonNameTranslations = {};
         let ammoDatas: Ammo[] = [];
         let jsonAmmos = jsonObject["gears"]["gear"];
         for (let i = 0; i < jsonAmmos.length; i++) {
