@@ -3,6 +3,7 @@ import {ImportHelper} from "./ImportHelper";
 const xml2js = require("xml2js");
 
 export abstract class DataImporter {
+    public static jsoni18n: any;
     /**
      * Get default data for constructing a TItem.
      */

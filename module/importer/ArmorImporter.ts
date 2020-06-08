@@ -56,13 +56,13 @@ export class ArmorImporter extends DataImporter {
     }
 
     ParseTranslation(jsonObject: object) {
-        let jsoni18n: any = {};
+        DataImporter.jsoni18n = {};
 
         let tranlsations = jsonObject["chummer"];
         for (let i = 0; i < tranlsations.length; i++) {
             const translation = tranlsations[i];
             if (translation.$.file === 'armor.xml') {
-                jsoni18n = translation;
+                DataImporter.jsoni18n = translation;
                 break;
             }
         }
@@ -73,8 +73,8 @@ export class ArmorImporter extends DataImporter {
 
         this.categoryTranslations = {};
         // TODO: Refactor into pretty method
-        if (jsoni18n && jsoni18n.hasOwnProperty("categories")) {
-            jsoni18n.categories.category.forEach(category => {
+        if (DataImporter.jsoni18n && DataImporter.jsoni18n.hasOwnProperty("categories")) {
+            DataImporter.jsoni18n.categories.category.forEach(category => {
                 const name = category[ImportHelper.CHAR_KEY];
                 const translation = category.$.translate;
                 this.categoryTranslations[name] = translation;
@@ -82,8 +82,8 @@ export class ArmorImporter extends DataImporter {
         }
 
         this.armorTranslations = {};
-        if (jsoni18n && jsoni18n.hasOwnProperty('armors')) {
-            jsoni18n.armors.armor.forEach(armor => {
+        if (DataImporter.jsoni18n && DataImporter.jsoni18n.hasOwnProperty('armors')) {
+            DataImporter.jsoni18n.armors.armor.forEach(armor => {
                 const name = armor.name[ImportHelper.CHAR_KEY];
                 const translation = armor.translate[ImportHelper.CHAR_KEY];
                 this.armorTranslations[name] = translation;
