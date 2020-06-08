@@ -9,7 +9,9 @@ import {DetectionSpellImporter} from "../parser/spell/DetectionSpellImporter";
 import {ParserMap} from "../parser/ParserMap";
 
 export class SpellImporter extends DataImporter {
-    public jsoni18n: any;
+    public categoryTranslations: any;
+    public spellTranslations: any;
+
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("spells") && jsonObject["spells"].hasOwnProperty("spell");
     }
@@ -102,12 +104,17 @@ export class SpellImporter extends DataImporter {
     }
 
     ExtractTranslation() {
+        if(!DataImporter.jsoni18n) {
+            return;
+        }
 
+        let jsonSpelli18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'spells.xml');
+        this.categoryTranslations = ImportHelper.ExtractCategoriesTranslation(jsonSpelli18n);
+        this.spellTranslations = ImportHelper.ExtractItemTranslation(jsonSpelli18n, 'spells', 'spell');
     }
 
     async Parse(jsonObject: object): Promise<Entity> {
-        const jsonNameTranslations = {};
-        const folders = await ImportHelper.MakeCategoryFolders(jsonObject, "Spells");
+        const folders = await ImportHelper.MakeCategoryFolders(jsonObject, "Spells", this.categoryTranslations);
 
         const parser = new ParserMap<Spell>("category", [
             { key: "Combat", value: new CombatSpellParser() },
@@ -126,6 +133,8 @@ export class SpellImporter extends DataImporter {
 
             let data = parser.Parse(jsonData, this.GetDefaultData());
             data.folder = folders[data.data.category].id;
+
+            data.name = ImportHelper.MapNameToTranslation(this.spellTranslations, data.name);
 
             datas.push(data);
         }
