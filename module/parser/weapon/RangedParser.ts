@@ -8,7 +8,7 @@ import Weapon = Shadowrun.Weapon;
 
 export class RangedParser extends WeaponParserBase {
     public GetDamage(jsonData: object): DamageData {
-        let jsonDamage = ImportHelper.stringValue(jsonData, "damage");
+        let jsonDamage = ImportHelper.StringValue(jsonData, "damage");
         let damageCode = jsonDamage.match(/[0-9]+[PS]/g)?.[0];
 
         if (damageCode == null) {
@@ -35,7 +35,7 @@ export class RangedParser extends WeaponParserBase {
 
         let damageType = (damageCode.includes("P")) ? "physical" : "stun";
         let damageAmount = parseInt(damageCode.replace(damageType[0].toUpperCase(), ""));
-        let damageAp = ImportHelper.intValue(jsonData, "ap", 0);
+        let damageAp = ImportHelper.IntValue(jsonData, "ap", 0);
 
         return {
             type: {
@@ -59,7 +59,7 @@ export class RangedParser extends WeaponParserBase {
     };
 
     protected GetAmmo(weaponJson: object) {
-        let jsonAmmo = ImportHelper.stringValue(weaponJson, "ammo");
+        let jsonAmmo = ImportHelper.StringValue(weaponJson, "ammo");
         let match = jsonAmmo.match(/([0-9]+)/g)?.[0];
         return (match !== undefined) ? parseInt(match) : 0;
     }
@@ -67,22 +67,22 @@ export class RangedParser extends WeaponParserBase {
     Parse(jsonData: object, data: Weapon): Weapon {
         data = super.Parse(jsonData, data);
 
-        data.data.range.rc.base = ImportHelper.intValue(jsonData, "rc");
-        data.data.range.rc.value = ImportHelper.intValue(jsonData, "rc");
+        data.data.range.rc.base = ImportHelper.IntValue(jsonData, "rc");
+        data.data.range.rc.value = ImportHelper.IntValue(jsonData, "rc");
 
         if (jsonData.hasOwnProperty("range")) {
-            data.data.range.ranges = Constants.WEAPON_RANGES[ImportHelper.stringValue(jsonData, "range")];
+            data.data.range.ranges = Constants.WEAPON_RANGES[ImportHelper.StringValue(jsonData, "range")];
         } else {
-            data.data.range.ranges = Constants.WEAPON_RANGES[ImportHelper.stringValue(jsonData, "category")];
+            data.data.range.ranges = Constants.WEAPON_RANGES[ImportHelper.StringValue(jsonData, "category")];
         }
 
         data.data.ammo.current.value = this.GetAmmo(jsonData);
         data.data.ammo.current.max = this.GetAmmo(jsonData);
 
-        data.data.range.modes.single_shot = ImportHelper.stringValue(jsonData, "mode").includes("SS");
-        data.data.range.modes.semi_auto = ImportHelper.stringValue(jsonData, "mode").includes("SA");
-        data.data.range.modes.burst_fire = ImportHelper.stringValue(jsonData, "mode").includes("BF");
-        data.data.range.modes.full_auto = ImportHelper.stringValue(jsonData, "mode").includes("FA");
+        data.data.range.modes.single_shot = ImportHelper.StringValue(jsonData, "mode").includes("SS");
+        data.data.range.modes.semi_auto = ImportHelper.StringValue(jsonData, "mode").includes("SA");
+        data.data.range.modes.burst_fire = ImportHelper.StringValue(jsonData, "mode").includes("BF");
+        data.data.range.modes.full_auto = ImportHelper.StringValue(jsonData, "mode").includes("FA");
 
         return data;
     };

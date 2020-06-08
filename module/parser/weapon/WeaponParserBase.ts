@@ -12,18 +12,18 @@ export abstract class WeaponParserBase extends ItemParserBase<Weapon> {
 
     protected GetSkill(weaponJson: object): Skill {
         if (weaponJson.hasOwnProperty("useskill")) {
-            let jsonSkill = ImportHelper.stringValue(weaponJson, "useskill");
+            let jsonSkill = ImportHelper.StringValue(weaponJson, "useskill");
             if (Constants.MAP_CATEGORY_TO_SKILL.hasOwnProperty(jsonSkill)) {
                 return Constants.MAP_CATEGORY_TO_SKILL[jsonSkill];
             }
             return jsonSkill.replace(/[\s\-]/g, "_").toLowerCase();
         } else {
-            let category = ImportHelper.stringValue(weaponJson, "category");
+            let category = ImportHelper.StringValue(weaponJson, "category");
             if (Constants.MAP_CATEGORY_TO_SKILL.hasOwnProperty(category)) {
                 return Constants.MAP_CATEGORY_TO_SKILL[category];
             }
 
-            let type = ImportHelper.stringValue(weaponJson, "type").toLowerCase();
+            let type = ImportHelper.StringValue(weaponJson, "type").toLowerCase();
             return (type === "ranged") ? "exotic_range" : "exotic_melee";
         }
     };
@@ -31,7 +31,7 @@ export abstract class WeaponParserBase extends ItemParserBase<Weapon> {
     public Parse(jsonData: object, data: Weapon): Weapon {
         data = super.Parse(jsonData, data);
 
-        let category = ImportHelper.stringValue(jsonData, "category");
+        let category = ImportHelper.StringValue(jsonData, "category");
         // A single item does not meet normal rules, thanks Chummer!
         if (category === "Hold-outs") { category = "Holdouts"; }
 
@@ -40,10 +40,10 @@ export abstract class WeaponParserBase extends ItemParserBase<Weapon> {
         data.data.action.skill = this.GetSkill(jsonData);
         data.data.action.damage = this.GetDamage(jsonData);
 
-        data.data.action.limit.value = ImportHelper.intValue(jsonData, "accuracy");
-        data.data.action.limit.base = ImportHelper.intValue(jsonData, "accuracy");
+        data.data.action.limit.value = ImportHelper.IntValue(jsonData, "accuracy");
+        data.data.action.limit.base = ImportHelper.IntValue(jsonData, "accuracy");
 
-        data.data.technology.conceal.base = ImportHelper.intValue(jsonData, "conceal");
+        data.data.technology.conceal.base = ImportHelper.IntValue(jsonData, "conceal");
 
         return data;
     }

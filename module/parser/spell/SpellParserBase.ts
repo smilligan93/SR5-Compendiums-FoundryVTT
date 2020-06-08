@@ -5,12 +5,12 @@ import {Parser} from "../Parser";
 
 export class SpellParserBase extends Parser<Spell> {
     public Parse(jsonData: object, data: Spell): Spell {
-        data.name = ImportHelper.stringValue(jsonData, "name");
+        data.name = ImportHelper.StringValue(jsonData, "name");
 
-        data.data.description.source = `${ImportHelper.stringValue(jsonData, "source")} ${ImportHelper.stringValue(jsonData, "page")}`;
-        data.data.category = ImportHelper.stringValue(jsonData, "category").toLowerCase() as SpellCateogry;
+        data.data.description.source = `${ImportHelper.StringValue(jsonData, "source")} ${ImportHelper.StringValue(jsonData, "page")}`;
+        data.data.category = ImportHelper.StringValue(jsonData, "category").toLowerCase() as SpellCateogry;
 
-        let damage = ImportHelper.stringValue(jsonData, "damage");
+        let damage = ImportHelper.StringValue(jsonData, "damage");
         if (damage === "P") {
             data.data.action.damage.type.base = "physical";
             data.data.action.damage.type.value = "physical";
@@ -19,7 +19,7 @@ export class SpellParserBase extends Parser<Spell> {
             data.data.action.damage.type.value = "stun";
         }
 
-        let duration = ImportHelper.stringValue(jsonData, "duration");
+        let duration = ImportHelper.StringValue(jsonData, "duration");
         if (duration === "I") {
             data.data.duration = "instant";
         } else if (duration === "S") {
@@ -28,12 +28,12 @@ export class SpellParserBase extends Parser<Spell> {
             data.data.duration = "permanent";
         }
 
-        let drain = ImportHelper.stringValue(jsonData, "dv");
+        let drain = ImportHelper.StringValue(jsonData, "dv");
         if (drain.includes("+") || drain.includes("-")) {
             data.data.drain = parseInt(drain.substring(1, drain.length));
         }
 
-        let range = ImportHelper.stringValue(jsonData, "range");
+        let range = ImportHelper.StringValue(jsonData, "range");
         if (range === "T") {
             data.data.range = "touch";
         } else if (range === "LOS") {
@@ -42,7 +42,7 @@ export class SpellParserBase extends Parser<Spell> {
             data.data.range = "los_a";
         }
 
-        let type = ImportHelper.stringValue(jsonData, "type");
+        let type = ImportHelper.StringValue(jsonData, "type");
         if (type === "P") {
             data.data.type = "physical";
         } else if (type === "M") {

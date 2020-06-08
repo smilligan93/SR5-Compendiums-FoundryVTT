@@ -81,7 +81,7 @@ export class ImportHelper {
      * @param key The key to check for the value under.
      * @param fallback An optional default value to return if the key is not found.
      */
-    public static intValue(jsonData: object, key: string, fallback: number|undefined = undefined): number {
+    public static IntValue(jsonData: object, key: string, fallback: number|undefined = undefined): number {
         return ImportHelper.s_Strategy.intValue(jsonData, key, fallback);
     }
 
@@ -91,7 +91,7 @@ export class ImportHelper {
      * @param key The key to check for the value under.
      * @param fallback An optional default value to return if the key is not found.
      */
-    public static stringValue(jsonData: object, key: string|number, fallback: string|undefined = undefined): string {
+    public static StringValue(jsonData: object, key: string|number, fallback: string|undefined = undefined): string {
         return ImportHelper.s_Strategy.stringValue(jsonData, key, fallback);
     }
 
@@ -101,29 +101,10 @@ export class ImportHelper {
      * @param key The key to check for the value under.
      * @param fallback An optional default value to return if the key is not found.
      */
-    public static objectValue(jsonData: object, key: string|number, fallback: object|null|undefined = undefined): object|null {
+    public static ObjectValue(jsonData: object, key: string|number, fallback: object|null|undefined = undefined): object|null {
         return ImportHelper.s_Strategy.objectValue(jsonData, key, fallback);
     }
-
-    /**
-     * A decorated parseInt which supports error suppression by providing a default value to
-     * be returned in the event an error is raised.
-     * @param value The value to parse.
-     * @param fallback The devault value to return in case of error.
-     */
-    public static parseInt(value: any, fallback: number|undefined = undefined): number {
-        try {
-            return parseInt(value);
-        }
-        catch (e) {
-            if (fallback !== undefined) {
-                return fallback;
-            } else {
-                throw e;
-            }
-        }
-    }
-
+    
     //TODO
     public static findItem(nameOrCmp: string|ItemComparer): Entity {
         let result: any | null;

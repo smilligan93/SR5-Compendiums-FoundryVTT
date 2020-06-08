@@ -9,12 +9,12 @@ export class ModParserBase extends ItemParserBase<Mod> {
 
         data.data.type = "weapon";
 
-        data.data.mount_point = ImportHelper.stringValue(jsonData, "mount") as MountType;
+        data.data.mount_point = ImportHelper.StringValue(jsonData, "mount") as MountType;
 
-        data.data.rc = ImportHelper.intValue(jsonData, "rc", 0);
-        data.data.accuracy = ImportHelper.intValue(jsonData, "accuracy", 0);
+        data.data.rc = ImportHelper.IntValue(jsonData, "rc", 0);
+        data.data.accuracy = ImportHelper.IntValue(jsonData, "accuracy", 0);
 
-        data.data.technology.conceal.base = ImportHelper.intValue(jsonData, "conceal", 0);
+        data.data.technology.conceal.base = ImportHelper.IntValue(jsonData, "conceal", 0);
 
         return data;
     }

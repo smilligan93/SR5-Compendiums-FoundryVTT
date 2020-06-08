@@ -85,7 +85,7 @@ export class QualityImporter extends DataImporter {
             let jsonData = jsonDatas[i];
             let data = parser.Parse(jsonData, this.GetDefaultData());
 
-            let category = ImportHelper.stringValue(jsonData, "category");
+            let category = ImportHelper.StringValue(jsonData, "category");
             data.folder = folders[category.toLowerCase()].id;
 
             datas.push(data);

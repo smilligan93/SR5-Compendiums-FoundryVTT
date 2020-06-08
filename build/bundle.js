@@ -148,7 +148,7 @@ class ImportHelper {
      * @param key The key to check for the value under.
      * @param fallback An optional default value to return if the key is not found.
      */
-    static intValue(jsonData, key, fallback = undefined) {
+    static IntValue(jsonData, key, fallback = undefined) {
         return ImportHelper.s_Strategy.intValue(jsonData, key, fallback);
     }
     /**
@@ -157,7 +157,7 @@ class ImportHelper {
      * @param key The key to check for the value under.
      * @param fallback An optional default value to return if the key is not found.
      */
-    static stringValue(jsonData, key, fallback = undefined) {
+    static StringValue(jsonData, key, fallback = undefined) {
         return ImportHelper.s_Strategy.stringValue(jsonData, key, fallback);
     }
     /**
@@ -166,27 +166,8 @@ class ImportHelper {
      * @param key The key to check for the value under.
      * @param fallback An optional default value to return if the key is not found.
      */
-    static objectValue(jsonData, key, fallback = undefined) {
+    static ObjectValue(jsonData, key, fallback = undefined) {
         return ImportHelper.s_Strategy.objectValue(jsonData, key, fallback);
-    }
-    /**
-     * A decorated parseInt which supports error suppression by providing a default value to
-     * be returned in the event an error is raised.
-     * @param value The value to parse.
-     * @param fallback The devault value to return in case of error.
-     */
-    static parseInt(value, fallback = undefined) {
-        try {
-            return parseInt(value);
-        }
-        catch (e) {
-            if (fallback !== undefined) {
-                return fallback;
-            }
-            else {
-                throw e;
-            }
-        }
     }
     //TODO
     static findItem(nameOrCmp) {
@@ -358,20 +339,20 @@ class AmmoImporter extends DataImporter_1.DataImporter {
             let jsonAmmos = jsonObject["gears"]["gear"];
             for (let i = 0; i < jsonAmmos.length; i++) {
                 let jsonData = jsonAmmos[i];
-                if (ImportHelper_1.ImportHelper.stringValue(jsonData, "category", "") !== "Ammunition") {
+                if (ImportHelper_1.ImportHelper.StringValue(jsonData, "category", "") !== "Ammunition") {
                     continue;
                 }
                 let data = this.GetDefaultData();
-                data.name = ImportHelper_1.ImportHelper.stringValue(jsonData, "name");
-                data.data.description.source = `${ImportHelper_1.ImportHelper.stringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.stringValue(jsonData, "page")}`;
+                data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+                data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
                 data.data.technology.rating = 2;
-                data.data.technology.availability = ImportHelper_1.ImportHelper.stringValue(jsonData, "avail");
-                data.data.technology.cost = ImportHelper_1.ImportHelper.intValue(jsonData, "cost", 0);
-                let bonusData = ImportHelper_1.ImportHelper.objectValue(jsonData, "weaponbonus", null);
+                data.data.technology.availability = ImportHelper_1.ImportHelper.StringValue(jsonData, "avail");
+                data.data.technology.cost = ImportHelper_1.ImportHelper.IntValue(jsonData, "cost", 0);
+                let bonusData = ImportHelper_1.ImportHelper.ObjectValue(jsonData, "weaponbonus", null);
                 if (bonusData !== undefined && bonusData !== null) {
-                    data.data.ap = ImportHelper_1.ImportHelper.intValue(bonusData, "ap", 0);
-                    data.data.damage = ImportHelper_1.ImportHelper.intValue(bonusData, "damage", 0);
-                    let damageType = ImportHelper_1.ImportHelper.stringValue(bonusData, "damagetype", "");
+                    data.data.ap = ImportHelper_1.ImportHelper.IntValue(bonusData, "ap", 0);
+                    data.data.damage = ImportHelper_1.ImportHelper.IntValue(bonusData, "damage", 0);
+                    let damageType = ImportHelper_1.ImportHelper.StringValue(bonusData, "damagetype", "");
                     if (damageType.length > 0) {
                         if (damageType.includes("P")) {
                             data.data.damageType = "physical";
@@ -490,7 +471,7 @@ class ArmorImporter extends DataImporter_1.DataImporter {
             for (let i = 0; i < jsonDatas.length; i++) {
                 let jsonData = jsonDatas[i];
                 let data = parser.Parse(jsonData, this.GetDefaultData());
-                const category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category").toLowerCase();
+                const category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category").toLowerCase();
                 data.folder = folders[category].id;
                 datas.push(data);
             }
@@ -933,7 +914,7 @@ class QualityImporter extends DataImporter_1.DataImporter {
             for (let i = 0; i < jsonDatas.length; i++) {
                 let jsonData = jsonDatas[i];
                 let data = parser.Parse(jsonData, this.GetDefaultData());
-                let category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category");
+                let category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category");
                 data.folder = folders[category.toLowerCase()].id;
                 datas.push(data);
             }
@@ -1231,7 +1212,7 @@ class WeaponImporter extends DataImporter_1.DataImporter {
         };
     }
     static GetWeaponType(weaponJson) {
-        let type = ImportHelper_1.ImportHelper.stringValue(weaponJson, "type");
+        let type = ImportHelper_1.ImportHelper.StringValue(weaponJson, "type");
         //melee is the least specific, all melee entries are accurate
         if (type === "Melee") {
             return "melee";
@@ -1239,12 +1220,12 @@ class WeaponImporter extends DataImporter_1.DataImporter {
         else {
             // skill takes priorities over category
             if (weaponJson.hasOwnProperty("useskill")) {
-                let skill = ImportHelper_1.ImportHelper.stringValue(weaponJson, "useskill");
+                let skill = ImportHelper_1.ImportHelper.StringValue(weaponJson, "useskill");
                 if (skill === "Throwing Weapons")
                     return "thrown";
             }
             // category is the fallback
-            let category = ImportHelper_1.ImportHelper.stringValue(weaponJson, "category");
+            let category = ImportHelper_1.ImportHelper.StringValue(weaponJson, "category");
             if (category === "Throwing Weapons")
                 return "thrown";
             // ranged is everything else
@@ -1318,7 +1299,7 @@ class ParserMap extends Parser_1.Parser {
         }
         else {
             key = this.m_BranchKey;
-            key = ImportHelper_1.ImportHelper.stringValue(jsonData, key);
+            key = ImportHelper_1.ImportHelper.StringValue(jsonData, key);
         }
         const parser = this.m_Map.get(key);
         if (parser === undefined) {
@@ -1339,8 +1320,8 @@ const ImportHelper_1 = require("../../helper/ImportHelper");
 class ArmorParserBase extends ItemParserBase_1.ItemParserBase {
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
-        data.data.armor.value = ImportHelper_1.ImportHelper.intValue(jsonData, "armor", 0);
-        data.data.armor.mod = ImportHelper_1.ImportHelper.stringValue(jsonData, "armor").includes("+");
+        data.data.armor.value = ImportHelper_1.ImportHelper.IntValue(jsonData, "armor", 0);
+        data.data.armor.mod = ImportHelper_1.ImportHelper.StringValue(jsonData, "armor").includes("+");
         return data;
     }
 }
@@ -1354,11 +1335,11 @@ const Parser_1 = require("../Parser");
 const ImportHelper_1 = require("../../helper/ImportHelper");
 class ItemParserBase extends Parser_1.Parser {
     Parse(jsonData, data) {
-        data.name = ImportHelper_1.ImportHelper.stringValue(jsonData, "name");
-        data.data.description.source = `${ImportHelper_1.ImportHelper.stringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.stringValue(jsonData, "page")}`;
-        data.data.technology.availability = ImportHelper_1.ImportHelper.stringValue(jsonData, "avail", "0");
-        data.data.technology.cost = ImportHelper_1.ImportHelper.intValue(jsonData, "cost", 0);
-        data.data.technology.rating = ImportHelper_1.ImportHelper.intValue(jsonData, "rating", 0);
+        data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+        data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
+        data.data.technology.availability = ImportHelper_1.ImportHelper.StringValue(jsonData, "avail", "0");
+        data.data.technology.cost = ImportHelper_1.ImportHelper.IntValue(jsonData, "cost", 0);
+        data.data.technology.rating = ImportHelper_1.ImportHelper.IntValue(jsonData, "rating", 0);
         return data;
     }
 }
@@ -1374,10 +1355,10 @@ class ModParserBase extends ItemParserBase_1.ItemParserBase {
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
         data.data.type = "weapon";
-        data.data.mount_point = ImportHelper_1.ImportHelper.stringValue(jsonData, "mount");
-        data.data.rc = ImportHelper_1.ImportHelper.intValue(jsonData, "rc", 0);
-        data.data.accuracy = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy", 0);
-        data.data.technology.conceal.base = ImportHelper_1.ImportHelper.intValue(jsonData, "conceal", 0);
+        data.data.mount_point = ImportHelper_1.ImportHelper.StringValue(jsonData, "mount");
+        data.data.rc = ImportHelper_1.ImportHelper.IntValue(jsonData, "rc", 0);
+        data.data.accuracy = ImportHelper_1.ImportHelper.IntValue(jsonData, "accuracy", 0);
+        data.data.technology.conceal.base = ImportHelper_1.ImportHelper.IntValue(jsonData, "conceal", 0);
         return data;
     }
 }
@@ -1391,9 +1372,9 @@ const ImportHelper_1 = require("../../helper/ImportHelper");
 const Parser_1 = require("../Parser");
 class QualityParserBase extends Parser_1.Parser {
     Parse(jsonData, data) {
-        data.name = ImportHelper_1.ImportHelper.stringValue(jsonData, "name");
-        data.data.description.source = `${ImportHelper_1.ImportHelper.stringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.stringValue(jsonData, "page")}`;
-        data.data.type = (ImportHelper_1.ImportHelper.stringValue(jsonData, "category") === "Positive") ? "positive" : "negative";
+        data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+        data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
+        data.data.type = (ImportHelper_1.ImportHelper.StringValue(jsonData, "category") === "Positive") ? "positive" : "negative";
         return data;
     }
 }
@@ -1408,7 +1389,7 @@ const ImportHelper_1 = require("../../helper/ImportHelper");
 class CombatSpellParser extends SpellParserBase_1.SpellParserBase {
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
-        let descriptor = ImportHelper_1.ImportHelper.stringValue(jsonData, "descriptor");
+        let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
         // A few spells have a missing descriptor instead of an empty string.
         // The field is <descriptor /> rather than <descriptor></descriptor>
         // which gets imported as undefined rather than empty string (sigh)
@@ -1447,7 +1428,7 @@ const ImportHelper_1 = require("../../helper/ImportHelper");
 class DetectionSpellImporter extends SpellParserBase_1.SpellParserBase {
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
-        let descriptor = ImportHelper_1.ImportHelper.stringValue(jsonData, "descriptor");
+        let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
         // A few spells have a missing descriptor instead of an empty string.
         // The field is <descriptor /> rather than <descriptor></descriptor>
         // which gets imported as undefined rather than empty string (sigh)
@@ -1485,7 +1466,7 @@ const ImportHelper_1 = require("../../helper/ImportHelper");
 class IllusionSpellParser extends SpellParserBase_1.SpellParserBase {
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
-        let descriptor = ImportHelper_1.ImportHelper.stringValue(jsonData, "descriptor");
+        let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
         // A few spells have a missing descriptor instead of an empty string.
         // The field is <descriptor /> rather than <descriptor></descriptor>
         // which gets imported as undefined rather than empty string (sigh)
@@ -1517,7 +1498,7 @@ const ImportHelper_1 = require("../../helper/ImportHelper");
 class ManipulationSpellParser extends SpellParserBase_1.SpellParserBase {
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
-        let descriptor = ImportHelper_1.ImportHelper.stringValue(jsonData, "descriptor");
+        let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
         // A few spells have a missing descriptor instead of an empty string.
         // The field is <descriptor /> rather than <descriptor></descriptor>
         // which gets imported as undefined rather than empty string (sigh)
@@ -1556,10 +1537,10 @@ const ImportHelper_1 = require("../../helper/ImportHelper");
 const Parser_1 = require("../Parser");
 class SpellParserBase extends Parser_1.Parser {
     Parse(jsonData, data) {
-        data.name = ImportHelper_1.ImportHelper.stringValue(jsonData, "name");
-        data.data.description.source = `${ImportHelper_1.ImportHelper.stringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.stringValue(jsonData, "page")}`;
-        data.data.category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category").toLowerCase();
-        let damage = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
+        data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+        data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
+        data.data.category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category").toLowerCase();
+        let damage = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
         if (damage === "P") {
             data.data.action.damage.type.base = "physical";
             data.data.action.damage.type.value = "physical";
@@ -1568,7 +1549,7 @@ class SpellParserBase extends Parser_1.Parser {
             data.data.action.damage.type.base = "stun";
             data.data.action.damage.type.value = "stun";
         }
-        let duration = ImportHelper_1.ImportHelper.stringValue(jsonData, "duration");
+        let duration = ImportHelper_1.ImportHelper.StringValue(jsonData, "duration");
         if (duration === "I") {
             data.data.duration = "instant";
         }
@@ -1578,11 +1559,11 @@ class SpellParserBase extends Parser_1.Parser {
         else if (duration === "P") {
             data.data.duration = "permanent";
         }
-        let drain = ImportHelper_1.ImportHelper.stringValue(jsonData, "dv");
+        let drain = ImportHelper_1.ImportHelper.StringValue(jsonData, "dv");
         if (drain.includes("+") || drain.includes("-")) {
             data.data.drain = parseInt(drain.substring(1, drain.length));
         }
-        let range = ImportHelper_1.ImportHelper.stringValue(jsonData, "range");
+        let range = ImportHelper_1.ImportHelper.StringValue(jsonData, "range");
         if (range === "T") {
             data.data.range = "touch";
         }
@@ -1592,7 +1573,7 @@ class SpellParserBase extends Parser_1.Parser {
         else if (range === "LOS (A)") {
             data.data.range = "los_a";
         }
-        let type = ImportHelper_1.ImportHelper.stringValue(jsonData, "type");
+        let type = ImportHelper_1.ImportHelper.StringValue(jsonData, "type");
         if (type === "P") {
             data.data.type = "physical";
         }
@@ -1613,7 +1594,7 @@ const WeaponParserBase_1 = require("./WeaponParserBase");
 class MeleeParser extends WeaponParserBase_1.WeaponParserBase {
     GetDamage(jsonData) {
         var _a;
-        let jsonDamage = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
+        let jsonDamage = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
         let damageCode = (_a = jsonDamage.match(/(STR)([+-]?)([1-9]*)\)([PS])/g)) === null || _a === void 0 ? void 0 : _a[0];
         if (damageCode == null) {
             return {
@@ -1637,7 +1618,7 @@ class MeleeParser extends WeaponParserBase_1.WeaponParserBase {
             };
         }
         let damageBase = 0;
-        let damageAp = ImportHelper_1.ImportHelper.intValue(jsonData, "ap", 0);
+        let damageAp = ImportHelper_1.ImportHelper.IntValue(jsonData, "ap", 0);
         let splitDamageCode = damageCode.split(")");
         let damageType = (splitDamageCode[1].includes("P")) ? "physical" : "stun";
         let splitBaseCode = damageCode.includes("+") ? splitDamageCode[0].split("+") : splitDamageCode[0].split("-");
@@ -1668,7 +1649,7 @@ class MeleeParser extends WeaponParserBase_1.WeaponParserBase {
     ;
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
-        data.data.melee.reach = ImportHelper_1.ImportHelper.intValue(jsonData, "reach");
+        data.data.melee.reach = ImportHelper_1.ImportHelper.IntValue(jsonData, "reach");
         return data;
     }
     ;
@@ -1685,7 +1666,7 @@ const Constants_1 = require("../../importer/Constants");
 class RangedParser extends WeaponParserBase_1.WeaponParserBase {
     GetDamage(jsonData) {
         var _a;
-        let jsonDamage = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
+        let jsonDamage = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
         let damageCode = (_a = jsonDamage.match(/[0-9]+[PS]/g)) === null || _a === void 0 ? void 0 : _a[0];
         if (damageCode == null) {
             return {
@@ -1710,7 +1691,7 @@ class RangedParser extends WeaponParserBase_1.WeaponParserBase {
         }
         let damageType = (damageCode.includes("P")) ? "physical" : "stun";
         let damageAmount = parseInt(damageCode.replace(damageType[0].toUpperCase(), ""));
-        let damageAp = ImportHelper_1.ImportHelper.intValue(jsonData, "ap", 0);
+        let damageAp = ImportHelper_1.ImportHelper.IntValue(jsonData, "ap", 0);
         return {
             type: {
                 base: damageType,
@@ -1734,26 +1715,26 @@ class RangedParser extends WeaponParserBase_1.WeaponParserBase {
     ;
     GetAmmo(weaponJson) {
         var _a;
-        let jsonAmmo = ImportHelper_1.ImportHelper.stringValue(weaponJson, "ammo");
+        let jsonAmmo = ImportHelper_1.ImportHelper.StringValue(weaponJson, "ammo");
         let match = (_a = jsonAmmo.match(/([0-9]+)/g)) === null || _a === void 0 ? void 0 : _a[0];
         return (match !== undefined) ? parseInt(match) : 0;
     }
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
-        data.data.range.rc.base = ImportHelper_1.ImportHelper.intValue(jsonData, "rc");
-        data.data.range.rc.value = ImportHelper_1.ImportHelper.intValue(jsonData, "rc");
+        data.data.range.rc.base = ImportHelper_1.ImportHelper.IntValue(jsonData, "rc");
+        data.data.range.rc.value = ImportHelper_1.ImportHelper.IntValue(jsonData, "rc");
         if (jsonData.hasOwnProperty("range")) {
-            data.data.range.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.stringValue(jsonData, "range")];
+            data.data.range.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.StringValue(jsonData, "range")];
         }
         else {
-            data.data.range.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.stringValue(jsonData, "category")];
+            data.data.range.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.StringValue(jsonData, "category")];
         }
         data.data.ammo.current.value = this.GetAmmo(jsonData);
         data.data.ammo.current.max = this.GetAmmo(jsonData);
-        data.data.range.modes.single_shot = ImportHelper_1.ImportHelper.stringValue(jsonData, "mode").includes("SS");
-        data.data.range.modes.semi_auto = ImportHelper_1.ImportHelper.stringValue(jsonData, "mode").includes("SA");
-        data.data.range.modes.burst_fire = ImportHelper_1.ImportHelper.stringValue(jsonData, "mode").includes("BF");
-        data.data.range.modes.full_auto = ImportHelper_1.ImportHelper.stringValue(jsonData, "mode").includes("FA");
+        data.data.range.modes.single_shot = ImportHelper_1.ImportHelper.StringValue(jsonData, "mode").includes("SS");
+        data.data.range.modes.semi_auto = ImportHelper_1.ImportHelper.StringValue(jsonData, "mode").includes("SA");
+        data.data.range.modes.burst_fire = ImportHelper_1.ImportHelper.StringValue(jsonData, "mode").includes("BF");
+        data.data.range.modes.full_auto = ImportHelper_1.ImportHelper.StringValue(jsonData, "mode").includes("FA");
         return data;
     }
     ;
@@ -1770,7 +1751,7 @@ const Constants_1 = require("../../importer/Constants");
 class ThrownParser extends WeaponParserBase_1.WeaponParserBase {
     GetDamage(jsonData) {
         var _a, _b, _c, _d;
-        let jsonDamage = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
+        let jsonDamage = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
         let damageAmount = 0;
         let damageType = "physical";
         let damageAttribute = "";
@@ -1814,7 +1795,7 @@ class ThrownParser extends WeaponParserBase_1.WeaponParserBase {
             }
         }
         damageType = jsonDamage.includes("P") ? "physical" : "stun";
-        let damageAp = ImportHelper_1.ImportHelper.intValue(jsonData, "ap", 0);
+        let damageAp = ImportHelper_1.ImportHelper.IntValue(jsonData, "ap", 0);
         return {
             type: {
                 base: damageType,
@@ -1842,7 +1823,7 @@ class ThrownParser extends WeaponParserBase_1.WeaponParserBase {
             radius: 0,
             dropoff: 0
         };
-        let blastCode = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
+        let blastCode = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
         let radiusMatch = (_a = blastCode.match(/([0-9]+m)/)) === null || _a === void 0 ? void 0 : _a[0];
         if (radiusMatch !== undefined) {
             radiusMatch = (_b = radiusMatch.match(/[0-9]+/)) === null || _b === void 0 ? void 0 : _b[0];
@@ -1865,10 +1846,10 @@ class ThrownParser extends WeaponParserBase_1.WeaponParserBase {
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
         if (jsonData.hasOwnProperty("range")) {
-            data.data.thrown.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.stringValue(jsonData, "range")];
+            data.data.thrown.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.StringValue(jsonData, "range")];
         }
         else {
-            data.data.thrown.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.stringValue(jsonData, "category")];
+            data.data.thrown.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.StringValue(jsonData, "category")];
         }
         data.data.thrown.blast = this.GetBlast(jsonData, data);
         return data;
@@ -1887,25 +1868,25 @@ const ItemParserBase_1 = require("../item/ItemParserBase");
 class WeaponParserBase extends ItemParserBase_1.ItemParserBase {
     GetSkill(weaponJson) {
         if (weaponJson.hasOwnProperty("useskill")) {
-            let jsonSkill = ImportHelper_1.ImportHelper.stringValue(weaponJson, "useskill");
+            let jsonSkill = ImportHelper_1.ImportHelper.StringValue(weaponJson, "useskill");
             if (Constants_1.Constants.MAP_CATEGORY_TO_SKILL.hasOwnProperty(jsonSkill)) {
                 return Constants_1.Constants.MAP_CATEGORY_TO_SKILL[jsonSkill];
             }
             return jsonSkill.replace(/[\s\-]/g, "_").toLowerCase();
         }
         else {
-            let category = ImportHelper_1.ImportHelper.stringValue(weaponJson, "category");
+            let category = ImportHelper_1.ImportHelper.StringValue(weaponJson, "category");
             if (Constants_1.Constants.MAP_CATEGORY_TO_SKILL.hasOwnProperty(category)) {
                 return Constants_1.Constants.MAP_CATEGORY_TO_SKILL[category];
             }
-            let type = ImportHelper_1.ImportHelper.stringValue(weaponJson, "type").toLowerCase();
+            let type = ImportHelper_1.ImportHelper.StringValue(weaponJson, "type").toLowerCase();
             return (type === "ranged") ? "exotic_range" : "exotic_melee";
         }
     }
     ;
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
-        let category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category");
+        let category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category");
         // A single item does not meet normal rules, thanks Chummer!
         if (category === "Hold-outs") {
             category = "Holdouts";
@@ -1913,9 +1894,9 @@ class WeaponParserBase extends ItemParserBase_1.ItemParserBase {
         data.data.category = category.toLowerCase();
         data.data.action.skill = this.GetSkill(jsonData);
         data.data.action.damage = this.GetDamage(jsonData);
-        data.data.action.limit.value = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy");
-        data.data.action.limit.base = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy");
-        data.data.technology.conceal.base = ImportHelper_1.ImportHelper.intValue(jsonData, "conceal");
+        data.data.action.limit.value = ImportHelper_1.ImportHelper.IntValue(jsonData, "accuracy");
+        data.data.action.limit.base = ImportHelper_1.ImportHelper.IntValue(jsonData, "accuracy");
+        data.data.technology.conceal.base = ImportHelper_1.ImportHelper.IntValue(jsonData, "conceal");
         return data;
     }
 }
