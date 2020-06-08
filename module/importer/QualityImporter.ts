@@ -4,7 +4,9 @@ import {QualityParserBase} from "../parser/quality/QualityParserBase";
 import Quality = Shadowrun.Quality;
 
 export class QualityImporter extends DataImporter {
-    public jsoni18n: any;
+    public categoryTranslations: any;
+    public qualityTranslations: any;
+
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("qualities") && jsonObject["qualities"].hasOwnProperty("quality");
     }
@@ -75,11 +77,18 @@ export class QualityImporter extends DataImporter {
     }
 
     ExtractTranslation() {
+        if(!DataImporter.jsoni18n) {
+            return;
+        }
+
+        let jsonQualityi18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'qualities.xml');
+        this.categoryTranslations = ImportHelper.ExtractCategoriesTranslation(jsonQualityi18n);
+        this.qualityTranslations = ImportHelper.ExtractItemTranslation(jsonQualityi18n, 'qualities', 'quality');
     }
 
     async Parse(jsonObject: object): Promise<Entity> {
         const jsonNameTranslations = {};
-        const folders = await ImportHelper.MakeCategoryFolders(jsonObject, "Qualities");
+        const folders = await ImportHelper.MakeCategoryFolders(jsonObject, "Qualities", this.categoryTranslations);
         console.log(folders);
 
         const parser = new QualityParserBase();
@@ -92,6 +101,7 @@ export class QualityImporter extends DataImporter {
 
             let category = ImportHelper.stringValue(jsonData, "category");
             data.folder = folders[category.toLowerCase()].id;
+            data.name = ImportHelper.MapNameToTranslation(this.qualityTranslations, data.name);
 
             datas.push(data);
         }
