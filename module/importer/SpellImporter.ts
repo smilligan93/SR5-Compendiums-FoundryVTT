@@ -101,8 +101,8 @@ export class SpellImporter extends DataImporter {
         };
     }
 
-    ParseTranslation(jsonObject: object) {
-        
+    ExtractTranslation() {
+
     }
 
     async Parse(jsonObject: object): Promise<Entity> {

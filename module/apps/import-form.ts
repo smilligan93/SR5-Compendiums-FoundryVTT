@@ -33,6 +33,7 @@ export class Import extends Application {
 
         for (const di of Import.Importers) {
             if (di.CanParse(jsonSource)) {
+                di.ExtractTranslation();
                 await di.Parse(jsonSource);
             }
         }
@@ -42,8 +43,7 @@ export class Import extends Application {
         let jsonSource = await DataImporter.xml2json(xmlSource);
         
         if (DataImporter.CanParseI18n(jsonSource)) {
-            const armorImporter = Import.Importers[2];
-            armorImporter.ParseTranslation(jsonSource);
+            DataImporter.ParseTranslation(jsonSource);
         }
     }
     

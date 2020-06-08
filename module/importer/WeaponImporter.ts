@@ -12,6 +12,9 @@ import DamageType = Shadowrun.DamageType;
 import {ParserMap} from "../parser/ParserMap";
 
 export class WeaponImporter extends DataImporter {
+    public categoryTranslations: any;
+    public weaponTranslations: any;
+
     public jsoni18n: any;
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("weapons") && jsonObject["weapons"].hasOwnProperty("weapon");
@@ -144,7 +147,8 @@ export class WeaponImporter extends DataImporter {
         };
     }
 
-    ParseTranslation(jsonObject: object) {
+    ExtractTranslation() {
+
     }
 
     private static GetWeaponType(weaponJson: object): WeaponCategory {
@@ -168,14 +172,16 @@ export class WeaponImporter extends DataImporter {
     }
 
     async Parse(jsonObject: object): Promise<Entity> {
-        const jsonNameTranslations = {};
+        const folders = await ImportHelper.MakeCategoryFolders(jsonObject, "Weapons", this.categoryTranslations);
+        const gearCategory = "gear";
+        const qualityCategory = "quality";
 
-        const folders = await ImportHelper.MakeCategoryFolders(jsonObject, "Weapons");
-        folders["gear"] = await ImportHelper.GetFolderAtPath(
+
+        folders[gearCategory] = await ImportHelper.GetFolderAtPath(
             `${Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Gear`,
             true
         );
-        folders["quality"] = await ImportHelper.GetFolderAtPath(
+        folders[gearCategory] = await ImportHelper.GetFolderAtPath(
             `${Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Quality`,
             true
         );

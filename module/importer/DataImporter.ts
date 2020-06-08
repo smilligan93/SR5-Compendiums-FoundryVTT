@@ -9,7 +9,12 @@ export abstract class DataImporter {
      */
     public abstract GetDefaultData(): any;
 
-    public abstract ParseTranslation(jsonObject: object);
+    public static ParseTranslation(jsonObject: object) {
+        if (jsonObject && jsonObject.hasOwnProperty("chummer")) {
+            DataImporter.jsoni18n = jsonObject["chummer"];
+        }
+    }
+    public abstract ExtractTranslation();
 
     /**
      * Validate if this importer is capable of parsing the provided JSON data.

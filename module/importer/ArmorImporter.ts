@@ -5,8 +5,8 @@ import Armor = Shadowrun.Armor;
 import {ArmorParserBase} from "../parser/armor/ArmorParserBase";
 
 export class ArmorImporter extends DataImporter {
-    public armorTranslations;
-    public categoryTranslations;
+    public armorTranslations: any;
+    public categoryTranslations: any;
 
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("armors") && jsonObject["armors"].hasOwnProperty("armor");
@@ -55,40 +55,44 @@ export class ArmorImporter extends DataImporter {
         };
     }
 
-    ParseTranslation(jsonObject: object) {
-        DataImporter.jsoni18n = {};
+    ExtractTranslation() {
+        if (!DataImporter.jsoni18n) {
+            return;
+        }
 
-        let tranlsations = jsonObject["chummer"];
-        for (let i = 0; i < tranlsations.length; i++) {
-            const translation = tranlsations[i];
+        let jsonArmori18n;
+        for (let i = 0; i < DataImporter.jsoni18n.length; i++) {
+            const translation = DataImporter.jsoni18n[i];
             if (translation.$.file === 'armor.xml') {
-                DataImporter.jsoni18n = translation;
+                jsonArmori18n = translation;
                 break;
             }
         }
 
-        if (!jsonObject) { 
-            return ;
+        if (!jsonArmori18n) {
+            return;
         }
 
         this.categoryTranslations = {};
         // TODO: Refactor into pretty method
-        if (DataImporter.jsoni18n && DataImporter.jsoni18n.hasOwnProperty("categories")) {
-            DataImporter.jsoni18n.categories.category.forEach(category => {
+        if (jsonArmori18n && jsonArmori18n.hasOwnProperty("categories")) {
+            jsonArmori18n.categories.category.forEach(category => {
                 const name = category[ImportHelper.CHAR_KEY];
-                const translation = category.$.translate;
-                this.categoryTranslations[name] = translation;
+                const translate = category.$.translate;
+                this.categoryTranslations[name] = translate;
             })
         }
 
         this.armorTranslations = {};
-        if (DataImporter.jsoni18n && DataImporter.jsoni18n.hasOwnProperty('armors')) {
-            DataImporter.jsoni18n.armors.armor.forEach(armor => {
+        if (jsonArmori18n && jsonArmori18n.hasOwnProperty('armors')) {
+            jsonArmori18n.armors.armor.forEach(armor => {
                 const name = armor.name[ImportHelper.CHAR_KEY];
-                const translation = armor.translate[ImportHelper.CHAR_KEY];
-                this.armorTranslations[name] = translation;
+                const translate = armor.translate[ImportHelper.CHAR_KEY];
+                this.armorTranslations[name] = translate;
             });
         }
+
+        console.error(this.categoryTranslations, this.armorTranslations);
     }
 
     async Parse(jsonObject: object): Promise<Entity> {

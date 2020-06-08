@@ -74,7 +74,7 @@ export class QualityImporter extends DataImporter {
         };
     }
 
-    ParseTranslation(jsonObject: object) {
+    ExtractTranslation() {
     }
 
     async Parse(jsonObject: object): Promise<Entity> {

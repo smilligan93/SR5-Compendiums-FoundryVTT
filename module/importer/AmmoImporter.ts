@@ -53,8 +53,8 @@ export class AmmoImporter extends DataImporter {
         }
     }
 
-    async ParseTranslation(jsonObject: object) {
-        console.error('implement');
+    ExtractTranslation() {
+
     }
 
     async Parse(jsonObject: object): Promise<Entity> {
