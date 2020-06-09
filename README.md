@@ -13,7 +13,11 @@
  - `weapons.xml` (for weapons & weapon mods)
  - `gear.xml` (for ammo)
  - `spells.xml` (for spells)
+ - `complexforms.xml` (for complex forms)
  - `qualities.xml` (for qualities)
- 4. If you wish to import another file, ensure you ***completely*** empty the text box first.
+ - `cyberware.xml` (for cyberware)
+ - `bioware.xml` (for bioware)
+ 
+ :exclamation: If you wish to import another file, ensure you ***completely*** empty the text box first. :exclamation:
 
 For use with https://github.com/smilligan93/SR5-FoundryVTT
