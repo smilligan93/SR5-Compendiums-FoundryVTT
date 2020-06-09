@@ -21,3 +21,6 @@
  :exclamation: If you wish to import another file, ensure you ***completely*** empty the text box first. :exclamation:
 
 For use with https://github.com/smilligan93/SR5-FoundryVTT
+
+Thanks to these wonderful people for helping us build out the compendium
+- Devoras (CRB matrix actions)
