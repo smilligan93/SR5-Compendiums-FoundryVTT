@@ -7,14 +7,20 @@
 	"packs": [
 		{
 			"name": "shadowrun5e-compendiums-weapons",
-			"label": "SR5 Weapons",
+			"label": "SR5e Weapons",
 			"path": "packs/weapons.db",
 			"entity": "Item"
 		},
 		{
 			"name": "shadowrun5e-compendiums-armors",
-			"label": "SR5 Armors",
+			"label": "SR5e Armors",
 			"path": "packs/armors.db",
+			"entity": "Item"
+		},
+		{
+			"name": "shadowrun5e-compendiums-matrix-actions",
+			"label": "SR5e Matrix Actions",
+			"path": "packs/matrix-actions.db",
 			"entity": "Item"
 		}
 	],
@@ -22,7 +28,7 @@
 	"minimumCoreVersion": "0.6.0",
 	"systems": ["shadowrun5e"],
 	"esmodules": [
-		"build/bundle.js"
+		"dist/bundle.js"
 	],
 	"manifest": "https://raw.githubusercontent.com/smilligan93/SR5-Compendiums-FoundryVTT/master/module.json",
 	"download": "https://github.com/smilligan93/SR5-Compendiums-FoundryVTT/archive/master.zip",
