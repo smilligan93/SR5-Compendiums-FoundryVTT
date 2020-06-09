@@ -5,6 +5,8 @@ import { AmmoImporter } from "../importer/AmmoImporter";
 import { ModImporter } from "../importer/ModImporter";
 import { SpellImporter } from "../importer/SpellImporter";
 import {QualityImporter} from "../importer/QualityImporter";
+import {ComplexFormImporter} from "../importer/ComplexFormImporter";
+import {CyberwareImporter} from "../importer/CyberwareImporter";
 
 export class Import extends Application {
     static get defaultOptions() {
@@ -25,7 +27,9 @@ export class Import extends Application {
         new ArmorImporter(),
         new AmmoImporter(),
         new SpellImporter(),
-        new QualityImporter()
+        new ComplexFormImporter(),
+        new QualityImporter(),
+        new CyberwareImporter()
     ];
 
     async parseXML(xmlSource) {
