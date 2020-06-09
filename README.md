@@ -20,4 +20,4 @@
  
  :exclamation: If you wish to import another file, ensure you ***completely*** empty the text box first. :exclamation:
 
-For use with https://github.com/smilligan93/SR5-FoundryVTT
+For use with the [Shadowrun 5e FoundryVTT System](https://github.com/smilligan93/SR5-FoundryVTT)
