@@ -2,7 +2,7 @@
 	"name": "shadowrun5e-compendiums",
 	"title": "Shadowrun 5e Compendiums",
 	"description": "Compendiums to be used with the Shadowrun5e System",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"author": "Shawn Milligan [n3rf_herder#9026], Andrew Cuccinello [DJ#1982]",
 	"packs": [
 		{
@@ -24,7 +24,7 @@
 			"entity": "Item"
 		}
 	],
-	"compatibleCoreVersion": "0.6.1",
+	"compatibleCoreVersion": "0.6.2",
 	"minimumCoreVersion": "0.6.0",
 	"systems": ["shadowrun5e"],
 	"esmodules": [
