@@ -1,4 +1,6 @@
 # Shadowrun 5e Compendiums
+> This module is not part of the core system at the moment and must be installed and enabled separately!
+
 ## :warning: This compendium is still under heavy development! :warning:
 > You should expect things to break and should **ALWAYS** backup your world before use.
 
