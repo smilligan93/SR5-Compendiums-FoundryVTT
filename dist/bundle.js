@@ -18,6 +18,8 @@ const AmmoImporter_1 = require("../importer/AmmoImporter");
 const ModImporter_1 = require("../importer/ModImporter");
 const SpellImporter_1 = require("../importer/SpellImporter");
 const QualityImporter_1 = require("../importer/QualityImporter");
+const ComplexFormImporter_1 = require("../importer/ComplexFormImporter");
+const CyberwareImporter_1 = require("../importer/CyberwareImporter");
 class Import extends Application {
     static get defaultOptions() {
         const options = super.defaultOptions;
@@ -55,10 +57,226 @@ Import.Importers = [
     new ArmorImporter_1.ArmorImporter(),
     new AmmoImporter_1.AmmoImporter(),
     new SpellImporter_1.SpellImporter(),
-    new QualityImporter_1.QualityImporter()
+    new ComplexFormImporter_1.ComplexFormImporter(),
+    new QualityImporter_1.QualityImporter(),
+    new CyberwareImporter_1.CyberwareImporter()
 ];
 
-},{"../importer/AmmoImporter":2,"../importer/ArmorImporter":3,"../importer/DataImporter":5,"../importer/ModImporter":7,"../importer/QualityImporter":8,"../importer/SpellImporter":9,"../importer/WeaponImporter":10}],2:[function(require,module,exports){
+},{"../importer/AmmoImporter":6,"../importer/ArmorImporter":7,"../importer/ComplexFormImporter":8,"../importer/CyberwareImporter":10,"../importer/DataImporter":11,"../importer/ModImporter":12,"../importer/QualityImporter":13,"../importer/SpellImporter":14,"../importer/WeaponImporter":15}],2:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ImportHelper = exports.LookupMode = exports.ImportMode = void 0;
+const Constants_1 = require("../importer/Constants");
+const XMLStrategy_1 = require("./XMLStrategy");
+const JSONStrategy_1 = require("./JSONStrategy");
+var ImportMode;
+(function (ImportMode) {
+    ImportMode[ImportMode["XML"] = 1] = "XML";
+    ImportMode[ImportMode["JSON"] = 2] = "JSON";
+})(ImportMode = exports.ImportMode || (exports.ImportMode = {}));
+var LookupMode;
+(function (LookupMode) {
+    LookupMode[LookupMode["Directory"] = 0] = "Directory";
+    LookupMode[LookupMode["Actor"] = 1] = "Actor";
+})(LookupMode = exports.LookupMode || (exports.LookupMode = {}));
+/**
+ * An import helper to standardize data extraction.
+ * Mostly conceived to reduced required refactoring if Chummer changes data file layout.
+ * Also contains helper methods to safely parse values to appropriate types.
+ */
+class ImportHelper {
+    constructor() { }
+    static SetMode(mode) {
+        switch (mode) {
+            case ImportMode.XML:
+                ImportHelper.s_Strategy = new XMLStrategy_1.XMLStrategy();
+                break;
+            case ImportMode.JSON:
+                ImportHelper.s_Strategy = new JSONStrategy_1.JSONStrategy();
+                break;
+        }
+    }
+    /**
+     * Helper method to create a new folder.
+     * @param name The name of the folder.
+     * @param parent The parent folder.
+     * @returns {Promise<Folder>} A promise that resolves with the folder object when the folder is created.
+     */
+    static NewFolder(name, parent = null) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield Folder.create({
+                type: "Item",
+                parent: (parent === null) ? null : parent.id,
+                name: name
+            });
+        });
+    }
+    /**
+     * Get a folder at a path in the items directory.
+     * @param path The absolute path of the folder.
+     * @param mkdirs If true, will make all folders along the hierarchy if they do not exist.
+     * @returns A promise that will resolve with the found folder.
+     */
+    static GetFolderAtPath(path, mkdirs = false) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let idx = 0;
+            let curr, last = null;
+            let next = path.split("/");
+            while (idx < next.length) {
+                curr = game.folders.find((folder) => folder.parent === last && folder.name === next[idx]);
+                if (curr === null) {
+                    if (!mkdirs) {
+                        return Promise.reject(`Unable to find folder: ${path}`);
+                    }
+                    curr = yield ImportHelper.NewFolder(next[idx], last);
+                }
+                last = curr;
+                idx++;
+            }
+            return Promise.resolve(curr);
+        });
+    }
+    /**
+     * Get a value from the the provided jsonData, optionally returning a default value if it is not found
+     * or is unable to be parsed to an integer.
+     * @param jsonData The data to get the keyed value in.
+     * @param key The key to check for the value under.
+     * @param fallback An optional default value to return if the key is not found.
+     */
+    static IntValue(jsonData, key, fallback = undefined) {
+        return ImportHelper.s_Strategy.intValue(jsonData, key, fallback);
+    }
+    /**
+     * Get a value from the the provided jsonData, optionally returning a default value if it is not found.
+     * @param jsonData The data to get the keyed value in.
+     * @param key The key to check for the value under.
+     * @param fallback An optional default value to return if the key is not found.
+     */
+    static StringValue(jsonData, key, fallback = undefined) {
+        return ImportHelper.s_Strategy.stringValue(jsonData, key, fallback);
+    }
+    /**
+     * Get an object from the the provided jsonData, optionally returning a default value if it is not found.
+     * @param jsonData The data to get the keyed value in.
+     * @param key The key to check for the value under.
+     * @param fallback An optional default value to return if the key is not found.
+     */
+    static ObjectValue(jsonData, key, fallback = undefined) {
+        return ImportHelper.s_Strategy.objectValue(jsonData, key, fallback);
+    }
+    //TODO
+    static findItem(nameOrCmp) {
+        let result;
+        if (typeof (nameOrCmp) === "string") {
+            result = game.items.find((item) => item.name == nameOrCmp);
+        }
+        else {
+            result = game.items.find(nameOrCmp);
+        }
+        return result;
+    }
+    //TODO
+    static MakeCategoryFolders(jsonData, path) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let folders = {};
+            let jsonCategories = jsonData["categories"]["category"];
+            for (let i = 0; i < jsonCategories.length; i++) {
+                let categoryName = jsonCategories[i][ImportHelper.CHAR_KEY];
+                folders[categoryName.toLowerCase()] = yield ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/${path}/${categoryName}`, true);
+            }
+            return folders;
+        });
+    }
+}
+exports.ImportHelper = ImportHelper;
+ImportHelper.CHAR_KEY = "_TEXT";
+ImportHelper.s_Strategy = new XMLStrategy_1.XMLStrategy();
+
+},{"../importer/Constants":9,"./JSONStrategy":4,"./XMLStrategy":5}],3:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ImportStrategy = void 0;
+class ImportStrategy {
+}
+exports.ImportStrategy = ImportStrategy;
+
+},{}],4:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.JSONStrategy = void 0;
+const ImportStrategy_1 = require("./ImportStrategy");
+class JSONStrategy extends ImportStrategy_1.ImportStrategy {
+    intValue(jsonData, key, fallback = undefined) {
+        throw new Error("Unimplemented");
+    }
+    stringValue(jsonData, key, fallback = undefined) {
+        throw new Error("Unimplemented");
+    }
+    objectValue(jsonData, key, fallback = undefined) {
+        throw new Error("Unimplemented");
+    }
+}
+exports.JSONStrategy = JSONStrategy;
+
+},{"./ImportStrategy":3}],5:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.XMLStrategy = void 0;
+const ImportHelper_1 = require("./ImportHelper");
+const ImportStrategy_1 = require("./ImportStrategy");
+class XMLStrategy extends ImportStrategy_1.ImportStrategy {
+    intValue(jsonData, key, fallback = undefined) {
+        try {
+            return parseInt(jsonData[key][ImportHelper_1.ImportHelper.CHAR_KEY]);
+        }
+        catch (e) {
+            if (fallback !== undefined) {
+                return fallback;
+            }
+            else {
+                throw e;
+            }
+        }
+    }
+    stringValue(jsonData, key, fallback = undefined) {
+        try {
+            return jsonData[key][ImportHelper_1.ImportHelper.CHAR_KEY];
+        }
+        catch (e) {
+            if (fallback !== undefined) {
+                return fallback;
+            }
+            else {
+                throw e;
+            }
+        }
+    }
+    objectValue(jsonData, key, fallback = undefined) {
+        try {
+            return jsonData[key];
+        }
+        catch (e) {
+            if (fallback !== undefined) {
+                return fallback;
+            }
+            else {
+                throw e;
+            }
+        }
+    }
+}
+exports.XMLStrategy = XMLStrategy;
+
+},{"./ImportHelper":2,"./ImportStrategy":3}],6:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -72,7 +290,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AmmoImporter = void 0;
 const DataImporter_1 = require("./DataImporter");
-const ImportHelper_1 = require("./ImportHelper");
+const ImportHelper_1 = require("../helper/ImportHelper");
 const Constants_1 = require("./Constants");
 class AmmoImporter extends DataImporter_1.DataImporter {
     CanParse(jsonObject) {
@@ -125,20 +343,20 @@ class AmmoImporter extends DataImporter_1.DataImporter {
             let jsonAmmos = jsonObject["gears"]["gear"];
             for (let i = 0; i < jsonAmmos.length; i++) {
                 let jsonData = jsonAmmos[i];
-                if (ImportHelper_1.ImportHelper.stringValue(jsonData, "category", "") !== "Ammunition") {
+                if (ImportHelper_1.ImportHelper.StringValue(jsonData, "category", "") !== "Ammunition") {
                     continue;
                 }
                 let data = this.GetDefaultData();
-                data.name = ImportHelper_1.ImportHelper.stringValue(jsonData, "name");
-                data.data.description.source = `${ImportHelper_1.ImportHelper.stringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.stringValue(jsonData, "page")}`;
+                data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+                data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
                 data.data.technology.rating = 2;
-                data.data.technology.availability = ImportHelper_1.ImportHelper.stringValue(jsonData, "avail");
-                data.data.technology.cost = ImportHelper_1.ImportHelper.intValue(jsonData, "cost", 0);
-                let bonusData = ImportHelper_1.ImportHelper.objectValue(jsonData, "weaponbonus", null);
+                data.data.technology.availability = ImportHelper_1.ImportHelper.StringValue(jsonData, "avail");
+                data.data.technology.cost = ImportHelper_1.ImportHelper.IntValue(jsonData, "cost", 0);
+                let bonusData = ImportHelper_1.ImportHelper.ObjectValue(jsonData, "weaponbonus", null);
                 if (bonusData !== undefined && bonusData !== null) {
-                    data.data.ap = ImportHelper_1.ImportHelper.intValue(bonusData, "ap", 0);
-                    data.data.damage = ImportHelper_1.ImportHelper.intValue(bonusData, "damage", 0);
-                    let damageType = ImportHelper_1.ImportHelper.stringValue(bonusData, "damagetype", "");
+                    data.data.ap = ImportHelper_1.ImportHelper.IntValue(bonusData, "ap", 0);
+                    data.data.damage = ImportHelper_1.ImportHelper.IntValue(bonusData, "damage", 0);
+                    let damageType = ImportHelper_1.ImportHelper.StringValue(bonusData, "damagetype", "");
                     if (damageType.length > 0) {
                         if (damageType.includes("P")) {
                             data.data.damageType = "physical";
@@ -186,7 +404,7 @@ class AmmoImporter extends DataImporter_1.DataImporter {
 }
 exports.AmmoImporter = AmmoImporter;
 
-},{"./Constants":4,"./DataImporter":5,"./ImportHelper":6}],3:[function(require,module,exports){
+},{"../helper/ImportHelper":2,"./Constants":9,"./DataImporter":11}],7:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -200,7 +418,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ArmorImporter = void 0;
 const DataImporter_1 = require("./DataImporter");
-const ImportHelper_1 = require("./ImportHelper");
+const ImportHelper_1 = require("../helper/ImportHelper");
 const ArmorParserBase_1 = require("../parser/armor/ArmorParserBase");
 class ArmorImporter extends DataImporter_1.DataImporter {
     CanParse(jsonObject) {
@@ -257,7 +475,7 @@ class ArmorImporter extends DataImporter_1.DataImporter {
             for (let i = 0; i < jsonDatas.length; i++) {
                 let jsonData = jsonDatas[i];
                 let data = parser.Parse(jsonData, this.GetDefaultData());
-                const category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category").toLowerCase();
+                const category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category").toLowerCase();
                 data.folder = folders[category].id;
                 datas.push(data);
             }
@@ -267,7 +485,112 @@ class ArmorImporter extends DataImporter_1.DataImporter {
 }
 exports.ArmorImporter = ArmorImporter;
 
-},{"../parser/armor/ArmorParserBase":14,"./DataImporter":5,"./ImportHelper":6}],4:[function(require,module,exports){
+},{"../helper/ImportHelper":2,"../parser/armor/ArmorParserBase":19,"./DataImporter":11}],8:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ComplexFormImporter = void 0;
+const DataImporter_1 = require("./DataImporter");
+const ImportHelper_1 = require("../helper/ImportHelper");
+const Constants_1 = require("./Constants");
+const ComplexFormParserBase_1 = require("../parser/complex-form/ComplexFormParserBase");
+class ComplexFormImporter extends DataImporter_1.DataImporter {
+    CanParse(jsonObject) {
+        return jsonObject.hasOwnProperty("complexforms") && jsonObject["complexforms"].hasOwnProperty("complexform");
+    }
+    GetDefaultData() {
+        return {
+            name: "Unnamed Form",
+            folder: null,
+            type: "complex_form",
+            data: {
+                description: {
+                    value: "",
+                    chat: "",
+                    source: ""
+                },
+                action: {
+                    type: "complex",
+                    category: "",
+                    attribute: "resonance",
+                    attribute2: "",
+                    skill: "compiling",
+                    spec: false,
+                    mod: 0,
+                    mod_description: "",
+                    damage: {
+                        type: {
+                            base: "physical",
+                            value: "physical"
+                        },
+                        element: {
+                            base: "",
+                            value: ""
+                        },
+                        base: 0,
+                        value: 0,
+                        ap: {
+                            base: 0,
+                            value: 0,
+                            mod: {}
+                        },
+                        attribute: "",
+                        mod: {}
+                    },
+                    limit: {
+                        value: 0,
+                        attribute: "",
+                        mod: {},
+                        base: 0
+                    },
+                    extended: false,
+                    opposed: {
+                        type: "defense",
+                        attribute: "",
+                        attribute2: "",
+                        skill: "",
+                        mod: 0,
+                        description: ""
+                    },
+                    alt_mod: 0,
+                    dice_pool_mod: {}
+                },
+                target: "",
+                duration: "",
+                fade: 0
+            },
+            permission: {
+                default: 2
+            }
+        };
+    }
+    Parse(jsonObject) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const parser = new ComplexFormParserBase_1.ComplexFormParserBase();
+            const folder = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Complex Forms`, true);
+            let datas = [];
+            let jsonDatas = jsonObject["complexforms"]["complexform"];
+            for (let i = 0; i < jsonDatas.length; i++) {
+                let jsonData = jsonDatas[i];
+                let data = parser.Parse(jsonData, this.GetDefaultData());
+                data.folder = folder.id;
+                datas.push(data);
+            }
+            return yield Item.create(datas);
+        });
+    }
+}
+exports.ComplexFormImporter = ComplexFormImporter;
+
+},{"../helper/ImportHelper":2,"../parser/complex-form/ComplexFormParserBase":20,"./Constants":9,"./DataImporter":11}],9:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Constants = void 0;
@@ -489,7 +812,131 @@ Constants.WEAPON_RANGES = {
 };
 Constants.ROOT_IMPORT_FOLDER_NAME = "SR5e";
 
-},{}],5:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CyberwareImporter = void 0;
+const DataImporter_1 = require("./DataImporter");
+const ImportHelper_1 = require("../helper/ImportHelper");
+const CyberwareParser_1 = require("../parser/cyberware/CyberwareParser");
+class CyberwareImporter extends DataImporter_1.DataImporter {
+    CanParse(jsonObject) {
+        return (jsonObject.hasOwnProperty("cyberwares") && jsonObject["cyberwares"].hasOwnProperty("cyberware"))
+            || (jsonObject.hasOwnProperty("biowares") && jsonObject["biowares"].hasOwnProperty("bioware"));
+    }
+    GetDefaultData() {
+        return {
+            name: "Unnamed Form",
+            folder: null,
+            type: "cyberware",
+            data: {
+                description: {
+                    value: "",
+                    chat: "",
+                    source: ""
+                },
+                technology: {
+                    rating: 1,
+                    availability: "",
+                    quantity: 1,
+                    cost: 0,
+                    equipped: true,
+                    conceal: {
+                        base: 0,
+                        value: 0,
+                        mod: {}
+                    }
+                },
+                condition_monitor: {
+                    value: 0,
+                    max: 0
+                },
+                action: {
+                    type: "",
+                    category: "",
+                    attribute: "",
+                    attribute2: "",
+                    skill: "",
+                    spec: false,
+                    mod: 0,
+                    mod_description: "",
+                    damage: {
+                        type: {
+                            base: "",
+                            value: ""
+                        },
+                        element: {
+                            base: "",
+                            value: ""
+                        },
+                        base: 0,
+                        value: 0,
+                        ap: {
+                            base: 0,
+                            value: 0,
+                            mod: {}
+                        },
+                        attribute: "",
+                        mod: {}
+                    },
+                    limit: {
+                        value: 0,
+                        attribute: "",
+                        mod: {},
+                        base: 0
+                    },
+                    extended: false,
+                    opposed: {
+                        type: "",
+                        attribute: "",
+                        attribute2: "",
+                        skill: "",
+                        mod: 0,
+                        description: ""
+                    },
+                    alt_mod: 0,
+                    dice_pool_mod: {}
+                },
+                grade: "standard",
+                essence: 0,
+                capacity: 0
+            },
+            permission: {
+                default: 2
+            }
+        };
+    }
+    Parse(jsonObject) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const parser = new CyberwareParser_1.CyberwareParser();
+            let key = jsonObject.hasOwnProperty("cyberwares") ? "Cyberware" : "Bioware";
+            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, key);
+            key = key.toLowerCase();
+            let datas = [];
+            let jsonDatas = jsonObject[key + "s"][key];
+            for (let i = 0; i < jsonDatas.length; i++) {
+                let jsonData = jsonDatas[i];
+                let data = parser.Parse(jsonData, this.GetDefaultData());
+                const category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category");
+                data.folder = folders[category.toLowerCase()].id;
+                datas.push(data);
+            }
+            return yield Item.create(datas);
+        });
+    }
+}
+exports.CyberwareImporter = CyberwareImporter;
+
+},{"../helper/ImportHelper":2,"../parser/cyberware/CyberwareParser":21,"./DataImporter":11}],11:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -502,7 +949,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DataImporter = void 0;
-const ImportHelper_1 = require("./ImportHelper");
+const ImportHelper_1 = require("../helper/ImportHelper");
 const xml2js = require("xml2js");
 class DataImporter {
     /**
@@ -523,171 +970,7 @@ class DataImporter {
 }
 exports.DataImporter = DataImporter;
 
-},{"./ImportHelper":6,"xml2js":63}],6:[function(require,module,exports){
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ImportHelper = void 0;
-const Constants_1 = require("./Constants");
-/**
- * An import helper to standardize data extraction.
- * Mostly conceived to reduced required refactoring if Chummer changes data file layout.
- * Also contains helper methods to safely parse values to appropriate types.
- */
-class ImportHelper {
-    /**
-     * Helper method to create a new folder.
-     * @param name The name of the folder.
-     * @param parent The parent folder.
-     * @returns {Promise<Folder>} A promise that resolves with the folder object when the folder is created.
-     */
-    static NewFolder(name, parent = null) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return yield Folder.create({
-                type: "Item",
-                parent: (parent === null) ? null : parent.id,
-                name: name
-            });
-        });
-    }
-    /**
-     * Get a folder at a path in the items directory.
-     * @param path The absolute path of the folder.
-     * @param mkdirs If true, will make all folders along the hierarchy if they do not exist.
-     * @returns A promise that will resolve with the found folder.
-     */
-    static GetFolderAtPath(path, mkdirs = false) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let idx = 0;
-            let curr, last = null;
-            let next = path.split("/");
-            while (idx < next.length) {
-                curr = game.folders.find((folder) => folder.parent === last && folder.name === next[idx]);
-                if (curr === null) {
-                    if (!mkdirs) {
-                        return Promise.reject(`Unable to find folder: ${path}`);
-                    }
-                    curr = yield ImportHelper.NewFolder(next[idx], last);
-                }
-                last = curr;
-                idx++;
-            }
-            return Promise.resolve(curr);
-        });
-    }
-    /**
-     * Get a value from the the provided jsonData, optionally returning a default value if it is not found
-     * or is unable to be parsed to an integer.
-     * @param jsonData The data to get the keyed value in.
-     * @param key The key to check for the value under.
-     * @param fallback An optional default value to return if the key is not found.
-     */
-    static intValue(jsonData, key, fallback = undefined) {
-        try {
-            return parseInt(jsonData[key][ImportHelper.CHAR_KEY]);
-        }
-        catch (e) {
-            if (fallback !== undefined) {
-                return fallback;
-            }
-            else {
-                throw e;
-            }
-        }
-    }
-    /**
-     * Get a value from the the provided jsonData, optionally returning a default value if it is not found.
-     * @param jsonData The data to get the keyed value in.
-     * @param key The key to check for the value under.
-     * @param fallback An optional default value to return if the key is not found.
-     */
-    static stringValue(jsonData, key, fallback = undefined) {
-        try {
-            return jsonData[key][ImportHelper.CHAR_KEY];
-        }
-        catch (e) {
-            if (fallback !== undefined) {
-                return fallback;
-            }
-            else {
-                throw e;
-            }
-        }
-    }
-    /**
-     * Get an object from the the provided jsonData, optionally returning a default value if it is not found.
-     * @param jsonData The data to get the keyed value in.
-     * @param key The key to check for the value under.
-     * @param fallback An optional default value to return if the key is not found.
-     */
-    static objectValue(jsonData, key, fallback = undefined) {
-        try {
-            return jsonData[key];
-        }
-        catch (e) {
-            if (fallback !== undefined) {
-                return fallback;
-            }
-            else {
-                throw e;
-            }
-        }
-    }
-    /**
-     * A decorated parseInt which supports error suppression by providing a default value to
-     * be returned in the event an error is raised.
-     * @param value The value to parse.
-     * @param fallback The devault value to return in case of error.
-     */
-    static parseInt(value, fallback = undefined) {
-        try {
-            return parseInt(value);
-        }
-        catch (e) {
-            if (fallback !== undefined) {
-                return fallback;
-            }
-            else {
-                throw e;
-            }
-        }
-    }
-    //TODO
-    static findItem(nameOrCmp) {
-        let result;
-        if (typeof (nameOrCmp) === "string") {
-            result = game.items.find((item) => item.name == nameOrCmp);
-        }
-        else {
-            result = game.items.find(nameOrCmp);
-        }
-        return result;
-    }
-    //TODO
-    static MakeCategoryFolders(jsonData, path) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let folders = {};
-            let jsonCategories = jsonData["categories"]["category"];
-            for (let i = 0; i < jsonCategories.length; i++) {
-                let categoryName = jsonCategories[i][ImportHelper.CHAR_KEY];
-                folders[categoryName.toLowerCase()] = yield ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/${path}/${categoryName}`, true);
-            }
-            return folders;
-        });
-    }
-}
-exports.ImportHelper = ImportHelper;
-ImportHelper.CHAR_KEY = "_TEXT";
-
-},{"./Constants":4}],7:[function(require,module,exports){
+},{"../helper/ImportHelper":2,"xml2js":71}],12:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -701,8 +984,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ModImporter = void 0;
 const DataImporter_1 = require("./DataImporter");
-const ImportHelper_1 = require("./ImportHelper");
+const ImportHelper_1 = require("../helper/ImportHelper");
 const Constants_1 = require("./Constants");
+const ModParserBase_1 = require("../parser/mod/ModParserBase");
 class ModImporter extends DataImporter_1.DataImporter {
     CanParse(jsonObject) {
         return jsonObject.hasOwnProperty("accessories") && jsonObject["accessories"].hasOwnProperty("accessory");
@@ -747,21 +1031,13 @@ class ModImporter extends DataImporter_1.DataImporter {
     }
     Parse(jsonObject) {
         return __awaiter(this, void 0, void 0, function* () {
-            let modDatas = [];
-            let jsonAccs = jsonObject["accessories"]["accessory"];
-            for (let i = 0; i < jsonAccs.length; i++) {
-                let jsonData = jsonAccs[i];
-                let data = this.GetDefaultData();
-                data.name = ImportHelper_1.ImportHelper.stringValue(jsonData, "name");
-                data.data.description.source = `${ImportHelper_1.ImportHelper.stringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.stringValue(jsonData, "page")}`;
-                data.data.technology.availability = ImportHelper_1.ImportHelper.stringValue(jsonData, "avail", "0");
-                data.data.technology.cost = ImportHelper_1.ImportHelper.intValue(jsonData, "cost", 0);
-                data.data.technology.rating = ImportHelper_1.ImportHelper.intValue(jsonData, "rating", 0);
-                data.data.type = "weapon";
-                data.data.mount_point = ImportHelper_1.ImportHelper.stringValue(jsonData, "mount");
-                data.data.rc = ImportHelper_1.ImportHelper.intValue(jsonData, "rc", 0);
-                data.data.accuracy = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy", 0);
-                data.data.technology.conceal.base = ImportHelper_1.ImportHelper.intValue(jsonData, "conceal", 0);
+            const parser = new ModParserBase_1.ModParserBase();
+            let datas = [];
+            let jsonDatas = jsonObject["accessories"]["accessory"];
+            for (let i = 0; i < jsonDatas.length; i++) {
+                let jsonData = jsonDatas[i];
+                let data = parser.Parse(jsonData, this.GetDefaultData());
+                //TODO: Test this
                 let folderName = (data.data.mount_point !== undefined) ? data.data.mount_point : "Other";
                 if (folderName.includes("/")) {
                     let splitName = folderName.split("/");
@@ -769,15 +1045,15 @@ class ModImporter extends DataImporter_1.DataImporter {
                 }
                 let folder = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Mods/${folderName}`, true);
                 data.folder = folder.id;
-                modDatas.push(data);
+                datas.push(data);
             }
-            return yield Item.create(modDatas);
+            return yield Item.create(datas);
         });
     }
 }
 exports.ModImporter = ModImporter;
 
-},{"./Constants":4,"./DataImporter":5,"./ImportHelper":6}],8:[function(require,module,exports){
+},{"../helper/ImportHelper":2,"../parser/mod/ModParserBase":23,"./Constants":9,"./DataImporter":11}],13:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -791,7 +1067,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.QualityImporter = void 0;
 const DataImporter_1 = require("./DataImporter");
-const ImportHelper_1 = require("./ImportHelper");
+const ImportHelper_1 = require("../helper/ImportHelper");
 const QualityParserBase_1 = require("../parser/quality/QualityParserBase");
 class QualityImporter extends DataImporter_1.DataImporter {
     CanParse(jsonObject) {
@@ -871,7 +1147,7 @@ class QualityImporter extends DataImporter_1.DataImporter {
             for (let i = 0; i < jsonDatas.length; i++) {
                 let jsonData = jsonDatas[i];
                 let data = parser.Parse(jsonData, this.GetDefaultData());
-                let category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category");
+                let category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category");
                 data.folder = folders[category.toLowerCase()].id;
                 datas.push(data);
             }
@@ -881,7 +1157,7 @@ class QualityImporter extends DataImporter_1.DataImporter {
 }
 exports.QualityImporter = QualityImporter;
 
-},{"../parser/quality/QualityParserBase":16,"./DataImporter":5,"./ImportHelper":6}],9:[function(require,module,exports){
+},{"../helper/ImportHelper":2,"../parser/quality/QualityParserBase":24,"./DataImporter":11}],14:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -895,7 +1171,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SpellImporter = void 0;
 const DataImporter_1 = require("./DataImporter");
-const ImportHelper_1 = require("./ImportHelper");
+const ImportHelper_1 = require("../helper/ImportHelper");
 const SpellParserBase_1 = require("../parser/spell/SpellParserBase");
 const CombatSpellParser_1 = require("../parser/spell/CombatSpellParser");
 const ManipulationSpellParser_1 = require("../parser/spell/ManipulationSpellParser");
@@ -1018,7 +1294,7 @@ class SpellImporter extends DataImporter_1.DataImporter {
 }
 exports.SpellImporter = SpellImporter;
 
-},{"../parser/ParserMap":13,"../parser/spell/CombatSpellParser":17,"../parser/spell/DetectionSpellImporter":18,"../parser/spell/IllusionSpellParser":19,"../parser/spell/ManipulationSpellParser":20,"../parser/spell/SpellParserBase":21,"./DataImporter":5,"./ImportHelper":6}],10:[function(require,module,exports){
+},{"../helper/ImportHelper":2,"../parser/ParserMap":18,"../parser/spell/CombatSpellParser":25,"../parser/spell/DetectionSpellImporter":26,"../parser/spell/IllusionSpellParser":27,"../parser/spell/ManipulationSpellParser":28,"../parser/spell/SpellParserBase":29,"./DataImporter":11}],15:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -1032,7 +1308,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WeaponImporter = void 0;
 const DataImporter_1 = require("./DataImporter");
-const ImportHelper_1 = require("./ImportHelper");
+const ImportHelper_1 = require("../helper/ImportHelper");
 const Constants_1 = require("./Constants");
 const RangedParser_1 = require("../parser/weapon/RangedParser");
 const MeleeParser_1 = require("../parser/weapon/MeleeParser");
@@ -1169,7 +1445,7 @@ class WeaponImporter extends DataImporter_1.DataImporter {
         };
     }
     static GetWeaponType(weaponJson) {
-        let type = ImportHelper_1.ImportHelper.stringValue(weaponJson, "type");
+        let type = ImportHelper_1.ImportHelper.StringValue(weaponJson, "type");
         //melee is the least specific, all melee entries are accurate
         if (type === "Melee") {
             return "melee";
@@ -1177,12 +1453,12 @@ class WeaponImporter extends DataImporter_1.DataImporter {
         else {
             // skill takes priorities over category
             if (weaponJson.hasOwnProperty("useskill")) {
-                let skill = ImportHelper_1.ImportHelper.stringValue(weaponJson, "useskill");
+                let skill = ImportHelper_1.ImportHelper.StringValue(weaponJson, "useskill");
                 if (skill === "Throwing Weapons")
                     return "thrown";
             }
             // category is the fallback
-            let category = ImportHelper_1.ImportHelper.stringValue(weaponJson, "category");
+            let category = ImportHelper_1.ImportHelper.StringValue(weaponJson, "category");
             if (category === "Throwing Weapons")
                 return "thrown";
             // ranged is everything else
@@ -1214,7 +1490,7 @@ class WeaponImporter extends DataImporter_1.DataImporter {
 }
 exports.WeaponImporter = WeaponImporter;
 
-},{"../parser/ParserMap":13,"../parser/weapon/MeleeParser":22,"../parser/weapon/RangedParser":23,"../parser/weapon/ThrownParser":24,"./Constants":4,"./DataImporter":5,"./ImportHelper":6}],11:[function(require,module,exports){
+},{"../helper/ImportHelper":2,"../parser/ParserMap":18,"../parser/weapon/MeleeParser":30,"../parser/weapon/RangedParser":31,"../parser/weapon/ThrownParser":32,"./Constants":9,"./DataImporter":11}],16:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const import_form_1 = require("./apps/import-form");
@@ -1226,7 +1502,7 @@ Hooks.on("renderItemDirectory", (app, html) => {
     });
 });
 
-},{"./apps/import-form":1}],12:[function(require,module,exports){
+},{"./apps/import-form":1}],17:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Parser = void 0;
@@ -1234,12 +1510,12 @@ class Parser {
 }
 exports.Parser = Parser;
 
-},{}],13:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ParserMap = void 0;
 const Parser_1 = require("./Parser");
-const ImportHelper_1 = require("../importer/ImportHelper");
+const ImportHelper_1 = require("../helper/ImportHelper");
 class ParserMap extends Parser_1.Parser {
     constructor(branchKey, elements) {
         super();
@@ -1256,7 +1532,7 @@ class ParserMap extends Parser_1.Parser {
         }
         else {
             key = this.m_BranchKey;
-            key = ImportHelper_1.ImportHelper.stringValue(jsonData, key);
+            key = ImportHelper_1.ImportHelper.StringValue(jsonData, key);
         }
         const parser = this.m_Map.get(key);
         if (parser === undefined) {
@@ -1268,66 +1544,150 @@ class ParserMap extends Parser_1.Parser {
 }
 exports.ParserMap = ParserMap;
 
-},{"../importer/ImportHelper":6,"./Parser":12}],14:[function(require,module,exports){
+},{"../helper/ImportHelper":2,"./Parser":17}],19:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ArmorParserBase = void 0;
 const ItemParserBase_1 = require("../item/ItemParserBase");
-const ImportHelper_1 = require("../../importer/ImportHelper");
+const ImportHelper_1 = require("../../helper/ImportHelper");
 class ArmorParserBase extends ItemParserBase_1.ItemParserBase {
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
-        data.data.armor.value = ImportHelper_1.ImportHelper.intValue(jsonData, "armor", 0);
-        data.data.armor.mod = ImportHelper_1.ImportHelper.stringValue(jsonData, "armor").includes("+");
+        data.data.armor.value = ImportHelper_1.ImportHelper.IntValue(jsonData, "armor", 0);
+        data.data.armor.mod = ImportHelper_1.ImportHelper.StringValue(jsonData, "armor").includes("+");
         return data;
     }
 }
 exports.ArmorParserBase = ArmorParserBase;
 
-},{"../../importer/ImportHelper":6,"../item/ItemParserBase":15}],15:[function(require,module,exports){
+},{"../../helper/ImportHelper":2,"../item/ItemParserBase":22}],20:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ComplexFormParserBase = void 0;
+const Parser_1 = require("../Parser");
+const ImportHelper_1 = require("../../helper/ImportHelper");
+class ComplexFormParserBase extends Parser_1.Parser {
+    Parse(jsonData, data) {
+        data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+        data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
+        let fade = ImportHelper_1.ImportHelper.StringValue(jsonData, "fv");
+        if (fade.includes("+") || fade.includes("-")) {
+            data.data.fade = parseInt(fade.substring(1, fade.length));
+        }
+        let duration = ImportHelper_1.ImportHelper.StringValue(jsonData, "duration");
+        if (duration === "I") {
+            data.data.duration = "instant";
+        }
+        else if (duration === "S") {
+            data.data.duration = "sustained";
+        }
+        else if (duration === "P") {
+            data.data.duration = "permanent";
+        }
+        let target = ImportHelper_1.ImportHelper.StringValue(jsonData, "target");
+        switch (target) {
+            case "Device":
+            case "File":
+            case "Host":
+            case "Persona":
+            case "Self":
+            case "Sprite":
+                data.data.target = target.toLowerCase();
+                break;
+            default:
+                data.data.target = "other";
+                break;
+        }
+        return data;
+    }
+}
+exports.ComplexFormParserBase = ComplexFormParserBase;
+
+},{"../../helper/ImportHelper":2,"../Parser":17}],21:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CyberwareParser = void 0;
+const ItemParserBase_1 = require("../item/ItemParserBase");
+const ImportHelper_1 = require("../../helper/ImportHelper");
+class CyberwareParser extends ItemParserBase_1.ItemParserBase {
+    Parse(jsonData, data) {
+        data = super.Parse(jsonData, data);
+        const essence = ImportHelper_1.ImportHelper.StringValue(jsonData, "ess", "0").match(/[0-9]\.?[0-9]*/g);
+        if (essence !== null) {
+            data.data.essence = parseFloat(essence[0]);
+        }
+        const capacity = ImportHelper_1.ImportHelper.StringValue(jsonData, "capacity", "0").match(/[0-9]+/g);
+        if (capacity !== null) {
+            data.data.capacity = parseInt(capacity[0]);
+        }
+        return data;
+    }
+}
+exports.CyberwareParser = CyberwareParser;
+
+},{"../../helper/ImportHelper":2,"../item/ItemParserBase":22}],22:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ItemParserBase = void 0;
 const Parser_1 = require("../Parser");
-const ImportHelper_1 = require("../../importer/ImportHelper");
+const ImportHelper_1 = require("../../helper/ImportHelper");
 class ItemParserBase extends Parser_1.Parser {
     Parse(jsonData, data) {
-        data.name = ImportHelper_1.ImportHelper.stringValue(jsonData, "name");
-        data.data.description.source = `${ImportHelper_1.ImportHelper.stringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.stringValue(jsonData, "page")}`;
-        data.data.technology.availability = ImportHelper_1.ImportHelper.stringValue(jsonData, "avail", "0");
-        data.data.technology.cost = ImportHelper_1.ImportHelper.intValue(jsonData, "cost", 0);
-        data.data.technology.rating = ImportHelper_1.ImportHelper.intValue(jsonData, "rating", 0);
+        data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+        data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
+        data.data.technology.availability = ImportHelper_1.ImportHelper.StringValue(jsonData, "avail", "0");
+        data.data.technology.cost = ImportHelper_1.ImportHelper.IntValue(jsonData, "cost", 0);
+        data.data.technology.rating = ImportHelper_1.ImportHelper.IntValue(jsonData, "rating", 0);
         return data;
     }
 }
 exports.ItemParserBase = ItemParserBase;
 
-},{"../../importer/ImportHelper":6,"../Parser":12}],16:[function(require,module,exports){
+},{"../../helper/ImportHelper":2,"../Parser":17}],23:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ModParserBase = void 0;
+const ItemParserBase_1 = require("../item/ItemParserBase");
+const ImportHelper_1 = require("../../helper/ImportHelper");
+class ModParserBase extends ItemParserBase_1.ItemParserBase {
+    Parse(jsonData, data) {
+        data = super.Parse(jsonData, data);
+        data.data.type = "weapon";
+        data.data.mount_point = ImportHelper_1.ImportHelper.StringValue(jsonData, "mount");
+        data.data.rc = ImportHelper_1.ImportHelper.IntValue(jsonData, "rc", 0);
+        data.data.accuracy = ImportHelper_1.ImportHelper.IntValue(jsonData, "accuracy", 0);
+        data.data.technology.conceal.base = ImportHelper_1.ImportHelper.IntValue(jsonData, "conceal", 0);
+        return data;
+    }
+}
+exports.ModParserBase = ModParserBase;
+
+},{"../../helper/ImportHelper":2,"../item/ItemParserBase":22}],24:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.QualityParserBase = void 0;
-const ImportHelper_1 = require("../../importer/ImportHelper");
+const ImportHelper_1 = require("../../helper/ImportHelper");
 const Parser_1 = require("../Parser");
 class QualityParserBase extends Parser_1.Parser {
     Parse(jsonData, data) {
-        data.name = ImportHelper_1.ImportHelper.stringValue(jsonData, "name");
-        data.data.description.source = `${ImportHelper_1.ImportHelper.stringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.stringValue(jsonData, "page")}`;
-        data.data.type = (ImportHelper_1.ImportHelper.stringValue(jsonData, "category") === "Positive") ? "positive" : "negative";
+        data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+        data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
+        data.data.type = (ImportHelper_1.ImportHelper.StringValue(jsonData, "category") === "Positive") ? "positive" : "negative";
         return data;
     }
 }
 exports.QualityParserBase = QualityParserBase;
 
-},{"../../importer/ImportHelper":6,"../Parser":12}],17:[function(require,module,exports){
+},{"../../helper/ImportHelper":2,"../Parser":17}],25:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CombatSpellParser = void 0;
 const SpellParserBase_1 = require("./SpellParserBase");
-const ImportHelper_1 = require("../../importer/ImportHelper");
+const ImportHelper_1 = require("../../helper/ImportHelper");
 class CombatSpellParser extends SpellParserBase_1.SpellParserBase {
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
-        let descriptor = ImportHelper_1.ImportHelper.stringValue(jsonData, "descriptor");
+        let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
         // A few spells have a missing descriptor instead of an empty string.
         // The field is <descriptor /> rather than <descriptor></descriptor>
         // which gets imported as undefined rather than empty string (sigh)
@@ -1357,16 +1717,16 @@ class CombatSpellParser extends SpellParserBase_1.SpellParserBase {
 }
 exports.CombatSpellParser = CombatSpellParser;
 
-},{"../../importer/ImportHelper":6,"./SpellParserBase":21}],18:[function(require,module,exports){
+},{"../../helper/ImportHelper":2,"./SpellParserBase":29}],26:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DetectionSpellImporter = void 0;
 const SpellParserBase_1 = require("./SpellParserBase");
-const ImportHelper_1 = require("../../importer/ImportHelper");
+const ImportHelper_1 = require("../../helper/ImportHelper");
 class DetectionSpellImporter extends SpellParserBase_1.SpellParserBase {
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
-        let descriptor = ImportHelper_1.ImportHelper.stringValue(jsonData, "descriptor");
+        let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
         // A few spells have a missing descriptor instead of an empty string.
         // The field is <descriptor /> rather than <descriptor></descriptor>
         // which gets imported as undefined rather than empty string (sigh)
@@ -1395,16 +1755,16 @@ class DetectionSpellImporter extends SpellParserBase_1.SpellParserBase {
 }
 exports.DetectionSpellImporter = DetectionSpellImporter;
 
-},{"../../importer/ImportHelper":6,"./SpellParserBase":21}],19:[function(require,module,exports){
+},{"../../helper/ImportHelper":2,"./SpellParserBase":29}],27:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.IllusionSpellParser = void 0;
 const SpellParserBase_1 = require("./SpellParserBase");
-const ImportHelper_1 = require("../../importer/ImportHelper");
+const ImportHelper_1 = require("../../helper/ImportHelper");
 class IllusionSpellParser extends SpellParserBase_1.SpellParserBase {
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
-        let descriptor = ImportHelper_1.ImportHelper.stringValue(jsonData, "descriptor");
+        let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
         // A few spells have a missing descriptor instead of an empty string.
         // The field is <descriptor /> rather than <descriptor></descriptor>
         // which gets imported as undefined rather than empty string (sigh)
@@ -1427,16 +1787,16 @@ class IllusionSpellParser extends SpellParserBase_1.SpellParserBase {
 }
 exports.IllusionSpellParser = IllusionSpellParser;
 
-},{"../../importer/ImportHelper":6,"./SpellParserBase":21}],20:[function(require,module,exports){
+},{"../../helper/ImportHelper":2,"./SpellParserBase":29}],28:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ManipulationSpellParser = void 0;
 const SpellParserBase_1 = require("./SpellParserBase");
-const ImportHelper_1 = require("../../importer/ImportHelper");
+const ImportHelper_1 = require("../../helper/ImportHelper");
 class ManipulationSpellParser extends SpellParserBase_1.SpellParserBase {
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
-        let descriptor = ImportHelper_1.ImportHelper.stringValue(jsonData, "descriptor");
+        let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
         // A few spells have a missing descriptor instead of an empty string.
         // The field is <descriptor /> rather than <descriptor></descriptor>
         // which gets imported as undefined rather than empty string (sigh)
@@ -1467,18 +1827,18 @@ class ManipulationSpellParser extends SpellParserBase_1.SpellParserBase {
 }
 exports.ManipulationSpellParser = ManipulationSpellParser;
 
-},{"../../importer/ImportHelper":6,"./SpellParserBase":21}],21:[function(require,module,exports){
+},{"../../helper/ImportHelper":2,"./SpellParserBase":29}],29:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SpellParserBase = void 0;
-const ImportHelper_1 = require("../../importer/ImportHelper");
+const ImportHelper_1 = require("../../helper/ImportHelper");
 const Parser_1 = require("../Parser");
 class SpellParserBase extends Parser_1.Parser {
     Parse(jsonData, data) {
-        data.name = ImportHelper_1.ImportHelper.stringValue(jsonData, "name");
-        data.data.description.source = `${ImportHelper_1.ImportHelper.stringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.stringValue(jsonData, "page")}`;
-        data.data.category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category").toLowerCase();
-        let damage = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
+        data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+        data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
+        data.data.category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category").toLowerCase();
+        let damage = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
         if (damage === "P") {
             data.data.action.damage.type.base = "physical";
             data.data.action.damage.type.value = "physical";
@@ -1487,7 +1847,7 @@ class SpellParserBase extends Parser_1.Parser {
             data.data.action.damage.type.base = "stun";
             data.data.action.damage.type.value = "stun";
         }
-        let duration = ImportHelper_1.ImportHelper.stringValue(jsonData, "duration");
+        let duration = ImportHelper_1.ImportHelper.StringValue(jsonData, "duration");
         if (duration === "I") {
             data.data.duration = "instant";
         }
@@ -1497,11 +1857,11 @@ class SpellParserBase extends Parser_1.Parser {
         else if (duration === "P") {
             data.data.duration = "permanent";
         }
-        let drain = ImportHelper_1.ImportHelper.stringValue(jsonData, "dv");
+        let drain = ImportHelper_1.ImportHelper.StringValue(jsonData, "dv");
         if (drain.includes("+") || drain.includes("-")) {
             data.data.drain = parseInt(drain.substring(1, drain.length));
         }
-        let range = ImportHelper_1.ImportHelper.stringValue(jsonData, "range");
+        let range = ImportHelper_1.ImportHelper.StringValue(jsonData, "range");
         if (range === "T") {
             data.data.range = "touch";
         }
@@ -1511,7 +1871,7 @@ class SpellParserBase extends Parser_1.Parser {
         else if (range === "LOS (A)") {
             data.data.range = "los_a";
         }
-        let type = ImportHelper_1.ImportHelper.stringValue(jsonData, "type");
+        let type = ImportHelper_1.ImportHelper.StringValue(jsonData, "type");
         if (type === "P") {
             data.data.type = "physical";
         }
@@ -1523,16 +1883,16 @@ class SpellParserBase extends Parser_1.Parser {
 }
 exports.SpellParserBase = SpellParserBase;
 
-},{"../../importer/ImportHelper":6,"../Parser":12}],22:[function(require,module,exports){
+},{"../../helper/ImportHelper":2,"../Parser":17}],30:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MeleeParser = void 0;
-const ImportHelper_1 = require("../../importer/ImportHelper");
+const ImportHelper_1 = require("../../helper/ImportHelper");
 const WeaponParserBase_1 = require("./WeaponParserBase");
 class MeleeParser extends WeaponParserBase_1.WeaponParserBase {
     GetDamage(jsonData) {
         var _a;
-        let jsonDamage = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
+        let jsonDamage = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
         let damageCode = (_a = jsonDamage.match(/(STR)([+-]?)([1-9]*)\)([PS])/g)) === null || _a === void 0 ? void 0 : _a[0];
         if (damageCode == null) {
             return {
@@ -1556,7 +1916,7 @@ class MeleeParser extends WeaponParserBase_1.WeaponParserBase {
             };
         }
         let damageBase = 0;
-        let damageAp = ImportHelper_1.ImportHelper.intValue(jsonData, "ap", 0);
+        let damageAp = ImportHelper_1.ImportHelper.IntValue(jsonData, "ap", 0);
         let splitDamageCode = damageCode.split(")");
         let damageType = (splitDamageCode[1].includes("P")) ? "physical" : "stun";
         let splitBaseCode = damageCode.includes("+") ? splitDamageCode[0].split("+") : splitDamageCode[0].split("-");
@@ -1587,24 +1947,24 @@ class MeleeParser extends WeaponParserBase_1.WeaponParserBase {
     ;
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
-        data.data.melee.reach = ImportHelper_1.ImportHelper.intValue(jsonData, "reach");
+        data.data.melee.reach = ImportHelper_1.ImportHelper.IntValue(jsonData, "reach");
         return data;
     }
     ;
 }
 exports.MeleeParser = MeleeParser;
 
-},{"../../importer/ImportHelper":6,"./WeaponParserBase":25}],23:[function(require,module,exports){
+},{"../../helper/ImportHelper":2,"./WeaponParserBase":33}],31:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RangedParser = void 0;
-const ImportHelper_1 = require("../../importer/ImportHelper");
+const ImportHelper_1 = require("../../helper/ImportHelper");
 const WeaponParserBase_1 = require("./WeaponParserBase");
 const Constants_1 = require("../../importer/Constants");
 class RangedParser extends WeaponParserBase_1.WeaponParserBase {
     GetDamage(jsonData) {
         var _a;
-        let jsonDamage = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
+        let jsonDamage = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
         let damageCode = (_a = jsonDamage.match(/[0-9]+[PS]/g)) === null || _a === void 0 ? void 0 : _a[0];
         if (damageCode == null) {
             return {
@@ -1629,7 +1989,7 @@ class RangedParser extends WeaponParserBase_1.WeaponParserBase {
         }
         let damageType = (damageCode.includes("P")) ? "physical" : "stun";
         let damageAmount = parseInt(damageCode.replace(damageType[0].toUpperCase(), ""));
-        let damageAp = ImportHelper_1.ImportHelper.intValue(jsonData, "ap", 0);
+        let damageAp = ImportHelper_1.ImportHelper.IntValue(jsonData, "ap", 0);
         return {
             type: {
                 base: damageType,
@@ -1653,43 +2013,43 @@ class RangedParser extends WeaponParserBase_1.WeaponParserBase {
     ;
     GetAmmo(weaponJson) {
         var _a;
-        let jsonAmmo = ImportHelper_1.ImportHelper.stringValue(weaponJson, "ammo");
+        let jsonAmmo = ImportHelper_1.ImportHelper.StringValue(weaponJson, "ammo");
         let match = (_a = jsonAmmo.match(/([0-9]+)/g)) === null || _a === void 0 ? void 0 : _a[0];
         return (match !== undefined) ? parseInt(match) : 0;
     }
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
-        data.data.range.rc.base = ImportHelper_1.ImportHelper.intValue(jsonData, "rc");
-        data.data.range.rc.value = ImportHelper_1.ImportHelper.intValue(jsonData, "rc");
+        data.data.range.rc.base = ImportHelper_1.ImportHelper.IntValue(jsonData, "rc");
+        data.data.range.rc.value = ImportHelper_1.ImportHelper.IntValue(jsonData, "rc");
         if (jsonData.hasOwnProperty("range")) {
-            data.data.range.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.stringValue(jsonData, "range")];
+            data.data.range.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.StringValue(jsonData, "range")];
         }
         else {
-            data.data.range.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.stringValue(jsonData, "category")];
+            data.data.range.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.StringValue(jsonData, "category")];
         }
         data.data.ammo.current.value = this.GetAmmo(jsonData);
         data.data.ammo.current.max = this.GetAmmo(jsonData);
-        data.data.range.modes.single_shot = ImportHelper_1.ImportHelper.stringValue(jsonData, "mode").includes("SS");
-        data.data.range.modes.semi_auto = ImportHelper_1.ImportHelper.stringValue(jsonData, "mode").includes("SA");
-        data.data.range.modes.burst_fire = ImportHelper_1.ImportHelper.stringValue(jsonData, "mode").includes("BF");
-        data.data.range.modes.full_auto = ImportHelper_1.ImportHelper.stringValue(jsonData, "mode").includes("FA");
+        data.data.range.modes.single_shot = ImportHelper_1.ImportHelper.StringValue(jsonData, "mode").includes("SS");
+        data.data.range.modes.semi_auto = ImportHelper_1.ImportHelper.StringValue(jsonData, "mode").includes("SA");
+        data.data.range.modes.burst_fire = ImportHelper_1.ImportHelper.StringValue(jsonData, "mode").includes("BF");
+        data.data.range.modes.full_auto = ImportHelper_1.ImportHelper.StringValue(jsonData, "mode").includes("FA");
         return data;
     }
     ;
 }
 exports.RangedParser = RangedParser;
 
-},{"../../importer/Constants":4,"../../importer/ImportHelper":6,"./WeaponParserBase":25}],24:[function(require,module,exports){
+},{"../../helper/ImportHelper":2,"../../importer/Constants":9,"./WeaponParserBase":33}],32:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ThrownParser = void 0;
-const ImportHelper_1 = require("../../importer/ImportHelper");
+const ImportHelper_1 = require("../../helper/ImportHelper");
 const WeaponParserBase_1 = require("./WeaponParserBase");
 const Constants_1 = require("../../importer/Constants");
 class ThrownParser extends WeaponParserBase_1.WeaponParserBase {
     GetDamage(jsonData) {
         var _a, _b, _c, _d;
-        let jsonDamage = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
+        let jsonDamage = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
         let damageAmount = 0;
         let damageType = "physical";
         let damageAttribute = "";
@@ -1733,7 +2093,7 @@ class ThrownParser extends WeaponParserBase_1.WeaponParserBase {
             }
         }
         damageType = jsonDamage.includes("P") ? "physical" : "stun";
-        let damageAp = ImportHelper_1.ImportHelper.intValue(jsonData, "ap", 0);
+        let damageAp = ImportHelper_1.ImportHelper.IntValue(jsonData, "ap", 0);
         return {
             type: {
                 base: damageType,
@@ -1761,7 +2121,7 @@ class ThrownParser extends WeaponParserBase_1.WeaponParserBase {
             radius: 0,
             dropoff: 0
         };
-        let blastCode = ImportHelper_1.ImportHelper.stringValue(jsonData, "damage");
+        let blastCode = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
         let radiusMatch = (_a = blastCode.match(/([0-9]+m)/)) === null || _a === void 0 ? void 0 : _a[0];
         if (radiusMatch !== undefined) {
             radiusMatch = (_b = radiusMatch.match(/[0-9]+/)) === null || _b === void 0 ? void 0 : _b[0];
@@ -1784,10 +2144,10 @@ class ThrownParser extends WeaponParserBase_1.WeaponParserBase {
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
         if (jsonData.hasOwnProperty("range")) {
-            data.data.thrown.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.stringValue(jsonData, "range")];
+            data.data.thrown.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.StringValue(jsonData, "range")];
         }
         else {
-            data.data.thrown.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.stringValue(jsonData, "category")];
+            data.data.thrown.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.StringValue(jsonData, "category")];
         }
         data.data.thrown.blast = this.GetBlast(jsonData, data);
         return data;
@@ -1796,35 +2156,35 @@ class ThrownParser extends WeaponParserBase_1.WeaponParserBase {
 }
 exports.ThrownParser = ThrownParser;
 
-},{"../../importer/Constants":4,"../../importer/ImportHelper":6,"./WeaponParserBase":25}],25:[function(require,module,exports){
+},{"../../helper/ImportHelper":2,"../../importer/Constants":9,"./WeaponParserBase":33}],33:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WeaponParserBase = void 0;
-const ImportHelper_1 = require("../../importer/ImportHelper");
+const ImportHelper_1 = require("../../helper/ImportHelper");
 const Constants_1 = require("../../importer/Constants");
 const ItemParserBase_1 = require("../item/ItemParserBase");
 class WeaponParserBase extends ItemParserBase_1.ItemParserBase {
     GetSkill(weaponJson) {
         if (weaponJson.hasOwnProperty("useskill")) {
-            let jsonSkill = ImportHelper_1.ImportHelper.stringValue(weaponJson, "useskill");
+            let jsonSkill = ImportHelper_1.ImportHelper.StringValue(weaponJson, "useskill");
             if (Constants_1.Constants.MAP_CATEGORY_TO_SKILL.hasOwnProperty(jsonSkill)) {
                 return Constants_1.Constants.MAP_CATEGORY_TO_SKILL[jsonSkill];
             }
             return jsonSkill.replace(/[\s\-]/g, "_").toLowerCase();
         }
         else {
-            let category = ImportHelper_1.ImportHelper.stringValue(weaponJson, "category");
+            let category = ImportHelper_1.ImportHelper.StringValue(weaponJson, "category");
             if (Constants_1.Constants.MAP_CATEGORY_TO_SKILL.hasOwnProperty(category)) {
                 return Constants_1.Constants.MAP_CATEGORY_TO_SKILL[category];
             }
-            let type = ImportHelper_1.ImportHelper.stringValue(weaponJson, "type").toLowerCase();
+            let type = ImportHelper_1.ImportHelper.StringValue(weaponJson, "type").toLowerCase();
             return (type === "ranged") ? "exotic_range" : "exotic_melee";
         }
     }
     ;
     Parse(jsonData, data) {
         data = super.Parse(jsonData, data);
-        let category = ImportHelper_1.ImportHelper.stringValue(jsonData, "category");
+        let category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category");
         // A single item does not meet normal rules, thanks Chummer!
         if (category === "Hold-outs") {
             category = "Holdouts";
@@ -1832,15 +2192,15 @@ class WeaponParserBase extends ItemParserBase_1.ItemParserBase {
         data.data.category = category.toLowerCase();
         data.data.action.skill = this.GetSkill(jsonData);
         data.data.action.damage = this.GetDamage(jsonData);
-        data.data.action.limit.value = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy");
-        data.data.action.limit.base = ImportHelper_1.ImportHelper.intValue(jsonData, "accuracy");
-        data.data.technology.conceal.base = ImportHelper_1.ImportHelper.intValue(jsonData, "conceal");
+        data.data.action.limit.value = ImportHelper_1.ImportHelper.IntValue(jsonData, "accuracy");
+        data.data.action.limit.base = ImportHelper_1.ImportHelper.IntValue(jsonData, "accuracy");
+        data.data.technology.conceal.base = ImportHelper_1.ImportHelper.IntValue(jsonData, "conceal");
         return data;
     }
 }
 exports.WeaponParserBase = WeaponParserBase;
 
-},{"../../importer/Constants":4,"../../importer/ImportHelper":6,"../item/ItemParserBase":15}],26:[function(require,module,exports){
+},{"../../helper/ImportHelper":2,"../../importer/Constants":9,"../item/ItemParserBase":22}],34:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -1994,9 +2354,9 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],27:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 
-},{}],28:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 (function (Buffer){
 /*!
  * The buffer module from node.js, for the browser.
@@ -3777,7 +4137,7 @@ function numberIsNaN (obj) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"base64-js":26,"buffer":28,"ieee754":31}],29:[function(require,module,exports){
+},{"base64-js":34,"buffer":36,"ieee754":39}],37:[function(require,module,exports){
 (function (Buffer){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3888,7 +4248,7 @@ function objectToString(o) {
 }
 
 }).call(this,{"isBuffer":require("../../is-buffer/index.js")})
-},{"../../is-buffer/index.js":33}],30:[function(require,module,exports){
+},{"../../is-buffer/index.js":41}],38:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4413,7 +4773,7 @@ function functionBindPolyfill(context) {
   };
 }
 
-},{}],31:[function(require,module,exports){
+},{}],39:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = (nBytes * 8) - mLen - 1
@@ -4499,7 +4859,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],32:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -4528,7 +4888,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],33:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 /*!
  * Determine if an object is a Buffer
  *
@@ -4551,14 +4911,14 @@ function isSlowBuffer (obj) {
   return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
 }
 
-},{}],34:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 var toString = {}.toString;
 
 module.exports = Array.isArray || function (arr) {
   return toString.call(arr) == '[object Array]';
 };
 
-},{}],35:[function(require,module,exports){
+},{}],43:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -4607,7 +4967,7 @@ function nextTick(fn, arg1, arg2, arg3) {
 
 
 }).call(this,require('_process'))
-},{"_process":36}],36:[function(require,module,exports){
+},{"_process":44}],44:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -4793,10 +5153,10 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],37:[function(require,module,exports){
+},{}],45:[function(require,module,exports){
 module.exports = require('./lib/_stream_duplex.js');
 
-},{"./lib/_stream_duplex.js":38}],38:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":46}],46:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4928,7 +5288,7 @@ Duplex.prototype._destroy = function (err, cb) {
 
   pna.nextTick(cb, err);
 };
-},{"./_stream_readable":40,"./_stream_writable":42,"core-util-is":29,"inherits":32,"process-nextick-args":35}],39:[function(require,module,exports){
+},{"./_stream_readable":48,"./_stream_writable":50,"core-util-is":37,"inherits":40,"process-nextick-args":43}],47:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4976,7 +5336,7 @@ function PassThrough(options) {
 PassThrough.prototype._transform = function (chunk, encoding, cb) {
   cb(null, chunk);
 };
-},{"./_stream_transform":41,"core-util-is":29,"inherits":32}],40:[function(require,module,exports){
+},{"./_stream_transform":49,"core-util-is":37,"inherits":40}],48:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -5998,7 +6358,7 @@ function indexOf(xs, x) {
   return -1;
 }
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./_stream_duplex":38,"./internal/streams/BufferList":43,"./internal/streams/destroy":44,"./internal/streams/stream":45,"_process":36,"core-util-is":29,"events":30,"inherits":32,"isarray":34,"process-nextick-args":35,"safe-buffer":46,"string_decoder/":47,"util":27}],41:[function(require,module,exports){
+},{"./_stream_duplex":46,"./internal/streams/BufferList":51,"./internal/streams/destroy":52,"./internal/streams/stream":53,"_process":44,"core-util-is":37,"events":38,"inherits":40,"isarray":42,"process-nextick-args":43,"safe-buffer":54,"string_decoder/":55,"util":35}],49:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -6213,7 +6573,7 @@ function done(stream, er, data) {
 
   return stream.push(null);
 }
-},{"./_stream_duplex":38,"core-util-is":29,"inherits":32}],42:[function(require,module,exports){
+},{"./_stream_duplex":46,"core-util-is":37,"inherits":40}],50:[function(require,module,exports){
 (function (process,global,setImmediate){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -6903,7 +7263,7 @@ Writable.prototype._destroy = function (err, cb) {
   cb(err);
 };
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("timers").setImmediate)
-},{"./_stream_duplex":38,"./internal/streams/destroy":44,"./internal/streams/stream":45,"_process":36,"core-util-is":29,"inherits":32,"process-nextick-args":35,"safe-buffer":46,"timers":56,"util-deprecate":57}],43:[function(require,module,exports){
+},{"./_stream_duplex":46,"./internal/streams/destroy":52,"./internal/streams/stream":53,"_process":44,"core-util-is":37,"inherits":40,"process-nextick-args":43,"safe-buffer":54,"timers":64,"util-deprecate":65}],51:[function(require,module,exports){
 'use strict';
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -6983,7 +7343,7 @@ if (util && util.inspect && util.inspect.custom) {
     return this.constructor.name + ' ' + obj;
   };
 }
-},{"safe-buffer":46,"util":27}],44:[function(require,module,exports){
+},{"safe-buffer":54,"util":35}],52:[function(require,module,exports){
 'use strict';
 
 /*<replacement>*/
@@ -7058,10 +7418,10 @@ module.exports = {
   destroy: destroy,
   undestroy: undestroy
 };
-},{"process-nextick-args":35}],45:[function(require,module,exports){
+},{"process-nextick-args":43}],53:[function(require,module,exports){
 module.exports = require('events').EventEmitter;
 
-},{"events":30}],46:[function(require,module,exports){
+},{"events":38}],54:[function(require,module,exports){
 /* eslint-disable node/no-deprecated-api */
 var buffer = require('buffer')
 var Buffer = buffer.Buffer
@@ -7125,7 +7485,7 @@ SafeBuffer.allocUnsafeSlow = function (size) {
   return buffer.SlowBuffer(size)
 }
 
-},{"buffer":28}],47:[function(require,module,exports){
+},{"buffer":36}],55:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -7422,10 +7782,10 @@ function simpleWrite(buf) {
 function simpleEnd(buf) {
   return buf && buf.length ? this.write(buf) : '';
 }
-},{"safe-buffer":46}],48:[function(require,module,exports){
+},{"safe-buffer":54}],56:[function(require,module,exports){
 module.exports = require('./readable').PassThrough
 
-},{"./readable":49}],49:[function(require,module,exports){
+},{"./readable":57}],57:[function(require,module,exports){
 exports = module.exports = require('./lib/_stream_readable.js');
 exports.Stream = exports;
 exports.Readable = exports;
@@ -7434,13 +7794,13 @@ exports.Duplex = require('./lib/_stream_duplex.js');
 exports.Transform = require('./lib/_stream_transform.js');
 exports.PassThrough = require('./lib/_stream_passthrough.js');
 
-},{"./lib/_stream_duplex.js":38,"./lib/_stream_passthrough.js":39,"./lib/_stream_readable.js":40,"./lib/_stream_transform.js":41,"./lib/_stream_writable.js":42}],50:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":46,"./lib/_stream_passthrough.js":47,"./lib/_stream_readable.js":48,"./lib/_stream_transform.js":49,"./lib/_stream_writable.js":50}],58:[function(require,module,exports){
 module.exports = require('./readable').Transform
 
-},{"./readable":49}],51:[function(require,module,exports){
+},{"./readable":57}],59:[function(require,module,exports){
 module.exports = require('./lib/_stream_writable.js');
 
-},{"./lib/_stream_writable.js":42}],52:[function(require,module,exports){
+},{"./lib/_stream_writable.js":50}],60:[function(require,module,exports){
 /*! safe-buffer. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */
 /* eslint-disable node/no-deprecated-api */
 var buffer = require('buffer')
@@ -7507,7 +7867,7 @@ SafeBuffer.allocUnsafeSlow = function (size) {
   return buffer.SlowBuffer(size)
 }
 
-},{"buffer":28}],53:[function(require,module,exports){
+},{"buffer":36}],61:[function(require,module,exports){
 (function (Buffer){
 ;(function (sax) { // wrapper for non-node envs
   sax.parser = function (strict, opt) { return new SAXParser(strict, opt) }
@@ -9076,7 +9436,7 @@ SafeBuffer.allocUnsafeSlow = function (size) {
 })(typeof exports === 'undefined' ? this.sax = {} : exports)
 
 }).call(this,require("buffer").Buffer)
-},{"buffer":28,"stream":54,"string_decoder":55}],54:[function(require,module,exports){
+},{"buffer":36,"stream":62,"string_decoder":63}],62:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -9205,9 +9565,9 @@ Stream.prototype.pipe = function(dest, options) {
   return dest;
 };
 
-},{"events":30,"inherits":32,"readable-stream/duplex.js":37,"readable-stream/passthrough.js":48,"readable-stream/readable.js":49,"readable-stream/transform.js":50,"readable-stream/writable.js":51}],55:[function(require,module,exports){
-arguments[4][47][0].apply(exports,arguments)
-},{"dup":47,"safe-buffer":52}],56:[function(require,module,exports){
+},{"events":38,"inherits":40,"readable-stream/duplex.js":45,"readable-stream/passthrough.js":56,"readable-stream/readable.js":57,"readable-stream/transform.js":58,"readable-stream/writable.js":59}],63:[function(require,module,exports){
+arguments[4][55][0].apply(exports,arguments)
+},{"dup":55,"safe-buffer":60}],64:[function(require,module,exports){
 (function (setImmediate,clearImmediate){
 var nextTick = require('process/browser.js').nextTick;
 var apply = Function.prototype.apply;
@@ -9286,7 +9646,7 @@ exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate :
   delete immediateIds[id];
 };
 }).call(this,require("timers").setImmediate,require("timers").clearImmediate)
-},{"process/browser.js":36,"timers":56}],57:[function(require,module,exports){
+},{"process/browser.js":44,"timers":64}],65:[function(require,module,exports){
 (function (global){
 
 /**
@@ -9357,7 +9717,7 @@ function config (name) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],58:[function(require,module,exports){
+},{}],66:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -9371,7 +9731,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],59:[function(require,module,exports){
+},{}],67:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -9500,7 +9860,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./defaults":60,"xmlbuilder":96}],60:[function(require,module,exports){
+},{"./defaults":68,"xmlbuilder":104}],68:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   exports.defaults = {
@@ -9574,7 +9934,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],61:[function(require,module,exports){
+},{}],69:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -9957,7 +10317,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./bom":58,"./defaults":60,"./processors":62,"events":30,"sax":53,"timers":56}],62:[function(require,module,exports){
+},{"./bom":66,"./defaults":68,"./processors":70,"events":38,"sax":61,"timers":64}],70:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -9993,7 +10353,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],63:[function(require,module,exports){
+},{}],71:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -10034,7 +10394,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./builder":59,"./defaults":60,"./parser":61,"./processors":62}],64:[function(require,module,exports){
+},{"./builder":67,"./defaults":68,"./parser":69,"./processors":70}],72:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   module.exports = {
@@ -10048,7 +10408,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],65:[function(require,module,exports){
+},{}],73:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   module.exports = {
@@ -10073,7 +10433,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],66:[function(require,module,exports){
+},{}],74:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var assign, getValue, isArray, isEmpty, isFunction, isObject, isPlainObject,
@@ -10158,7 +10518,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],67:[function(require,module,exports){
+},{}],75:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   module.exports = {
@@ -10170,7 +10530,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],68:[function(require,module,exports){
+},{}],76:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLAttribute, XMLNode;
@@ -10280,7 +10640,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./XMLNode":87}],69:[function(require,module,exports){
+},{"./NodeType":73,"./XMLNode":95}],77:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLCData, XMLCharacterData,
@@ -10318,7 +10678,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./XMLCharacterData":70}],70:[function(require,module,exports){
+},{"./NodeType":73,"./XMLCharacterData":78}],78:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLCharacterData, XMLNode,
@@ -10399,7 +10759,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./XMLNode":87}],71:[function(require,module,exports){
+},{"./XMLNode":95}],79:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLCharacterData, XMLComment,
@@ -10437,7 +10797,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./XMLCharacterData":70}],72:[function(require,module,exports){
+},{"./NodeType":73,"./XMLCharacterData":78}],80:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLDOMConfiguration, XMLDOMErrorHandler, XMLDOMStringList;
@@ -10503,7 +10863,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./XMLDOMErrorHandler":73,"./XMLDOMStringList":75}],73:[function(require,module,exports){
+},{"./XMLDOMErrorHandler":81,"./XMLDOMStringList":83}],81:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLDOMErrorHandler;
@@ -10521,7 +10881,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],74:[function(require,module,exports){
+},{}],82:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLDOMImplementation;
@@ -10555,7 +10915,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],75:[function(require,module,exports){
+},{}],83:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLDOMStringList;
@@ -10585,7 +10945,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],76:[function(require,module,exports){
+},{}],84:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDAttList, XMLNode,
@@ -10642,7 +11002,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./XMLNode":87}],77:[function(require,module,exports){
+},{"./NodeType":73,"./XMLNode":95}],85:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDElement, XMLNode,
@@ -10682,7 +11042,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./XMLNode":87}],78:[function(require,module,exports){
+},{"./NodeType":73,"./XMLNode":95}],86:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDEntity, XMLNode, isObject,
@@ -10781,7 +11141,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./Utility":66,"./XMLNode":87}],79:[function(require,module,exports){
+},{"./NodeType":73,"./Utility":74,"./XMLNode":95}],87:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDNotation, XMLNode,
@@ -10835,7 +11195,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./XMLNode":87}],80:[function(require,module,exports){
+},{"./NodeType":73,"./XMLNode":95}],88:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDeclaration, XMLNode, isObject,
@@ -10880,7 +11240,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./Utility":66,"./XMLNode":87}],81:[function(require,module,exports){
+},{"./NodeType":73,"./Utility":74,"./XMLNode":95}],89:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDocType, XMLNamedNodeMap, XMLNode, isObject,
@@ -11068,7 +11428,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./Utility":66,"./XMLDTDAttList":76,"./XMLDTDElement":77,"./XMLDTDEntity":78,"./XMLDTDNotation":79,"./XMLNamedNodeMap":86,"./XMLNode":87}],82:[function(require,module,exports){
+},{"./NodeType":73,"./Utility":74,"./XMLDTDAttList":84,"./XMLDTDElement":85,"./XMLDTDEntity":86,"./XMLDTDNotation":87,"./XMLNamedNodeMap":94,"./XMLNode":95}],90:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDOMConfiguration, XMLDOMImplementation, XMLDocument, XMLNode, XMLStringWriter, XMLStringifier, isPlainObject,
@@ -11312,7 +11672,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./Utility":66,"./XMLDOMConfiguration":72,"./XMLDOMImplementation":74,"./XMLNode":87,"./XMLStringWriter":92,"./XMLStringifier":93}],83:[function(require,module,exports){
+},{"./NodeType":73,"./Utility":74,"./XMLDOMConfiguration":80,"./XMLDOMImplementation":82,"./XMLNode":95,"./XMLStringWriter":100,"./XMLStringifier":101}],91:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, WriterState, XMLAttribute, XMLCData, XMLComment, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDeclaration, XMLDocType, XMLDocument, XMLDocumentCB, XMLElement, XMLProcessingInstruction, XMLRaw, XMLStringWriter, XMLStringifier, XMLText, getValue, isFunction, isObject, isPlainObject, ref,
@@ -11842,7 +12202,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./Utility":66,"./WriterState":67,"./XMLAttribute":68,"./XMLCData":69,"./XMLComment":71,"./XMLDTDAttList":76,"./XMLDTDElement":77,"./XMLDTDEntity":78,"./XMLDTDNotation":79,"./XMLDeclaration":80,"./XMLDocType":81,"./XMLDocument":82,"./XMLElement":85,"./XMLProcessingInstruction":89,"./XMLRaw":90,"./XMLStringWriter":92,"./XMLStringifier":93,"./XMLText":94}],84:[function(require,module,exports){
+},{"./NodeType":73,"./Utility":74,"./WriterState":75,"./XMLAttribute":76,"./XMLCData":77,"./XMLComment":79,"./XMLDTDAttList":84,"./XMLDTDElement":85,"./XMLDTDEntity":86,"./XMLDTDNotation":87,"./XMLDeclaration":88,"./XMLDocType":89,"./XMLDocument":90,"./XMLElement":93,"./XMLProcessingInstruction":97,"./XMLRaw":98,"./XMLStringWriter":100,"./XMLStringifier":101,"./XMLText":102}],92:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLDummy, XMLNode,
@@ -11875,7 +12235,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./XMLNode":87}],85:[function(require,module,exports){
+},{"./NodeType":73,"./XMLNode":95}],93:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLAttribute, XMLElement, XMLNamedNodeMap, XMLNode, getValue, isFunction, isObject, ref,
@@ -12175,7 +12535,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./Utility":66,"./XMLAttribute":68,"./XMLNamedNodeMap":86,"./XMLNode":87}],86:[function(require,module,exports){
+},{"./NodeType":73,"./Utility":74,"./XMLAttribute":76,"./XMLNamedNodeMap":94,"./XMLNode":95}],94:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLNamedNodeMap;
@@ -12235,7 +12595,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],87:[function(require,module,exports){
+},{}],95:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var DocumentPosition, NodeType, XMLCData, XMLComment, XMLDeclaration, XMLDocType, XMLDummy, XMLElement, XMLNamedNodeMap, XMLNode, XMLNodeList, XMLProcessingInstruction, XMLRaw, XMLText, getValue, isEmpty, isFunction, isObject, ref1,
@@ -13022,7 +13382,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./DocumentPosition":64,"./NodeType":65,"./Utility":66,"./XMLCData":69,"./XMLComment":71,"./XMLDeclaration":80,"./XMLDocType":81,"./XMLDummy":84,"./XMLElement":85,"./XMLNamedNodeMap":86,"./XMLNodeList":88,"./XMLProcessingInstruction":89,"./XMLRaw":90,"./XMLText":94}],88:[function(require,module,exports){
+},{"./DocumentPosition":72,"./NodeType":73,"./Utility":74,"./XMLCData":77,"./XMLComment":79,"./XMLDeclaration":88,"./XMLDocType":89,"./XMLDummy":92,"./XMLElement":93,"./XMLNamedNodeMap":94,"./XMLNodeList":96,"./XMLProcessingInstruction":97,"./XMLRaw":98,"./XMLText":102}],96:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLNodeList;
@@ -13052,7 +13412,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],89:[function(require,module,exports){
+},{}],97:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLCharacterData, XMLProcessingInstruction,
@@ -13103,7 +13463,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./XMLCharacterData":70}],90:[function(require,module,exports){
+},{"./NodeType":73,"./XMLCharacterData":78}],98:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLNode, XMLRaw,
@@ -13140,7 +13500,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./XMLNode":87}],91:[function(require,module,exports){
+},{"./NodeType":73,"./XMLNode":95}],99:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, WriterState, XMLStreamWriter, XMLWriterBase,
@@ -13318,7 +13678,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./WriterState":67,"./XMLWriterBase":95}],92:[function(require,module,exports){
+},{"./NodeType":73,"./WriterState":75,"./XMLWriterBase":103}],100:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLStringWriter, XMLWriterBase,
@@ -13355,7 +13715,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./XMLWriterBase":95}],93:[function(require,module,exports){
+},{"./XMLWriterBase":103}],101:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var XMLStringifier,
@@ -13597,7 +13957,7 @@ function config (name) {
 
 }).call(this);
 
-},{}],94:[function(require,module,exports){
+},{}],102:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, XMLCharacterData, XMLText,
@@ -13668,7 +14028,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./XMLCharacterData":70}],95:[function(require,module,exports){
+},{"./NodeType":73,"./XMLCharacterData":78}],103:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, WriterState, XMLCData, XMLComment, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDeclaration, XMLDocType, XMLDummy, XMLElement, XMLProcessingInstruction, XMLRaw, XMLText, XMLWriterBase, assign,
@@ -14098,7 +14458,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./Utility":66,"./WriterState":67,"./XMLCData":69,"./XMLComment":71,"./XMLDTDAttList":76,"./XMLDTDElement":77,"./XMLDTDEntity":78,"./XMLDTDNotation":79,"./XMLDeclaration":80,"./XMLDocType":81,"./XMLDummy":84,"./XMLElement":85,"./XMLProcessingInstruction":89,"./XMLRaw":90,"./XMLText":94}],96:[function(require,module,exports){
+},{"./NodeType":73,"./Utility":74,"./WriterState":75,"./XMLCData":77,"./XMLComment":79,"./XMLDTDAttList":84,"./XMLDTDElement":85,"./XMLDTDEntity":86,"./XMLDTDNotation":87,"./XMLDeclaration":88,"./XMLDocType":89,"./XMLDummy":92,"./XMLElement":93,"./XMLProcessingInstruction":97,"./XMLRaw":98,"./XMLText":102}],104:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   var NodeType, WriterState, XMLDOMImplementation, XMLDocument, XMLDocumentCB, XMLStreamWriter, XMLStringWriter, assign, isFunction, ref;
@@ -14165,4 +14525,4 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":65,"./Utility":66,"./WriterState":67,"./XMLDOMImplementation":74,"./XMLDocument":82,"./XMLDocumentCB":83,"./XMLStreamWriter":91,"./XMLStringWriter":92}]},{},[11]);
+},{"./NodeType":73,"./Utility":74,"./WriterState":75,"./XMLDOMImplementation":82,"./XMLDocument":90,"./XMLDocumentCB":91,"./XMLStreamWriter":99,"./XMLStringWriter":100}]},{},[16]);

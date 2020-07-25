@@ -1,11 +1,11 @@
 import {SpellParserBase} from "./SpellParserBase";
-import {ImportHelper} from "../../importer/ImportHelper";
+import {ImportHelper} from "../../helper/ImportHelper";
 
 export class CombatSpellParser extends SpellParserBase {
     Parse(jsonData: object, data: Shadowrun.Spell): Shadowrun.Spell {
         data = super.Parse(jsonData, data);
 
-        let descriptor = ImportHelper.stringValue(jsonData, "descriptor");
+        let descriptor = ImportHelper.StringValue(jsonData, "descriptor");
         // A few spells have a missing descriptor instead of an empty string.
         // The field is <descriptor /> rather than <descriptor></descriptor>
         // which gets imported as undefined rather than empty string (sigh)

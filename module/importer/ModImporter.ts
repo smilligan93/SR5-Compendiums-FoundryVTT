@@ -1,8 +1,8 @@
 import {DataImporter} from "./DataImporter";
 import Mod = Shadowrun.Mod;
-import {ImportHelper} from "./ImportHelper";
+import {ImportHelper} from "../helper/ImportHelper";
 import {Constants} from "./Constants";
-import MountType = Shadowrun.MountType;
+import {ModParserBase} from "../parser/mod/ModParserBase";
 
 export class ModImporter extends DataImporter {
     public categoryTranslations: any;
@@ -62,30 +62,18 @@ export class ModImporter extends DataImporter {
     }
 
     async Parse(jsonObject: object): Promise<Entity> {
-        let modDatas: Mod[] = [];
-        let jsonAccs = jsonObject["accessories"]["accessory"];
-        for (let i = 0; i < jsonAccs.length; i++) {
-            let jsonData = jsonAccs[i];
 
-            let data = this.GetDefaultData();
+        const parser = new ModParserBase();
 
-            data.name = ImportHelper.stringValue(jsonData, "name");
+        let datas: Mod[] = [];
+        let jsonDatas = jsonObject["accessories"]["accessory"];
+        for (let i = 0; i < jsonDatas.length; i++) {
+            let jsonData = jsonDatas[i];
+
+            let data = parser.Parse(jsonData, this.GetDefaultData());
+            // TODO: Integrate into ModParserBase approach.
             data.name = ImportHelper.MapNameToTranslation(this.accessoryTranslations, data.name);
-
-            data.data.description.source = `${ImportHelper.stringValue(jsonData, "source")} ${ImportHelper.stringValue(jsonData, "page")}`;
-
-            data.data.technology.availability = ImportHelper.stringValue(jsonData, "avail", "0");
-            data.data.technology.cost = ImportHelper.intValue(jsonData, "cost", 0);
-            data.data.technology.rating = ImportHelper.intValue(jsonData, "rating", 0);
-
-            data.data.type = "weapon";
-
-            data.data.mount_point = ImportHelper.stringValue(jsonData, "mount") as MountType;
-
-            data.data.rc = ImportHelper.intValue(jsonData, "rc", 0);
-            data.data.accuracy = ImportHelper.intValue(jsonData, "accuracy", 0);
-
-            data.data.technology.conceal.base = ImportHelper.intValue(jsonData, "conceal", 0);
+            //TODO: Test this
 
             let folderName = (data.data.mount_point !== undefined) ? data.data.mount_point : "Other";
             if (folderName.includes("/")) {
@@ -96,9 +84,9 @@ export class ModImporter extends DataImporter {
             let folder = await ImportHelper.GetFolderAtPath(`${Constants.ROOT_IMPORT_FOLDER_NAME}/Mods/${folderName}`, true);
             data.folder = folder.id;
 
-            modDatas.push(data);
+            datas.push(data);
         }
 
-        return await Item.create(modDatas);
+        return await Item.create(datas);
     }
 }

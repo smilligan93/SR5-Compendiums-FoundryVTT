@@ -1,5 +1,5 @@
 import {DataImporter} from "./DataImporter";
-import {ImportHelper} from "./ImportHelper";
+import {ImportHelper} from "../helper/ImportHelper";
 import {Constants} from "./Constants";
 import {RangedParser} from "../parser/weapon/RangedParser";
 import {MeleeParser} from "../parser/weapon/MeleeParser";
@@ -157,19 +157,19 @@ export class WeaponImporter extends DataImporter {
     }
 
     private static GetWeaponType(weaponJson: object): WeaponCategory {
-        let type = ImportHelper.stringValue(weaponJson, "type");
+        let type = ImportHelper.StringValue(weaponJson, "type");
         //melee is the least specific, all melee entries are accurate
         if (type === "Melee") {
             return "melee";
         } else {
             // skill takes priorities over category
             if (weaponJson.hasOwnProperty("useskill")) {
-                let skill = ImportHelper.stringValue(weaponJson, "useskill");
+                let skill = ImportHelper.StringValue(weaponJson, "useskill");
                 if (skill === "Throwing Weapons") return "thrown";
             }
 
             // category is the fallback
-            let category = ImportHelper.stringValue(weaponJson, "category");
+            let category = ImportHelper.StringValue(weaponJson, "category");
             if (category === "Throwing Weapons") return "thrown";
             // ranged is everything else
             return "range";

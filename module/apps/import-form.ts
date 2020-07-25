@@ -1,10 +1,13 @@
-import { WeaponImporter } from "../importer/WeaponImporter";
-import { ArmorImporter } from "../importer/ArmorImporter";
-import { DataImporter } from "../importer/DataImporter";
-import { AmmoImporter } from "../importer/AmmoImporter";
-import { ModImporter } from "../importer/ModImporter";
-import { SpellImporter } from "../importer/SpellImporter";
+import {WeaponImporter} from "../importer/WeaponImporter";
+import {ArmorImporter} from "../importer/ArmorImporter";
+import {DataImporter} from "../importer/DataImporter";
+import {AmmoImporter} from "../importer/AmmoImporter";
+import {ModImporter} from "../importer/ModImporter";
+import {SpellImporter} from "../importer/SpellImporter";
 import {QualityImporter} from "../importer/QualityImporter";
+import {ComplexFormImporter} from "../importer/ComplexFormImporter";
+import {CyberwareImporter} from "../importer/CyberwareImporter";
+import {ImportHelper, ImportMode} from "../helper/ImportHelper";
 
 export class Import extends Application {
     static get defaultOptions() {
@@ -25,11 +28,14 @@ export class Import extends Application {
         new ArmorImporter(),
         new AmmoImporter(),
         new SpellImporter(),
-        new QualityImporter()
+        new ComplexFormImporter(),
+        new QualityImporter(),
+        new CyberwareImporter()
     ];
 
     async parseXML(xmlSource) {
         let jsonSource = await DataImporter.xml2json(xmlSource);
+        ImportHelper.SetMode(ImportMode.XML);
 
         for (const di of Import.Importers) {
             if (di.CanParse(jsonSource)) {
