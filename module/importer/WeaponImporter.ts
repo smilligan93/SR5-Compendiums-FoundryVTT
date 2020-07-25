@@ -13,7 +13,7 @@ import {ParserMap} from "../parser/ParserMap";
 
 export class WeaponImporter extends DataImporter {
     public categoryTranslations: any;
-    public weaponTranslations: any;
+    public itemTranslations: any;
 
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("weapons") && jsonObject["weapons"].hasOwnProperty("weapon");
@@ -153,7 +153,7 @@ export class WeaponImporter extends DataImporter {
 
         let jsonWeaponi18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'weapons.xml');
         this.categoryTranslations = ImportHelper.ExtractCategoriesTranslation(jsonWeaponi18n);
-        this.weaponTranslations = ImportHelper.ExtractItemTranslation(jsonWeaponi18n, 'weapons', 'weapon');
+        this.itemTranslations = ImportHelper.ExtractItemTranslation(jsonWeaponi18n, 'weapons', 'weapon');
     }
 
     private static GetWeaponType(weaponJson: object): WeaponCategory {
@@ -178,7 +178,7 @@ export class WeaponImporter extends DataImporter {
 
     async Parse(jsonObject: object): Promise<Entity> {
         const folders = await ImportHelper.MakeCategoryFolders(jsonObject, "Weapons", this.categoryTranslations);
-        
+
         folders["gear"] = await ImportHelper.GetFolderAtPath(
             `${Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Gear`,
             true
@@ -199,10 +199,8 @@ export class WeaponImporter extends DataImporter {
         for (let i = 0; i < jsonDatas.length; i++) {
             let jsonData = jsonDatas[i];
 
-            let data = parser.Parse(jsonData, this.GetDefaultData());
+            let data = parser.Parse(jsonData, this.GetDefaultData(), this.itemTranslations);
             data.folder = folders[data.data.category].id;
-
-            data.name = ImportHelper.MapNameToTranslation(this.weaponTranslations, data.name);
 
             datas.push(data);
         }

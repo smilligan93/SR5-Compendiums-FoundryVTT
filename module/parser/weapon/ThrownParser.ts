@@ -111,8 +111,8 @@ export class ThrownParser extends WeaponParserBase {
         return blastData;
     }
 
-    Parse(jsonData: object, data: Weapon): Weapon {
-        data = super.Parse(jsonData, data);
+    Parse(jsonData: object, data: Weapon, jsonTranslation?: object): Weapon {
+        data = super.Parse(jsonData, data, jsonTranslation);
 
         if (jsonData.hasOwnProperty("range")) {
             data.data.thrown.ranges = Constants.WEAPON_RANGES[ImportHelper.StringValue(jsonData, "range")];

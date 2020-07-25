@@ -4,7 +4,7 @@ import SpellCateogry = Shadowrun.SpellCateogry;
 import {Parser} from "../Parser";
 
 export class SpellParserBase extends Parser<Spell> {
-    public Parse(jsonData: object, data: Spell): Spell {
+    public Parse(jsonData: object, data: Spell, jsonTranslation?: object): Spell {
         data.name = ImportHelper.StringValue(jsonData, "name");
 
         data.data.description.source = `${ImportHelper.StringValue(jsonData, "source")} ${ImportHelper.StringValue(jsonData, "page")}`;
@@ -47,6 +47,12 @@ export class SpellParserBase extends Parser<Spell> {
             data.data.type = "physical";
         } else if (type === "M") {
             data.data.type = "mana";
+        }
+
+        if (jsonTranslation) {
+            const origName = ImportHelper.StringValue(jsonData, "name");
+            data.name = ImportHelper.MapNameToTranslation(jsonTranslation, origName);
+            data.data.description.source = `${ImportHelper.StringValue(jsonData, "source")} ${ImportHelper.MapNameToPageSource(jsonTranslation, origName)}`;
         }
 
         return data;

@@ -3,7 +3,7 @@ import {ImportHelper} from "../../helper/ImportHelper";
 import Item = Shadowrun.Item;
 
 export abstract class ItemParserBase<TResult extends Item> extends Parser<TResult> {
-    Parse(jsonData: object, data: TResult, jsonTranslation?): TResult {
+    Parse(jsonData: object, data: TResult, jsonTranslation?: object): TResult {
         data.name = ImportHelper.StringValue(jsonData, "name");
 
         data.data.description.source = `${ImportHelper.StringValue(jsonData, "source")} ${ImportHelper.StringValue(jsonData, "page")}`;

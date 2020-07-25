@@ -64,8 +64,8 @@ export class RangedParser extends WeaponParserBase {
         return (match !== undefined) ? parseInt(match) : 0;
     }
 
-    Parse(jsonData: object, data: Weapon): Weapon {
-        data = super.Parse(jsonData, data);
+    Parse(jsonData: object, data: Weapon, jsonTranslation?: object): Weapon {
+        data = super.Parse(jsonData, data, jsonTranslation);
 
         data.data.range.rc.base = ImportHelper.IntValue(jsonData, "rc");
         data.data.range.rc.value = ImportHelper.IntValue(jsonData, "rc");

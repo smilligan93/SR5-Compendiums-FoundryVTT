@@ -5,7 +5,7 @@ import Quality = Shadowrun.Quality;
 
 export class QualityImporter extends DataImporter {
     public categoryTranslations: any;
-    public qualityTranslations: any;
+    public itemTranslations: any;
 
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("qualities") && jsonObject["qualities"].hasOwnProperty("quality");
@@ -83,7 +83,7 @@ export class QualityImporter extends DataImporter {
 
         let jsonQualityi18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'qualities.xml');
         this.categoryTranslations = ImportHelper.ExtractCategoriesTranslation(jsonQualityi18n);
-        this.qualityTranslations = ImportHelper.ExtractItemTranslation(jsonQualityi18n, 'qualities', 'quality');
+        this.itemTranslations = ImportHelper.ExtractItemTranslation(jsonQualityi18n, 'qualities', 'quality');
     }
 
     async Parse(jsonObject: object): Promise<Entity> {
@@ -97,11 +97,11 @@ export class QualityImporter extends DataImporter {
         let jsonDatas = jsonObject["qualities"]["quality"];
         for (let i = 0; i < jsonDatas.length; i++) {
             let jsonData = jsonDatas[i];
-            let data = parser.Parse(jsonData, this.GetDefaultData());
+            let data = parser.Parse(jsonData, this.GetDefaultData(), this.itemTranslations);
 
             let category = ImportHelper.StringValue(jsonData, "category");
             data.folder = folders[category.toLowerCase()].id;
-            data.name = ImportHelper.MapNameToTranslation(this.qualityTranslations, data.name);
+            data.name = ImportHelper.MapNameToTranslation(this.itemTranslations, data.name);
 
             datas.push(data);
         }

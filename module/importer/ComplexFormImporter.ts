@@ -98,7 +98,7 @@ export class ComplexFormImporter extends DataImporter {
         for (let i = 0; i < jsonDatas.length; i++) {
             let jsonData = jsonDatas[i];
 
-            let data = parser.Parse(jsonData, this.GetDefaultData());
+            let data = parser.Parse(jsonData, this.GetDefaultData(), this.nameTranslations);
             data.folder = folder.id;
 
             // TODO: Follow ComplexFormParserBase approach.

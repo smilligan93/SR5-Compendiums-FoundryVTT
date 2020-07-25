@@ -3,8 +3,8 @@ import {ImportHelper} from "../../helper/ImportHelper";
 import Spell = Shadowrun.Spell;
 
 export class ManipulationSpellParser extends SpellParserBase {
-    Parse(jsonData: object, data: Spell): Spell {
-        data = super.Parse(jsonData, data);
+    Parse(jsonData: object, data: Spell, jsonTranslation?: object): Spell {
+        data = super.Parse(jsonData, data, jsonTranslation);
 
         let descriptor = ImportHelper.StringValue(jsonData, "descriptor");
         // A few spells have a missing descriptor instead of an empty string.

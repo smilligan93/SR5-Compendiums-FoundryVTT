@@ -10,7 +10,7 @@ import {ParserMap} from "../parser/ParserMap";
 
 export class SpellImporter extends DataImporter {
     public categoryTranslations: any;
-    public spellTranslations: any;
+    public itemTranslations: any;
 
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("spells") && jsonObject["spells"].hasOwnProperty("spell");
@@ -110,7 +110,7 @@ export class SpellImporter extends DataImporter {
 
         let jsonSpelli18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'spells.xml');
         this.categoryTranslations = ImportHelper.ExtractCategoriesTranslation(jsonSpelli18n);
-        this.spellTranslations = ImportHelper.ExtractItemTranslation(jsonSpelli18n, 'spells', 'spell');
+        this.itemTranslations = ImportHelper.ExtractItemTranslation(jsonSpelli18n, 'spells', 'spell');
     }
 
     async Parse(jsonObject: object): Promise<Entity> {
@@ -131,11 +131,8 @@ export class SpellImporter extends DataImporter {
         for (let i = 0; i < jsonDatas.length; i++) {
             let jsonData = jsonDatas[i];
 
-            let data = parser.Parse(jsonData, this.GetDefaultData());
+            let data = parser.Parse(jsonData, this.GetDefaultData(), this.itemTranslations);
             data.folder = folders[data.data.category].id;
-
-            data.name = ImportHelper.MapNameToTranslation(this.spellTranslations, data.name);
-
             datas.push(data);
         }
 

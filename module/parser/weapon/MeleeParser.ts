@@ -66,8 +66,8 @@ export class MeleeParser extends WeaponParserBase {
         }
     };
 
-    Parse(jsonData: object, data: Weapon): Weapon {
-        data = super.Parse(jsonData, data);
+    Parse(jsonData: object, data: Weapon, jsonTranslation?: object): Weapon {
+        data = super.Parse(jsonData, data, jsonTranslation);
 
         data.data.melee.reach = ImportHelper.IntValue(jsonData, "reach");
 
