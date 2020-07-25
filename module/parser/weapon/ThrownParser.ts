@@ -1,4 +1,4 @@
-import {ImportHelper} from "../../importer/ImportHelper";
+import {ImportHelper} from "../../helper/ImportHelper";
 import {WeaponParserBase} from "./WeaponParserBase";
 import {Constants} from "../../importer/Constants";
 import DamageElement = Shadowrun.DamageElement;
@@ -10,7 +10,7 @@ import Weapon = Shadowrun.Weapon;
 
 export class ThrownParser extends WeaponParserBase {
     public GetDamage(jsonData: object): DamageData {
-        let jsonDamage = ImportHelper.stringValue(jsonData, "damage");
+        let jsonDamage = ImportHelper.StringValue(jsonData, "damage");
 
         let damageAmount = 0;
         let damageType = "physical";
@@ -57,7 +57,7 @@ export class ThrownParser extends WeaponParserBase {
         }
         damageType = jsonDamage.includes("P") ? "physical" : "stun";
 
-        let damageAp = ImportHelper.intValue(jsonData, "ap", 0);
+        let damageAp = ImportHelper.IntValue(jsonData, "ap", 0);
 
         return {
             type: {
@@ -86,7 +86,7 @@ export class ThrownParser extends WeaponParserBase {
             dropoff: 0
         };
 
-        let blastCode = ImportHelper.stringValue(jsonData, "damage");
+        let blastCode = ImportHelper.StringValue(jsonData, "damage");
 
         let radiusMatch = blastCode.match(/([0-9]+m)/)?.[0];
         if (radiusMatch !== undefined) {
@@ -115,9 +115,9 @@ export class ThrownParser extends WeaponParserBase {
         data = super.Parse(jsonData, data);
 
         if (jsonData.hasOwnProperty("range")) {
-            data.data.thrown.ranges = Constants.WEAPON_RANGES[ImportHelper.stringValue(jsonData, "range")];
+            data.data.thrown.ranges = Constants.WEAPON_RANGES[ImportHelper.StringValue(jsonData, "range")];
         } else {
-            data.data.thrown.ranges = Constants.WEAPON_RANGES[ImportHelper.stringValue(jsonData, "category")];
+            data.data.thrown.ranges = Constants.WEAPON_RANGES[ImportHelper.StringValue(jsonData, "category")];
         }
 
         data.data.thrown.blast = this.GetBlast(jsonData, data);

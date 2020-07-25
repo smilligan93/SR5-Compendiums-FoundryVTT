@@ -1,5 +1,5 @@
 import {DataImporter} from "./DataImporter";
-import {ImportHelper} from "./ImportHelper";
+import {ImportHelper} from "../helper/ImportHelper";
 import {Constants} from "./Constants";
 import Ammo = Shadowrun.Ammo;
 import Weapon = Shadowrun.Weapon;
@@ -58,24 +58,24 @@ export class AmmoImporter extends DataImporter {
         for (let i = 0; i < jsonAmmos.length; i++) {
             let jsonData = jsonAmmos[i];
 
-            if (ImportHelper.stringValue(jsonData, "category", "") !== "Ammunition") {
+            if (ImportHelper.StringValue(jsonData, "category", "") !== "Ammunition") {
                 continue;
             }
 
             let data = this.GetDefaultData();
-            data.name = ImportHelper.stringValue(jsonData, "name");
+            data.name = ImportHelper.StringValue(jsonData, "name");
 
-            data.data.description.source = `${ImportHelper.stringValue(jsonData, "source")} ${ImportHelper.stringValue(jsonData, "page")}`;
+            data.data.description.source = `${ImportHelper.StringValue(jsonData, "source")} ${ImportHelper.StringValue(jsonData, "page")}`;
             data.data.technology.rating = 2;
-            data.data.technology.availability = ImportHelper.stringValue(jsonData, "avail");
-            data.data.technology.cost = ImportHelper.intValue(jsonData, "cost", 0);
+            data.data.technology.availability = ImportHelper.StringValue(jsonData, "avail");
+            data.data.technology.cost = ImportHelper.IntValue(jsonData, "cost", 0);
 
-            let bonusData = ImportHelper.objectValue(jsonData, "weaponbonus", null);
+            let bonusData = ImportHelper.ObjectValue(jsonData, "weaponbonus", null);
             if (bonusData !== undefined && bonusData !== null) {
-                data.data.ap = ImportHelper.intValue(bonusData, "ap", 0);
-                data.data.damage = ImportHelper.intValue(bonusData, "damage", 0);
+                data.data.ap = ImportHelper.IntValue(bonusData, "ap", 0);
+                data.data.damage = ImportHelper.IntValue(bonusData, "damage", 0);
 
-                let damageType = ImportHelper.stringValue(bonusData, "damagetype", "");
+                let damageType = ImportHelper.StringValue(bonusData, "damagetype", "");
                 if (damageType.length > 0) {
                     if (damageType.includes("P")) {
                         data.data.damageType = "physical";

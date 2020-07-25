@@ -1,5 +1,5 @@
 import {Parser} from "./Parser";
-import {ImportHelper} from "../importer/ImportHelper";
+import {ImportHelper} from "../helper/ImportHelper";
 
 export class ParserMap<TResult> extends Parser<TResult> {
     private readonly m_BranchKey: string|BranchFunc<TResult>;
@@ -22,7 +22,7 @@ export class ParserMap<TResult> extends Parser<TResult> {
             key = this.m_BranchKey(jsonData);
         } else {
             key = this.m_BranchKey;
-            key = ImportHelper.stringValue(jsonData, key);
+            key = ImportHelper.StringValue(jsonData, key);
         }
 
         const parser = this.m_Map.get(key);

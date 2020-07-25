@@ -20,7 +20,7 @@ declare namespace Shadowrun {
      * Weapon action data.
      */
     export type ActionData = {
-        type: "varies",
+        type: "varies"|"complex"|"simple"|"free"|"",
         category: string,
         attribute: ActorAttribute,
         attribute2: ActorAttribute,

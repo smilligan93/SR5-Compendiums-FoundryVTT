@@ -1,5 +1,5 @@
 import {DataImporter} from "./DataImporter";
-import {ImportHelper} from "./ImportHelper";
+import {ImportHelper} from "../helper/ImportHelper";
 import {QualityParserBase} from "../parser/quality/QualityParserBase";
 import Quality = Shadowrun.Quality;
 
@@ -85,7 +85,7 @@ export class QualityImporter extends DataImporter {
             let jsonData = jsonDatas[i];
             let data = parser.Parse(jsonData, this.GetDefaultData());
 
-            let category = ImportHelper.stringValue(jsonData, "category");
+            let category = ImportHelper.StringValue(jsonData, "category");
             data.folder = folders[category.toLowerCase()].id;
 
             datas.push(data);

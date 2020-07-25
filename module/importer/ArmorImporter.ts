@@ -1,5 +1,5 @@
 import { DataImporter } from "./DataImporter";
-import {ImportHelper} from "./ImportHelper";
+import {ImportHelper} from "../helper/ImportHelper";
 import {Constants} from "./Constants";
 import Armor = Shadowrun.Armor;
 import {ArmorParserBase} from "../parser/armor/ArmorParserBase";
@@ -63,7 +63,7 @@ export class ArmorImporter extends DataImporter {
             let jsonData = jsonDatas[i];
 
             let data = parser.Parse(jsonData, this.GetDefaultData());
-            const category = ImportHelper.stringValue(jsonData, "category").toLowerCase();
+            const category = ImportHelper.StringValue(jsonData, "category").toLowerCase();
             data.folder = folders[category].id;
 
             datas.push(data);
