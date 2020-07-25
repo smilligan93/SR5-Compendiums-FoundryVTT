@@ -182,18 +182,29 @@ export class ImportHelper {
             jsonItemsi18n[typeKey][listKey].forEach(item => {
                 const name = item.name[ImportHelper.CHAR_KEY];
                 const translate = item.translate[ImportHelper.CHAR_KEY];
-                itemTranslation[name] = translate;
+                const altpage = item.altpage[ImportHelper.CHAR_KEY];
+                itemTranslation[name] = {translate, altpage};
             })
         }
 
         return itemTranslation;
     }
 
-    public static MapNameToTranslation(translationMap, name): string {
-        if (translationMap && translationMap.hasOwnProperty(name)) {
-            return translationMap[name];
+    static MapNameToTranslationKey(translationMap, name, key, fallbackValue=''): string {
+        if (translationMap && translationMap.hasOwnProperty(name) && translationMap[name].hasOwnProperty(key)) {
+            return translationMap[name][key];
         }
-        return name;
+
+        console.error(`Shadowrun 5 Compendium module can't map the name ${name} to a translation for ${key} in given translation mapping.`);
+        return fallbackValue;
+    }
+
+    public static MapNameToTranslation(translationMap, name): string {
+        return ImportHelper.MapNameToTranslationKey(translationMap, name, 'translate', name);
+    }
+
+    public static MapNameToPageSource(translationMap, name): string {
+        return ImportHelper.MapNameToTranslationKey(translationMap, name, 'altpage', '?');
     }
 }
 export type ItemComparer = (item: Item) => boolean;

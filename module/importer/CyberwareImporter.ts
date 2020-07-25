@@ -5,7 +5,7 @@ import {CyberwareParser} from "../parser/cyberware/CyberwareParser";
 
 export class CyberwareImporter extends DataImporter {
     public categoryTranslations: any;
-    public nameTranslations: any;
+    public itemTranslations: any;
 
     CanParse(jsonObject: object): boolean {
         return (jsonObject.hasOwnProperty("cyberwares") && jsonObject["cyberwares"].hasOwnProperty("cyberware"))
@@ -101,7 +101,7 @@ export class CyberwareImporter extends DataImporter {
 
         let jsonItemi18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'cyberware.xml');
         this.categoryTranslations = ImportHelper.ExtractCategoriesTranslation(jsonItemi18n);
-        this.nameTranslations = ImportHelper.ExtractItemTranslation(jsonItemi18n, 'cyberwares', 'cyberware');
+        this.itemTranslations = ImportHelper.ExtractItemTranslation(jsonItemi18n, 'cyberwares', 'cyberware');
     }
 
     async Parse(jsonObject: object): Promise<Entity> {
@@ -115,12 +115,12 @@ export class CyberwareImporter extends DataImporter {
         for (let i = 0; i < jsonDatas.length; i++) {
             let jsonData = jsonDatas[i];
 
-            let data = parser.Parse(jsonData, this.GetDefaultData());
+            let data = parser.Parse(jsonData, this.GetDefaultData(), this.itemTranslations);
             const category = ImportHelper.StringValue(jsonData, "category");
             data.folder = folders[category.toLowerCase()].id;
 
-            // TODO: Follow ComplexFormParserBase approach.
-            data.name = ImportHelper.MapNameToTranslation(this.nameTranslations, data.name);
+            // // TODO: Follow ComplexFormParserBase approach.
+            // data.name = ImportHelper.MapNameToTranslation(this.itemTranslations, data.name);
 
             datas.push(data);
         }
