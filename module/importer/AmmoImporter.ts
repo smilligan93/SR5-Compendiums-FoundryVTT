@@ -66,7 +66,6 @@ export class AmmoImporter extends DataImporter {
     }
 
     async Parse(jsonObject: object): Promise<Entity> {
-        const jsonNameTranslations = {};
         let ammoDatas: Ammo[] = [];
         let jsonAmmos = jsonObject["gears"]["gear"];
         for (let i = 0; i < jsonAmmos.length; i++) {

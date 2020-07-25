@@ -4,6 +4,9 @@ import Cyberware = Shadowrun.Cyberware;
 import {CyberwareParser} from "../parser/cyberware/CyberwareParser";
 
 export class CyberwareImporter extends DataImporter {
+    public categoryTranslations: any;
+    public nameTranslations: any;
+
     CanParse(jsonObject: object): boolean {
         return (jsonObject.hasOwnProperty("cyberwares") && jsonObject["cyberwares"].hasOwnProperty("cyberware"))
             || (jsonObject.hasOwnProperty("biowares") && jsonObject["biowares"].hasOwnProperty("bioware"));
@@ -91,6 +94,15 @@ export class CyberwareImporter extends DataImporter {
             }
         }
     }
+    ExtractTranslation() {
+        if (!DataImporter.jsoni18n) {
+            return;
+        }
+
+        let jsonItemi18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'cyberware.xml');
+        this.categoryTranslations = ImportHelper.ExtractCategoriesTranslation(jsonItemi18n);
+        this.nameTranslations = ImportHelper.ExtractItemTranslation(jsonItemi18n, 'cyberwares', 'cyberware');
+    }
 
     async Parse(jsonObject: object): Promise<Entity> {
         const parser = new CyberwareParser();
@@ -106,6 +118,9 @@ export class CyberwareImporter extends DataImporter {
             let data = parser.Parse(jsonData, this.GetDefaultData());
             const category = ImportHelper.StringValue(jsonData, "category");
             data.folder = folders[category.toLowerCase()].id;
+
+            // TODO: Follow ComplexFormParserBase approach.
+            data.name = ImportHelper.MapNameToTranslation(this.nameTranslations, data.name);
 
             datas.push(data);
         }

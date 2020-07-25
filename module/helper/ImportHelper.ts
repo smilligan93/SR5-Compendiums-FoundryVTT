@@ -104,7 +104,7 @@ export class ImportHelper {
     public static ObjectValue(jsonData: object, key: string|number, fallback: object|null|undefined = undefined): object|null {
         return ImportHelper.s_Strategy.objectValue(jsonData, key, fallback);
     }
-    
+
     //TODO
     public static findItem(nameOrCmp: string|ItemComparer): Entity {
         let result: any | null;
@@ -137,6 +137,11 @@ export class ImportHelper {
         return folders;
     }
 
+    /** Extract the correct <chummer file="${dataFileName}>[...]</chummer> element from xx-xx_data.xml translations.
+     *
+     * @param jsoni18n
+     * @param dataFileName Expected translation target file name
+     */
     public static ExtractDataFileTranslation(jsoni18n, dataFileName): object {
         for (let i = 0; i < jsoni18n.length; i++) {
             const translation = jsoni18n[i];
@@ -147,6 +152,12 @@ export class ImportHelper {
         return {};
     };
 
+    /** Extract categories translations within xx-xx_data.xml <chummer/> translation subset.
+     *
+     *  Note: Not all file translations provide categories.
+     *
+     * @param jsonChummeri18n Translations as given by ExtractDataFileTranslations
+     */
     public static ExtractCategoriesTranslation(jsonChummeri18n) {
         const categoryTranslations = {};
         if (jsonChummeri18n && jsonChummeri18n.hasOwnProperty("categories")) {
@@ -159,6 +170,12 @@ export class ImportHelper {
         return categoryTranslations;
     }
 
+    /** Extract item type translations within xx-xx_data.xml <chummer/> translation subset.
+     *
+     * @param jsonItemsi18n Translations as given by ExtractDataFileTranslations
+     * @param typeKey The item type to translate. Tends to be plural.
+     * @param listKey The item to translate. Tends to be singular.
+     */
     public static ExtractItemTranslation(jsonItemsi18n, typeKey, listKey) {
         const itemTranslation = {};
         if (jsonItemsi18n && jsonItemsi18n[typeKey] && jsonItemsi18n[typeKey][listKey] && jsonItemsi18n[typeKey][listKey].length > 0) {

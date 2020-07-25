@@ -3,3 +3,4 @@
 ChummerData/*
 node_modules/*
 module/**/*.js
+dist/bundle.js
