@@ -20,6 +20,7 @@ const SpellImporter_1 = require("../importer/SpellImporter");
 const QualityImporter_1 = require("../importer/QualityImporter");
 const ComplexFormImporter_1 = require("../importer/ComplexFormImporter");
 const CyberwareImporter_1 = require("../importer/CyberwareImporter");
+const ImportHelper_1 = require("../helper/ImportHelper");
 class Import extends Application {
     static get defaultOptions() {
         const options = super.defaultOptions;
@@ -34,16 +35,32 @@ class Import extends Application {
     parseXML(xmlSource) {
         return __awaiter(this, void 0, void 0, function* () {
             let jsonSource = yield DataImporter_1.DataImporter.xml2json(xmlSource);
+            ImportHelper_1.ImportHelper.SetMode(ImportHelper_1.ImportMode.XML);
             for (const di of Import.Importers) {
                 if (di.CanParse(jsonSource)) {
+                    di.ExtractTranslation();
                     yield di.Parse(jsonSource);
                 }
+            }
+        });
+    }
+    parseXmli18n(xmlSource) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!xmlSource) {
+                return;
+            }
+            let jsonSource = yield DataImporter_1.DataImporter.xml2json(xmlSource);
+            if (DataImporter_1.DataImporter.CanParseI18n(jsonSource)) {
+                DataImporter_1.DataImporter.ParseTranslation(jsonSource);
             }
         });
     }
     activateListeners(html) {
         html.find("button[type='submit']").on("click", (event) => __awaiter(this, void 0, void 0, function* () {
             event.preventDefault();
+            // Don't change order. Translations are needed for Item parsing.
+            let i18nXmlSource = html.find("#i18n-xml-source").val();
+            yield this.parseXmli18n(i18nXmlSource);
             let xmlSource = html.find("#xml-source").val();
             yield this.parseXML(xmlSource);
         }));
@@ -62,7 +79,7 @@ Import.Importers = [
     new CyberwareImporter_1.CyberwareImporter()
 ];
 
-},{"../importer/AmmoImporter":6,"../importer/ArmorImporter":7,"../importer/ComplexFormImporter":8,"../importer/CyberwareImporter":10,"../importer/DataImporter":11,"../importer/ModImporter":12,"../importer/QualityImporter":13,"../importer/SpellImporter":14,"../importer/WeaponImporter":15}],2:[function(require,module,exports){
+},{"../helper/ImportHelper":2,"../importer/AmmoImporter":6,"../importer/ArmorImporter":7,"../importer/ComplexFormImporter":8,"../importer/CyberwareImporter":10,"../importer/DataImporter":11,"../importer/ModImporter":12,"../importer/QualityImporter":13,"../importer/SpellImporter":14,"../importer/WeaponImporter":15}],2:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -185,16 +202,84 @@ class ImportHelper {
         return result;
     }
     //TODO
-    static MakeCategoryFolders(jsonData, path) {
+    static MakeCategoryFolders(jsonData, path, jsonCategoryTranslations) {
         return __awaiter(this, void 0, void 0, function* () {
             let folders = {};
             let jsonCategories = jsonData["categories"]["category"];
             for (let i = 0; i < jsonCategories.length; i++) {
                 let categoryName = jsonCategories[i][ImportHelper.CHAR_KEY];
-                folders[categoryName.toLowerCase()] = yield ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/${path}/${categoryName}`, true);
+                // use untranslated category name for easier mapping during DataImporter.Parse implementations.
+                let origCategoryName = categoryName;
+                if (jsonCategoryTranslations && jsonCategoryTranslations.hasOwnProperty(categoryName)) {
+                    categoryName = jsonCategoryTranslations[categoryName];
+                }
+                folders[origCategoryName.toLowerCase()] = yield ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/${path}/${categoryName}`, true);
             }
             return folders;
         });
+    }
+    /** Extract the correct <chummer file="${dataFileName}>[...]</chummer> element from xx-xx_data.xml translations.
+     *
+     * @param jsoni18n
+     * @param dataFileName Expected translation target file name
+     */
+    static ExtractDataFileTranslation(jsoni18n, dataFileName) {
+        for (let i = 0; i < jsoni18n.length; i++) {
+            const translation = jsoni18n[i];
+            if (translation.$.file === dataFileName) {
+                return translation;
+            }
+        }
+        return {};
+    }
+    ;
+    /** Extract categories translations within xx-xx_data.xml <chummer/> translation subset.
+     *
+     *  Note: Not all file translations provide categories.
+     *
+     * @param jsonChummeri18n Translations as given by ExtractDataFileTranslations
+     */
+    static ExtractCategoriesTranslation(jsonChummeri18n) {
+        const categoryTranslations = {};
+        if (jsonChummeri18n && jsonChummeri18n.hasOwnProperty("categories")) {
+            jsonChummeri18n.categories.category.forEach(category => {
+                const name = category[ImportHelper.CHAR_KEY];
+                const translate = category.$.translate;
+                categoryTranslations[name] = translate;
+            });
+        }
+        return categoryTranslations;
+    }
+    /** Extract item type translations within xx-xx_data.xml <chummer/> translation subset.
+     *
+     * @param jsonItemsi18n Translations as given by ExtractDataFileTranslations
+     * @param typeKey The item type to translate. Tends to be plural.
+     * @param listKey The item to translate. Tends to be singular.
+     */
+    static ExtractItemTranslation(jsonItemsi18n, typeKey, listKey) {
+        const itemTranslation = {};
+        if (jsonItemsi18n && jsonItemsi18n[typeKey] && jsonItemsi18n[typeKey][listKey] && jsonItemsi18n[typeKey][listKey].length > 0) {
+            jsonItemsi18n[typeKey][listKey].forEach(item => {
+                const name = item.name[ImportHelper.CHAR_KEY];
+                const translate = item.translate[ImportHelper.CHAR_KEY];
+                const altpage = item.altpage[ImportHelper.CHAR_KEY];
+                itemTranslation[name] = { translate, altpage };
+            });
+        }
+        return itemTranslation;
+    }
+    static MapNameToTranslationKey(translationMap, name, key, fallbackValue = '') {
+        if (translationMap && translationMap.hasOwnProperty(name) && translationMap[name].hasOwnProperty(key)) {
+            return translationMap[name][key];
+        }
+        console.error(`Shadowrun 5 Compendium module can't map the name ${name} to a translation for ${key} in given translation mapping.`);
+        return fallbackValue;
+    }
+    static MapNameToTranslation(translationMap, name) {
+        return ImportHelper.MapNameToTranslationKey(translationMap, name, 'translate', name);
+    }
+    static MapNameToPageSource(translationMap, name) {
+        return ImportHelper.MapNameToTranslationKey(translationMap, name, 'altpage', '?');
     }
 }
 exports.ImportHelper = ImportHelper;
@@ -337,6 +422,14 @@ class AmmoImporter extends DataImporter_1.DataImporter {
             }
         };
     }
+    ExtractTranslation() {
+        if (!DataImporter_1.DataImporter.jsoni18n) {
+            return;
+        }
+        let jsonGeari18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, 'gear.xml');
+        this.categoryTranslations = ImportHelper_1.ImportHelper.ExtractCategoriesTranslation(jsonGeari18n);
+        this.gearsTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonGeari18n, 'gears', 'gear');
+    }
     Parse(jsonObject) {
         return __awaiter(this, void 0, void 0, function* () {
             let ammoDatas = [];
@@ -348,6 +441,7 @@ class AmmoImporter extends DataImporter_1.DataImporter {
                 }
                 let data = this.GetDefaultData();
                 data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+                data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(this.gearsTranslations, data.name);
                 data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
                 data.data.technology.rating = 2;
                 data.data.technology.availability = ImportHelper_1.ImportHelper.StringValue(jsonData, "avail");
@@ -374,6 +468,7 @@ class AmmoImporter extends DataImporter_1.DataImporter {
                 ["grenade", "rocket", "missile"].forEach((compare) => {
                     shouldLookForWeapons = shouldLookForWeapons || nameLower.includes(compare);
                 });
+                // NOTE: Should either weapons or gear not have been imported with translation, this will fail.
                 if (shouldLookForWeapons) {
                     let foundWeapon = ImportHelper_1.ImportHelper.findItem((item) => {
                         return item.name.toLowerCase() === nameLower;
@@ -466,9 +561,17 @@ class ArmorImporter extends DataImporter_1.DataImporter {
             }
         };
     }
+    ExtractTranslation() {
+        if (!DataImporter_1.DataImporter.jsoni18n) {
+            return;
+        }
+        let jsonArmori18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, 'armor.xml');
+        this.categoryTranslations = ImportHelper_1.ImportHelper.ExtractCategoriesTranslation(jsonArmori18n);
+        this.armorTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonArmori18n, 'armors', 'armor');
+    }
     Parse(jsonObject) {
         return __awaiter(this, void 0, void 0, function* () {
-            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Armor");
+            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Armor", this.categoryTranslations);
             const parser = new ArmorParserBase_1.ArmorParserBase();
             let datas = [];
             let jsonDatas = jsonObject["armors"]["armor"];
@@ -476,6 +579,7 @@ class ArmorImporter extends DataImporter_1.DataImporter {
                 let jsonData = jsonDatas[i];
                 let data = parser.Parse(jsonData, this.GetDefaultData());
                 const category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category").toLowerCase();
+                data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(this.armorTranslations, data.name);
                 data.folder = folders[category].id;
                 datas.push(data);
             }
@@ -572,6 +676,14 @@ class ComplexFormImporter extends DataImporter_1.DataImporter {
             }
         };
     }
+    ExtractTranslation() {
+        if (!DataImporter_1.DataImporter.jsoni18n) {
+            return;
+        }
+        // Complexforms don't provide a category translation.
+        let jsonItemi18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, 'complexforms.xml');
+        this.nameTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonItemi18n, 'complexforms', 'complexform');
+    }
     Parse(jsonObject) {
         return __awaiter(this, void 0, void 0, function* () {
             const parser = new ComplexFormParserBase_1.ComplexFormParserBase();
@@ -580,8 +692,10 @@ class ComplexFormImporter extends DataImporter_1.DataImporter {
             let jsonDatas = jsonObject["complexforms"]["complexform"];
             for (let i = 0; i < jsonDatas.length; i++) {
                 let jsonData = jsonDatas[i];
-                let data = parser.Parse(jsonData, this.GetDefaultData());
+                let data = parser.Parse(jsonData, this.GetDefaultData(), this.nameTranslations);
                 data.folder = folder.id;
+                // TODO: Follow ComplexFormParserBase approach.
+                data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(this.nameTranslations, data.name);
                 datas.push(data);
             }
             return yield Item.create(datas);
@@ -915,6 +1029,14 @@ class CyberwareImporter extends DataImporter_1.DataImporter {
             }
         };
     }
+    ExtractTranslation() {
+        if (!DataImporter_1.DataImporter.jsoni18n) {
+            return;
+        }
+        let jsonItemi18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, 'cyberware.xml');
+        this.categoryTranslations = ImportHelper_1.ImportHelper.ExtractCategoriesTranslation(jsonItemi18n);
+        this.itemTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonItemi18n, 'cyberwares', 'cyberware');
+    }
     Parse(jsonObject) {
         return __awaiter(this, void 0, void 0, function* () {
             const parser = new CyberwareParser_1.CyberwareParser();
@@ -925,9 +1047,11 @@ class CyberwareImporter extends DataImporter_1.DataImporter {
             let jsonDatas = jsonObject[key + "s"][key];
             for (let i = 0; i < jsonDatas.length; i++) {
                 let jsonData = jsonDatas[i];
-                let data = parser.Parse(jsonData, this.GetDefaultData());
+                let data = parser.Parse(jsonData, this.GetDefaultData(), this.itemTranslations);
                 const category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category");
                 data.folder = folders[category.toLowerCase()].id;
+                // // TODO: Follow ComplexFormParserBase approach.
+                // data.name = ImportHelper.MapNameToTranslation(this.itemTranslations, data.name);
                 datas.push(data);
             }
             return yield Item.create(datas);
@@ -952,6 +1076,22 @@ exports.DataImporter = void 0;
 const ImportHelper_1 = require("../helper/ImportHelper");
 const xml2js = require("xml2js");
 class DataImporter {
+    /**
+     *
+     * @param jsonObject JSON Data with all data translations for one language.
+     */
+    static CanParseI18n(jsonObject) {
+        return jsonObject.hasOwnProperty("chummer") && jsonObject.chummer.length > 0 && jsonObject.chummer[0].$.hasOwnProperty("file");
+    }
+    /**
+     * Stores translations as a whole for all implementing classes to extract from without reparsing.
+     * @param jsonObject JSON Data with all data translations for one language.
+     */
+    static ParseTranslation(jsonObject) {
+        if (jsonObject && jsonObject.hasOwnProperty("chummer")) {
+            DataImporter.jsoni18n = jsonObject["chummer"];
+        }
+    }
     /**
      * Parse an XML string into a JSON object.
      * @param xmlString The string to parse as XML.
@@ -1029,6 +1169,14 @@ class ModImporter extends DataImporter_1.DataImporter {
             }
         };
     }
+    ExtractTranslation() {
+        if (!DataImporter_1.DataImporter.jsoni18n) {
+            return;
+        }
+        let jsonWeaponsi18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, 'weapons.xml');
+        // Parts of weapon accessory translations are within the application translation. Currently only data translation is used.
+        this.accessoryTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonWeaponsi18n, 'accessories', 'accessory');
+    }
     Parse(jsonObject) {
         return __awaiter(this, void 0, void 0, function* () {
             const parser = new ModParserBase_1.ModParserBase();
@@ -1037,6 +1185,8 @@ class ModImporter extends DataImporter_1.DataImporter {
             for (let i = 0; i < jsonDatas.length; i++) {
                 let jsonData = jsonDatas[i];
                 let data = parser.Parse(jsonData, this.GetDefaultData());
+                // TODO: Integrate into ModParserBase approach.
+                data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(this.accessoryTranslations, data.name);
                 //TODO: Test this
                 let folderName = (data.data.mount_point !== undefined) ? data.data.mount_point : "Other";
                 if (folderName.includes("/")) {
@@ -1137,18 +1287,28 @@ class QualityImporter extends DataImporter_1.DataImporter {
             }
         };
     }
+    ExtractTranslation() {
+        if (!DataImporter_1.DataImporter.jsoni18n) {
+            return;
+        }
+        let jsonQualityi18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, 'qualities.xml');
+        this.categoryTranslations = ImportHelper_1.ImportHelper.ExtractCategoriesTranslation(jsonQualityi18n);
+        this.itemTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonQualityi18n, 'qualities', 'quality');
+    }
     Parse(jsonObject) {
         return __awaiter(this, void 0, void 0, function* () {
-            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Qualities");
+            const jsonNameTranslations = {};
+            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Qualities", this.categoryTranslations);
             console.log(folders);
             const parser = new QualityParserBase_1.QualityParserBase();
             let datas = [];
             let jsonDatas = jsonObject["qualities"]["quality"];
             for (let i = 0; i < jsonDatas.length; i++) {
                 let jsonData = jsonDatas[i];
-                let data = parser.Parse(jsonData, this.GetDefaultData());
+                let data = parser.Parse(jsonData, this.GetDefaultData(), this.itemTranslations);
                 let category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category");
                 data.folder = folders[category.toLowerCase()].id;
+                data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(this.itemTranslations, data.name);
                 datas.push(data);
             }
             return yield Item.create(datas);
@@ -1268,9 +1428,17 @@ class SpellImporter extends DataImporter_1.DataImporter {
             }
         };
     }
+    ExtractTranslation() {
+        if (!DataImporter_1.DataImporter.jsoni18n) {
+            return;
+        }
+        let jsonSpelli18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, 'spells.xml');
+        this.categoryTranslations = ImportHelper_1.ImportHelper.ExtractCategoriesTranslation(jsonSpelli18n);
+        this.itemTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonSpelli18n, 'spells', 'spell');
+    }
     Parse(jsonObject) {
         return __awaiter(this, void 0, void 0, function* () {
-            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Spells");
+            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Spells", this.categoryTranslations);
             const parser = new ParserMap_1.ParserMap("category", [
                 { key: "Combat", value: new CombatSpellParser_1.CombatSpellParser() },
                 { key: "Manipulation", value: new ManipulationSpellParser_1.ManipulationSpellParser() },
@@ -1284,7 +1452,7 @@ class SpellImporter extends DataImporter_1.DataImporter {
             let jsonDatas = jsonObject["spells"]["spell"];
             for (let i = 0; i < jsonDatas.length; i++) {
                 let jsonData = jsonDatas[i];
-                let data = parser.Parse(jsonData, this.GetDefaultData());
+                let data = parser.Parse(jsonData, this.GetDefaultData(), this.itemTranslations);
                 data.folder = folders[data.data.category].id;
                 datas.push(data);
             }
@@ -1444,6 +1612,14 @@ class WeaponImporter extends DataImporter_1.DataImporter {
             }
         };
     }
+    ExtractTranslation() {
+        if (!DataImporter_1.DataImporter.jsoni18n) {
+            return;
+        }
+        let jsonWeaponi18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, 'weapons.xml');
+        this.categoryTranslations = ImportHelper_1.ImportHelper.ExtractCategoriesTranslation(jsonWeaponi18n);
+        this.itemTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonWeaponi18n, 'weapons', 'weapon');
+    }
     static GetWeaponType(weaponJson) {
         let type = ImportHelper_1.ImportHelper.StringValue(weaponJson, "type");
         //melee is the least specific, all melee entries are accurate
@@ -1467,10 +1643,9 @@ class WeaponImporter extends DataImporter_1.DataImporter {
     }
     Parse(jsonObject) {
         return __awaiter(this, void 0, void 0, function* () {
-            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Weapons");
+            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Weapons", this.categoryTranslations);
             folders["gear"] = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Gear`, true);
             folders["quality"] = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Quality`, true);
-            console.log(folders);
             const parser = new ParserMap_1.ParserMap(WeaponImporter.GetWeaponType, [
                 { key: "range", value: new RangedParser_1.RangedParser() },
                 { key: "melee", value: new MeleeParser_1.MeleeParser() },
@@ -1480,7 +1655,7 @@ class WeaponImporter extends DataImporter_1.DataImporter {
             let jsonDatas = jsonObject["weapons"]["weapon"];
             for (let i = 0; i < jsonDatas.length; i++) {
                 let jsonData = jsonDatas[i];
-                let data = parser.Parse(jsonData, this.GetDefaultData());
+                let data = parser.Parse(jsonData, this.GetDefaultData(), this.itemTranslations);
                 data.folder = folders[data.data.category].id;
                 datas.push(data);
             }
@@ -1525,7 +1700,7 @@ class ParserMap extends Parser_1.Parser {
             this.m_Map.set(key, value);
         }
     }
-    Parse(jsonData, data) {
+    Parse(jsonData, data, jsonTranslation) {
         let key;
         if (typeof this.m_BranchKey === "function") {
             key = this.m_BranchKey(jsonData);
@@ -1539,7 +1714,7 @@ class ParserMap extends Parser_1.Parser {
             console.warn(`Could not find mapped parser for category ${key}.`);
             return data;
         }
-        return parser.Parse(jsonData, data);
+        return parser.Parse(jsonData, data, jsonTranslation);
     }
 }
 exports.ParserMap = ParserMap;
@@ -1567,7 +1742,7 @@ exports.ComplexFormParserBase = void 0;
 const Parser_1 = require("../Parser");
 const ImportHelper_1 = require("../../helper/ImportHelper");
 class ComplexFormParserBase extends Parser_1.Parser {
-    Parse(jsonData, data) {
+    Parse(jsonData, data, jsonTranslation) {
         data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
         data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
         let fade = ImportHelper_1.ImportHelper.StringValue(jsonData, "fv");
@@ -1598,6 +1773,11 @@ class ComplexFormParserBase extends Parser_1.Parser {
                 data.data.target = "other";
                 break;
         }
+        if (jsonTranslation) {
+            const origName = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+            data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(jsonTranslation, origName);
+            data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.MapNameToPageSource(jsonTranslation, origName)}`;
+        }
         return data;
     }
 }
@@ -1610,8 +1790,8 @@ exports.CyberwareParser = void 0;
 const ItemParserBase_1 = require("../item/ItemParserBase");
 const ImportHelper_1 = require("../../helper/ImportHelper");
 class CyberwareParser extends ItemParserBase_1.ItemParserBase {
-    Parse(jsonData, data) {
-        data = super.Parse(jsonData, data);
+    Parse(jsonData, data, jsonTranslation) {
+        data = super.Parse(jsonData, data, jsonTranslation);
         const essence = ImportHelper_1.ImportHelper.StringValue(jsonData, "ess", "0").match(/[0-9]\.?[0-9]*/g);
         if (essence !== null) {
             data.data.essence = parseFloat(essence[0]);
@@ -1632,12 +1812,17 @@ exports.ItemParserBase = void 0;
 const Parser_1 = require("../Parser");
 const ImportHelper_1 = require("../../helper/ImportHelper");
 class ItemParserBase extends Parser_1.Parser {
-    Parse(jsonData, data) {
+    Parse(jsonData, data, jsonTranslation) {
         data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
         data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
         data.data.technology.availability = ImportHelper_1.ImportHelper.StringValue(jsonData, "avail", "0");
         data.data.technology.cost = ImportHelper_1.ImportHelper.IntValue(jsonData, "cost", 0);
         data.data.technology.rating = ImportHelper_1.ImportHelper.IntValue(jsonData, "rating", 0);
+        if (jsonTranslation) {
+            const origName = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+            data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(jsonTranslation, origName);
+            data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.MapNameToPageSource(jsonTranslation, origName)}`;
+        }
         return data;
     }
 }
@@ -1669,10 +1854,15 @@ exports.QualityParserBase = void 0;
 const ImportHelper_1 = require("../../helper/ImportHelper");
 const Parser_1 = require("../Parser");
 class QualityParserBase extends Parser_1.Parser {
-    Parse(jsonData, data) {
+    Parse(jsonData, data, jsonTranslation) {
         data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
         data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
         data.data.type = (ImportHelper_1.ImportHelper.StringValue(jsonData, "category") === "Positive") ? "positive" : "negative";
+        if (jsonTranslation) {
+            const origName = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+            data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(jsonTranslation, origName);
+            data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.MapNameToPageSource(jsonTranslation, origName)}`;
+        }
         return data;
     }
 }
@@ -1685,8 +1875,8 @@ exports.CombatSpellParser = void 0;
 const SpellParserBase_1 = require("./SpellParserBase");
 const ImportHelper_1 = require("../../helper/ImportHelper");
 class CombatSpellParser extends SpellParserBase_1.SpellParserBase {
-    Parse(jsonData, data) {
-        data = super.Parse(jsonData, data);
+    Parse(jsonData, data, jsonTranslation) {
+        data = super.Parse(jsonData, data, jsonTranslation);
         let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
         // A few spells have a missing descriptor instead of an empty string.
         // The field is <descriptor /> rather than <descriptor></descriptor>
@@ -1724,8 +1914,8 @@ exports.DetectionSpellImporter = void 0;
 const SpellParserBase_1 = require("./SpellParserBase");
 const ImportHelper_1 = require("../../helper/ImportHelper");
 class DetectionSpellImporter extends SpellParserBase_1.SpellParserBase {
-    Parse(jsonData, data) {
-        data = super.Parse(jsonData, data);
+    Parse(jsonData, data, jsonTranslation) {
+        data = super.Parse(jsonData, data, jsonTranslation);
         let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
         // A few spells have a missing descriptor instead of an empty string.
         // The field is <descriptor /> rather than <descriptor></descriptor>
@@ -1762,8 +1952,8 @@ exports.IllusionSpellParser = void 0;
 const SpellParserBase_1 = require("./SpellParserBase");
 const ImportHelper_1 = require("../../helper/ImportHelper");
 class IllusionSpellParser extends SpellParserBase_1.SpellParserBase {
-    Parse(jsonData, data) {
-        data = super.Parse(jsonData, data);
+    Parse(jsonData, data, jsonTranslation) {
+        data = super.Parse(jsonData, data, jsonTranslation);
         let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
         // A few spells have a missing descriptor instead of an empty string.
         // The field is <descriptor /> rather than <descriptor></descriptor>
@@ -1794,8 +1984,8 @@ exports.ManipulationSpellParser = void 0;
 const SpellParserBase_1 = require("./SpellParserBase");
 const ImportHelper_1 = require("../../helper/ImportHelper");
 class ManipulationSpellParser extends SpellParserBase_1.SpellParserBase {
-    Parse(jsonData, data) {
-        data = super.Parse(jsonData, data);
+    Parse(jsonData, data, jsonTranslation) {
+        data = super.Parse(jsonData, data, jsonTranslation);
         let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
         // A few spells have a missing descriptor instead of an empty string.
         // The field is <descriptor /> rather than <descriptor></descriptor>
@@ -1834,7 +2024,7 @@ exports.SpellParserBase = void 0;
 const ImportHelper_1 = require("../../helper/ImportHelper");
 const Parser_1 = require("../Parser");
 class SpellParserBase extends Parser_1.Parser {
-    Parse(jsonData, data) {
+    Parse(jsonData, data, jsonTranslation) {
         data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
         data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
         data.data.category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category").toLowerCase();
@@ -1877,6 +2067,11 @@ class SpellParserBase extends Parser_1.Parser {
         }
         else if (type === "M") {
             data.data.type = "mana";
+        }
+        if (jsonTranslation) {
+            const origName = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+            data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(jsonTranslation, origName);
+            data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.MapNameToPageSource(jsonTranslation, origName)}`;
         }
         return data;
     }
@@ -1945,8 +2140,8 @@ class MeleeParser extends WeaponParserBase_1.WeaponParserBase {
         };
     }
     ;
-    Parse(jsonData, data) {
-        data = super.Parse(jsonData, data);
+    Parse(jsonData, data, jsonTranslation) {
+        data = super.Parse(jsonData, data, jsonTranslation);
         data.data.melee.reach = ImportHelper_1.ImportHelper.IntValue(jsonData, "reach");
         return data;
     }
@@ -2017,8 +2212,8 @@ class RangedParser extends WeaponParserBase_1.WeaponParserBase {
         let match = (_a = jsonAmmo.match(/([0-9]+)/g)) === null || _a === void 0 ? void 0 : _a[0];
         return (match !== undefined) ? parseInt(match) : 0;
     }
-    Parse(jsonData, data) {
-        data = super.Parse(jsonData, data);
+    Parse(jsonData, data, jsonTranslation) {
+        data = super.Parse(jsonData, data, jsonTranslation);
         data.data.range.rc.base = ImportHelper_1.ImportHelper.IntValue(jsonData, "rc");
         data.data.range.rc.value = ImportHelper_1.ImportHelper.IntValue(jsonData, "rc");
         if (jsonData.hasOwnProperty("range")) {
@@ -2141,8 +2336,8 @@ class ThrownParser extends WeaponParserBase_1.WeaponParserBase {
         }
         return blastData;
     }
-    Parse(jsonData, data) {
-        data = super.Parse(jsonData, data);
+    Parse(jsonData, data, jsonTranslation) {
+        data = super.Parse(jsonData, data, jsonTranslation);
         if (jsonData.hasOwnProperty("range")) {
             data.data.thrown.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.StringValue(jsonData, "range")];
         }
@@ -2182,10 +2377,11 @@ class WeaponParserBase extends ItemParserBase_1.ItemParserBase {
         }
     }
     ;
-    Parse(jsonData, data) {
-        data = super.Parse(jsonData, data);
+    Parse(jsonData, data, jsonTranslation) {
+        data = super.Parse(jsonData, data, jsonTranslation);
         let category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category");
         // A single item does not meet normal rules, thanks Chummer!
+        // TODO: Check these rules after localization using a generic, non-english approach.
         if (category === "Hold-outs") {
             category = "Holdouts";
         }
