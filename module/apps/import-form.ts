@@ -39,14 +39,31 @@ export class Import extends Application {
 
         for (const di of Import.Importers) {
             if (di.CanParse(jsonSource)) {
+                di.ExtractTranslation();
                 await di.Parse(jsonSource);
             }
         }
     }
 
+    async parseXmli18n(xmlSource) {
+        if (!xmlSource) {
+            return;
+        }
+        let jsonSource = await DataImporter.xml2json(xmlSource);
+        
+        if (DataImporter.CanParseI18n(jsonSource)) {
+            DataImporter.ParseTranslation(jsonSource);
+        }
+    }
+    
+
     activateListeners(html) {
         html.find("button[type='submit']").on("click", async (event) => {
             event.preventDefault();
+
+            // Don't change order. Translations are needed for Item parsing.
+            let i18nXmlSource = html.find("#i18n-xml-source").val();
+            await this.parseXmli18n(i18nXmlSource);
 
             let xmlSource = html.find("#xml-source").val();
             await this.parseXML(xmlSource);

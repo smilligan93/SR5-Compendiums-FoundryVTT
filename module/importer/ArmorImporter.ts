@@ -5,6 +5,9 @@ import Armor = Shadowrun.Armor;
 import {ArmorParserBase} from "../parser/armor/ArmorParserBase";
 
 export class ArmorImporter extends DataImporter {
+    public armorTranslations: any;
+    public categoryTranslations: any;
+
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("armors") && jsonObject["armors"].hasOwnProperty("armor");
     }
@@ -52,8 +55,18 @@ export class ArmorImporter extends DataImporter {
         };
     }
 
+    ExtractTranslation() {
+        if (!DataImporter.jsoni18n) {
+            return;
+        }
+
+        let jsonArmori18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'armor.xml');
+        this.categoryTranslations = ImportHelper.ExtractCategoriesTranslation(jsonArmori18n);
+        this.armorTranslations = ImportHelper.ExtractItemTranslation(jsonArmori18n, 'armors', 'armor');
+    }
+
     async Parse(jsonObject: object): Promise<Entity> {
-        const folders = await ImportHelper.MakeCategoryFolders(jsonObject, "Armor");
+        const folders = await ImportHelper.MakeCategoryFolders(jsonObject, "Armor", this.categoryTranslations);
 
         const parser = new ArmorParserBase();
 
@@ -64,6 +77,7 @@ export class ArmorImporter extends DataImporter {
 
             let data = parser.Parse(jsonData, this.GetDefaultData());
             const category = ImportHelper.StringValue(jsonData, "category").toLowerCase();
+            data.name = ImportHelper.MapNameToTranslation(this.armorTranslations, data.name);
             data.folder = folders[category].id;
 
             datas.push(data);

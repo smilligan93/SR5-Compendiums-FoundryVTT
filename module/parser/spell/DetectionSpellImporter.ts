@@ -2,8 +2,8 @@ import {SpellParserBase} from "./SpellParserBase";
 import {ImportHelper} from "../../helper/ImportHelper";
 
 export class DetectionSpellImporter extends SpellParserBase {
-    Parse(jsonData: object, data: Shadowrun.Spell): Shadowrun.Spell {
-        data = super.Parse(jsonData, data);
+    Parse(jsonData: object, data: Shadowrun.Spell, jsonTranslation?: object): Shadowrun.Spell {
+        data = super.Parse(jsonData, data, jsonTranslation);
 
         let descriptor = ImportHelper.StringValue(jsonData, "descriptor");
         // A few spells have a missing descriptor instead of an empty string.

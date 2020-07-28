@@ -104,7 +104,7 @@ export class ImportHelper {
     public static ObjectValue(jsonData: object, key: string|number, fallback: object|null|undefined = undefined): object|null {
         return ImportHelper.s_Strategy.objectValue(jsonData, key, fallback);
     }
-    
+
     //TODO
     public static findItem(nameOrCmp: string|ItemComparer): Entity {
         let result: any | null;
@@ -117,17 +117,94 @@ export class ImportHelper {
     }
 
     //TODO
-    public static async MakeCategoryFolders(jsonData: object, path: string): Promise<{ [name: string]: Folder }> {
+    public static async MakeCategoryFolders(jsonData: object, path: string, jsonCategoryTranslations?: object | undefined): Promise<{ [name: string]: Folder }> {
         let folders = {};
         let jsonCategories = jsonData["categories"]["category"];
+
         for (let i = 0; i < jsonCategories.length; i++) {
             let categoryName = jsonCategories[i][ImportHelper.CHAR_KEY];
-            folders[categoryName.toLowerCase()] = await ImportHelper.GetFolderAtPath(
+            // use untranslated category name for easier mapping during DataImporter.Parse implementations.
+            let origCategoryName = categoryName;
+            if (jsonCategoryTranslations && jsonCategoryTranslations.hasOwnProperty(categoryName)) {
+                categoryName = jsonCategoryTranslations[categoryName];
+            }
+            folders[origCategoryName.toLowerCase()] = await ImportHelper.GetFolderAtPath(
                 `${Constants.ROOT_IMPORT_FOLDER_NAME}/${path}/${categoryName}`,
                 true
             );
         }
+
         return folders;
+    }
+
+    /** Extract the correct <chummer file="${dataFileName}>[...]</chummer> element from xx-xx_data.xml translations.
+     *
+     * @param jsoni18n
+     * @param dataFileName Expected translation target file name
+     */
+    public static ExtractDataFileTranslation(jsoni18n, dataFileName): object {
+        for (let i = 0; i < jsoni18n.length; i++) {
+            const translation = jsoni18n[i];
+            if (translation.$.file === dataFileName) {
+                return translation;
+            }
+        }
+        return {};
+    };
+
+    /** Extract categories translations within xx-xx_data.xml <chummer/> translation subset.
+     *
+     *  Note: Not all file translations provide categories.
+     *
+     * @param jsonChummeri18n Translations as given by ExtractDataFileTranslations
+     */
+    public static ExtractCategoriesTranslation(jsonChummeri18n) {
+        const categoryTranslations = {};
+        if (jsonChummeri18n && jsonChummeri18n.hasOwnProperty("categories")) {
+            jsonChummeri18n.categories.category.forEach(category => {
+                const name = category[ImportHelper.CHAR_KEY];
+                const translate = category.$.translate;
+                categoryTranslations[name] = translate;
+            })
+        }
+        return categoryTranslations;
+    }
+
+    /** Extract item type translations within xx-xx_data.xml <chummer/> translation subset.
+     *
+     * @param jsonItemsi18n Translations as given by ExtractDataFileTranslations
+     * @param typeKey The item type to translate. Tends to be plural.
+     * @param listKey The item to translate. Tends to be singular.
+     */
+    public static ExtractItemTranslation(jsonItemsi18n, typeKey, listKey) {
+        const itemTranslation = {};
+        if (jsonItemsi18n && jsonItemsi18n[typeKey] && jsonItemsi18n[typeKey][listKey] && jsonItemsi18n[typeKey][listKey].length > 0) {
+            jsonItemsi18n[typeKey][listKey].forEach(item => {
+                const name = item.name[ImportHelper.CHAR_KEY];
+                const translate = item.translate[ImportHelper.CHAR_KEY];
+                const altpage = item.altpage[ImportHelper.CHAR_KEY];
+                itemTranslation[name] = {translate, altpage};
+            })
+        }
+
+        return itemTranslation;
+    }
+
+    static MapNameToTranslationKey(translationMap, name, key, fallbackValue=''): string {
+        if (translationMap && translationMap.hasOwnProperty(name) && translationMap[name].hasOwnProperty(key)) {
+            return translationMap[name][key];
+        }
+
+        console.error(`Shadowrun 5 Compendium module can't map the name ${name} to a translation for ${key} in given translation mapping.`);
+        return fallbackValue;
+    }
+
+    public static MapNameToTranslation(translationMap, name): string {
+        return ImportHelper.MapNameToTranslationKey(translationMap, name, 'translate', name);
+    }
+
+    public static MapNameToPageSource(translationMap, name): string {
+        return ImportHelper.MapNameToTranslationKey(translationMap, name, 'altpage', '?');
     }
 }
 export type ItemComparer = (item: Item) => boolean;

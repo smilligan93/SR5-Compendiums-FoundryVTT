@@ -5,6 +5,9 @@ import Ammo = Shadowrun.Ammo;
 import Weapon = Shadowrun.Weapon;
 
 export class AmmoImporter extends DataImporter {
+    public categoryTranslations: any;
+    public gearsTranslations: any;
+
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("gears") && jsonObject["gears"].hasOwnProperty("gear");
     }
@@ -52,6 +55,16 @@ export class AmmoImporter extends DataImporter {
         }
     }
 
+    ExtractTranslation() {
+        if(!DataImporter.jsoni18n) {
+            return;
+        }
+
+        let jsonGeari18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'gear.xml');
+        this.categoryTranslations = ImportHelper.ExtractCategoriesTranslation(jsonGeari18n);
+        this.gearsTranslations = ImportHelper.ExtractItemTranslation(jsonGeari18n, 'gears', 'gear');
+    }
+
     async Parse(jsonObject: object): Promise<Entity> {
         let ammoDatas: Ammo[] = [];
         let jsonAmmos = jsonObject["gears"]["gear"];
@@ -64,6 +77,7 @@ export class AmmoImporter extends DataImporter {
 
             let data = this.GetDefaultData();
             data.name = ImportHelper.StringValue(jsonData, "name");
+            data.name = ImportHelper.MapNameToTranslation(this.gearsTranslations, data.name);
 
             data.data.description.source = `${ImportHelper.StringValue(jsonData, "source")} ${ImportHelper.StringValue(jsonData, "page")}`;
             data.data.technology.rating = 2;
@@ -92,7 +106,7 @@ export class AmmoImporter extends DataImporter {
             ["grenade", "rocket", "missile"].forEach((compare) => {
                 shouldLookForWeapons = shouldLookForWeapons || nameLower.includes(compare);
             });
-
+            // NOTE: Should either weapons or gear not have been imported with translation, this will fail.
             if (shouldLookForWeapons) {
                 let foundWeapon = ImportHelper.findItem((item) => {
                     return item.name.toLowerCase() === nameLower

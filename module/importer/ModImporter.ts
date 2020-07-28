@@ -5,6 +5,9 @@ import {Constants} from "./Constants";
 import {ModParserBase} from "../parser/mod/ModParserBase";
 
 export class ModImporter extends DataImporter {
+    public categoryTranslations: any;
+    public accessoryTranslations: any;
+
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("accessories") && jsonObject["accessories"].hasOwnProperty("accessory");
     }
@@ -48,7 +51,18 @@ export class ModImporter extends DataImporter {
         }
     }
 
+    ExtractTranslation() {
+        if (!DataImporter.jsoni18n) {
+            return;
+        }
+
+        let jsonWeaponsi18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'weapons.xml');
+        // Parts of weapon accessory translations are within the application translation. Currently only data translation is used.
+        this.accessoryTranslations = ImportHelper.ExtractItemTranslation(jsonWeaponsi18n, 'accessories', 'accessory');
+    }
+
     async Parse(jsonObject: object): Promise<Entity> {
+
         const parser = new ModParserBase();
 
         let datas: Mod[] = [];
@@ -57,6 +71,8 @@ export class ModImporter extends DataImporter {
             let jsonData = jsonDatas[i];
 
             let data = parser.Parse(jsonData, this.GetDefaultData());
+            // TODO: Integrate into ModParserBase approach.
+            data.name = ImportHelper.MapNameToTranslation(this.accessoryTranslations, data.name);
             //TODO: Test this
 
             let folderName = (data.data.mount_point !== undefined) ? data.data.mount_point : "Other";

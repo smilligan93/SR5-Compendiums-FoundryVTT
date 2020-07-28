@@ -28,11 +28,12 @@ export abstract class WeaponParserBase extends ItemParserBase<Weapon> {
         }
     };
 
-    public Parse(jsonData: object, data: Weapon): Weapon {
-        data = super.Parse(jsonData, data);
+    public Parse(jsonData: object, data: Weapon, jsonTranslation?: object): Weapon {
+        data = super.Parse(jsonData, data, jsonTranslation);
 
         let category = ImportHelper.StringValue(jsonData, "category");
         // A single item does not meet normal rules, thanks Chummer!
+        // TODO: Check these rules after localization using a generic, non-english approach.
         if (category === "Hold-outs") { category = "Holdouts"; }
 
         data.data.category = category.toLowerCase() as WeaponCategory;

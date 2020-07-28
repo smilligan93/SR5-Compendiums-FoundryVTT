@@ -4,8 +4,8 @@ import {ItemParserBase} from "../item/ItemParserBase";
 import {ImportHelper} from "../../helper/ImportHelper";
 
 export class CyberwareParser extends ItemParserBase<Cyberware> {
-    Parse(jsonData: object, data: Cyberware): Cyberware {
-        data = super.Parse(jsonData, data);
+    Parse(jsonData: object, data: Cyberware, jsonTranslation?: object): Cyberware {
+        data = super.Parse(jsonData, data, jsonTranslation);
 
         const essence = ImportHelper.StringValue(jsonData, "ess", "0").match(/[0-9]\.?[0-9]*/g);
         if (essence !== null) {
