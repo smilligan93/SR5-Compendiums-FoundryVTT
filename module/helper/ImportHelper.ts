@@ -195,7 +195,6 @@ export class ImportHelper {
             return translationMap[name][key];
         }
 
-        console.error(`Shadowrun 5 Compendium module can't map the name ${name} to a translation for ${key} in given translation mapping.`);
         return fallbackValue;
     }
 
