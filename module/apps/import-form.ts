@@ -10,6 +10,17 @@ import {CyberwareImporter} from "../importer/CyberwareImporter";
 import {ImportHelper, ImportMode} from "../helper/ImportHelper";
 
 export class Import extends Application {
+    private supportedDataFiles: String[] = [
+        'armor.xml',
+        'bioware.xml',
+        'cyberware.xml',
+        'spells.xml',
+        'weapons.xml',
+        'gear.xml'
+    ];
+    private dataFiles: File[] = [];
+    private langDataFile: File;
+
     static get defaultOptions() {
         const options = super.defaultOptions;
         options.id = 'chummer-data-import';
@@ -50,23 +61,56 @@ export class Import extends Application {
             return;
         }
         let jsonSource = await DataImporter.xml2json(xmlSource);
-        
+
         if (DataImporter.CanParseI18n(jsonSource)) {
             DataImporter.ParseTranslation(jsonSource);
         }
     }
-    
+
+    isDataFile = (file: File): boolean => {
+        return this.supportedDataFiles.some(supported => supported === file.name);
+    }
+
+    isLangDataFile = (file: File): boolean => {
+        const pattern = /[a-zA-Z]{2}-[a-zA-Z]{2}_data\.xml/;
+        return file.name.match(pattern) !== null;
+    }
 
     activateListeners(html) {
         html.find("button[type='submit']").on("click", async (event) => {
             event.preventDefault();
 
-            // Don't change order. Translations are needed for Item parsing.
-            let i18nXmlSource = html.find("#i18n-xml-source").val();
-            await this.parseXmli18n(i18nXmlSource);
+            if (this.langDataFile) {
+                const text = await this.langDataFile.text();
+                await this.parseXmli18n(text);
+            }
 
-            let xmlSource = html.find("#xml-source").val();
-            await this.parseXML(xmlSource);
+            // Use for of pattern to allow await to actually pause.
+            // don't use .forEach as it won't await for async callbacks.
+            for (const dataFile of this.dataFiles) {
+                console.error(dataFile.name);
+                const text = await dataFile.text();
+                await this.parseXML(text);
+            }
+
+        });
+
+        html.find("input[type='file'].filedatadrop").on("change", async event => {
+            Array.from(event.target.files).forEach((file: File) => {
+                if (this.isDataFile(file)) {
+                    // Allow user to overwrite an already added file, they have their reasons.
+                    const existingIdx = this.dataFiles.findIndex(dataFile => dataFile.name === file.name);
+                    if (existingIdx === -1) {
+                        this.dataFiles.push(file);
+                    } else {
+                        this.dataFiles[existingIdx] = file;
+                    }
+                }
+
+                if (this.isLangDataFile(file)) {
+                    this.langDataFile = file;
+                }
+            })
         });
     }
 }
