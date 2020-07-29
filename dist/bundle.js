@@ -272,7 +272,6 @@ class ImportHelper {
         if (translationMap && translationMap.hasOwnProperty(name) && translationMap[name].hasOwnProperty(key)) {
             return translationMap[name][key];
         }
-        console.error(`Shadowrun 5 Compendium module can't map the name ${name} to a translation for ${key} in given translation mapping.`);
         return fallbackValue;
     }
     static MapNameToTranslation(translationMap, name) {
