@@ -11,11 +11,12 @@ import {ImportHelper, ImportMode} from "../helper/ImportHelper";
 
 export class Import extends Application {
     private supportedDataFiles: String[] = [
+        'mod.xml',
+        'weapons.xml',
         'armor.xml',
         'bioware.xml',
         'cyberware.xml',
         'spells.xml',
-        'weapons.xml',
         'gear.xml'
     ];
     private dataFiles: File[] = [];
@@ -30,6 +31,15 @@ export class Import extends Application {
         options.width = 600;
         options.height = "auto";
         return options;
+    }
+
+    getData(options?: any): any {
+        const data = super.getData(options);
+
+        data.dataFiles = this.dataFiles.map(dataFile => dataFile.name);
+        data.langDataFile = this.langDataFile ? this.langDataFile.name: '';
+
+        return data;
     }
 
     //Order is important, ex. some weapons need mods to fully import
@@ -87,6 +97,7 @@ export class Import extends Application {
 
             // Use for of pattern to allow await to actually pause.
             // don't use .forEach as it won't await for async callbacks.
+            // TODO: Adhere to Importer order for multi file import. Create a file: Importer mapping with fixed order.
             for (const dataFile of this.dataFiles) {
                 console.error(dataFile.name);
                 const text = await dataFile.text();
@@ -110,6 +121,8 @@ export class Import extends Application {
                 if (this.isLangDataFile(file)) {
                     this.langDataFile = file;
                 }
+
+                this.render();
             })
         });
     }

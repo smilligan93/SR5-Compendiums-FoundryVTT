@@ -13,6 +13,12 @@
         <div class="flexcol">
             <input type="file" class="filedatadrop" accept="text/*"
                    style="width: 250px; height: 250px; border: 1px solid gray;" multiple/>
+            <div>Selected data files</div>
+            {{#each dataFiles}}
+            <div>{{this}}</div>
+            {{/each}}
+            <div>Selected Translation file: {{langDataFile}}</div>
+
         </div>
         <button type="submit">Import</button>
     </section>

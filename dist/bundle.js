@@ -25,11 +25,12 @@ class Import extends Application {
     constructor() {
         super(...arguments);
         this.supportedDataFiles = [
+            'mod.xml',
+            'weapons.xml',
             'armor.xml',
             'bioware.xml',
             'cyberware.xml',
             'spells.xml',
-            'weapons.xml',
             'gear.xml'
         ];
         this.dataFiles = [];
@@ -50,6 +51,12 @@ class Import extends Application {
         options.width = 600;
         options.height = "auto";
         return options;
+    }
+    getData(options) {
+        const data = super.getData(options);
+        data.dataFiles = this.dataFiles.map(dataFile => dataFile.name);
+        data.langDataFile = this.langDataFile ? this.langDataFile.name : '';
+        return data;
     }
     parseXML(xmlSource) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -83,6 +90,7 @@ class Import extends Application {
             }
             // Use for of pattern to allow await to actually pause.
             // don't use .forEach as it won't await for async callbacks.
+            // TODO: Adhere to Importer order for multi file import. Create a file: Importer mapping with fixed order
             for (const dataFile of this.dataFiles) {
                 console.error(dataFile.name);
                 const text = yield dataFile.text();
@@ -104,6 +112,7 @@ class Import extends Application {
                 if (this.isLangDataFile(file)) {
                     this.langDataFile = file;
                 }
+                this.render();
             });
         }));
     }
