@@ -6,6 +6,7 @@ import {CyberwareParser} from "../parser/cyberware/CyberwareParser";
 export class CyberwareImporter extends DataImporter {
     public categoryTranslations: any;
     public itemTranslations: any;
+    public file: string = 'cyberware.xml';
 
     CanParse(jsonObject: object): boolean {
         return (jsonObject.hasOwnProperty("cyberwares") && jsonObject["cyberwares"].hasOwnProperty("cyberware"))
@@ -99,7 +100,7 @@ export class CyberwareImporter extends DataImporter {
             return;
         }
 
-        let jsonItemi18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'cyberware.xml');
+        let jsonItemi18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, this.file);
         this.categoryTranslations = ImportHelper.ExtractCategoriesTranslation(jsonItemi18n);
         this.itemTranslations = ImportHelper.ExtractItemTranslation(jsonItemi18n, 'cyberwares', 'cyberware');
     }

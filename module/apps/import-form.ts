@@ -10,17 +10,16 @@ import {CyberwareImporter} from "../importer/CyberwareImporter";
 import {ImportHelper, ImportMode} from "../helper/ImportHelper";
 
 export class Import extends Application {
-    private supportedDataFiles: String[] = [
-        'mod.xml',
-        'weapons.xml',
-        'armor.xml',
-        'bioware.xml',
-        'cyberware.xml',
-        'spells.xml',
-        'gear.xml'
-    ];
+    private supportedDataFiles: string[] = [];
     private dataFiles: File[] = [];
     private langDataFile: File;
+    private parsedFiles: string[] = [];
+
+    constructor() {
+        super();
+
+        this.collectDataImporterFileSupport();
+    }
 
     static get defaultOptions() {
         const options = super.defaultOptions;
@@ -36,10 +35,31 @@ export class Import extends Application {
     getData(options?: any): any {
         const data = super.getData(options);
 
-        data.dataFiles = this.dataFiles.map(dataFile => dataFile.name);
-        data.langDataFile = this.langDataFile ? this.langDataFile.name: '';
+        data.dataFiles = {};
+        this.supportedDataFiles.forEach((supportedFileName: string) => {
+            const missing = !this.dataFiles.some(dataFile => supportedFileName === dataFile.name);
+            const parsed = this.parsedFiles.some(parsedFileName =>supportedFileName === parsedFileName);
 
-        return data;
+            data.dataFiles[supportedFileName] = {
+                name: supportedFileName,
+                missing,
+                parsed
+            };
+        })
+        data.langDataFile = this.langDataFile ? this.langDataFile.name : '';
+        data.finishedOverallParsing = this.supportedDataFiles.length === this.parsedFiles.length;
+
+        return {...data};
+    }
+
+    public collectDataImporterFileSupport() {
+        this.supportedDataFiles = [];
+        Import.Importers.forEach(importer => {
+            if (this.supportedDataFiles.some(supported => supported === importer.file)) {
+                return;
+            }
+            this.supportedDataFiles.push(importer.file);
+        })
     }
 
     //Order is important, ex. some weapons need mods to fully import
@@ -95,15 +115,35 @@ export class Import extends Application {
                 await this.parseXmli18n(text);
             }
 
-            // Use for of pattern to allow await to actually pause.
+            // Use 'for of'-loop to allow await to actually pause.
             // don't use .forEach as it won't await for async callbacks.
-            // TODO: Adhere to Importer order for multi file import. Create a file: Importer mapping with fixed order.
-            for (const dataFile of this.dataFiles) {
-                console.error(dataFile.name);
-                const text = await dataFile.text();
-                await this.parseXML(text);
-            }
+            // iterate over supportedDataFiles to adhere to Importer order
+            for (const supportedFile of this.supportedDataFiles) {
+                // Only try supported files.
+                const dataFile = this.dataFiles.find(dataFile => dataFile.name === supportedFile);
+                if (dataFile) {
 
+                    const text = await dataFile.text();
+                    await this.parseXML(text);
+
+                    // Store status to show parsing progression.
+                    if (!this.parsedFiles.some(parsedFileName => parsedFileName === dataFile.name)) {
+                        this.parsedFiles.push(dataFile.name);
+                    }
+
+                    await this.render();
+                }
+            }
+        });
+
+        html.find("input[type='file'].langDataFileDrop").on("change", async event => {
+             Array.from(event.target.files).forEach((file: File) => {
+                if (this.isLangDataFile(file)) {
+                    this.langDataFile = file;
+                    this.render();
+                }
+             });
+             return true;
         });
 
         html.find("input[type='file'].filedatadrop").on("change", async event => {
@@ -116,14 +156,10 @@ export class Import extends Application {
                     } else {
                         this.dataFiles[existingIdx] = file;
                     }
-                }
 
-                if (this.isLangDataFile(file)) {
-                    this.langDataFile = file;
                 }
-
-                this.render();
             })
+            this.render();
         });
     }
 }

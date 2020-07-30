@@ -7,6 +7,7 @@ import ComplexForm = Shadowrun.ComplexForm;
 export class ComplexFormImporter extends DataImporter {
     public categoryTranslations: any;
     public nameTranslations: any;
+    public file: string = 'complexforms.xml';
 
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("complexforms") && jsonObject["complexforms"].hasOwnProperty("complexform");
@@ -85,7 +86,7 @@ export class ComplexFormImporter extends DataImporter {
         }
 
         // Complexforms don't provide a category translation.
-        let jsonItemi18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'complexforms.xml');
+        let jsonItemi18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, this.file);
         this.nameTranslations = ImportHelper.ExtractItemTranslation(jsonItemi18n, 'complexforms', 'complexform');
     }
 
