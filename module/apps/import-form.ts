@@ -52,7 +52,7 @@ export class Import extends Application {
         return {...data};
     }
 
-    public collectDataImporterFileSupport() {
+    private collectDataImporterFileSupport() {
         this.supportedDataFiles = [];
         Import.Importers.forEach(importer => {
             if (this.supportedDataFiles.some(supported => supported === importer.file)) {
@@ -60,6 +60,10 @@ export class Import extends Application {
             }
             this.supportedDataFiles.push(importer.file);
         })
+    }
+
+    private clearParsingStatus() {
+        this.parsedFiles = [];
     }
 
     //Order is important, ex. some weapons need mods to fully import
@@ -109,6 +113,10 @@ export class Import extends Application {
     activateListeners(html) {
         html.find("button[type='submit']").on("click", async (event) => {
             event.preventDefault();
+
+            this.clearParsingStatus();
+
+            await this.render();
 
             if (this.langDataFile) {
                 const text = await this.langDataFile.text();
