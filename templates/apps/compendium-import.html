@@ -31,6 +31,7 @@
             </div>
 
         </div>
-        <button name='import' type="submit">Import</button>
+        <div>{{disableImportButton}}</div>
+        <button name='import' type="submit" {{#if disableImportButton}}disabled{{/if}}>Import</button>
     </section>
 </form>
