@@ -5,11 +5,33 @@
     </header>
     <section>
         <div class="flexcol">
-            <label for="xml-source">Source Text</label>
-            <textarea style="min-height: 400px" id="xml-source"></textarea>
-            <label for="i18n-xml-source">Translation Text (de-de_data.xml) (optional)</label>
-            <textarea style="min-height: 400px" id="i18n-xml-source"></textarea>
+            <h3>Translation (optional for English) [lang\xx-xx_data.xml]</h3>
+            <input type="file" class="langDataFileDrop" accept="text/*"
+                   style="width: 250px; height: 250px; border: 1px solid gray;"/>
+            <div>Selected translation file: {{#if langDataFile}}<b>{{langDataFile}}</b>{{else}}None{{/if}}</div>
+            <h3>Data [data\*.xml]</h3>
+            <input type="file" class="filedatadrop" accept="text/*"
+                   style="width: 250px; height: 250px; border: 1px solid gray;" multiple/>
+            <div>(It's possible to simply select all data files)</div>
+            <p>Supported data files:</p>
+            <div style="display: grid; grid-template-columns: 200px 200px">
+                {{#each dataFiles}}
+                <div>{{this.name}}:</div>
+                <div>
+                    {{#if this.parsed}}
+                        Imported
+                    {{else}}
+                        {{#if this.missing}}<b>Missing</b>{{else}}Selected{{/if}}
+                    {{/if}}
+                </div>
+                {{/each}}
+                {{#if finishedOverallParsing}}
+                    <div><b>All files:</b></div>
+                    <div><b>Imported, enjoy.</b></div>
+                {{/if}}
+            </div>
+
         </div>
-        <button type="submit">Import</button>
+        <button name='import' type="submit" {{#if disableImportButton}}disabled{{/if}}>Import</button>
     </section>
 </form>

@@ -14,6 +14,7 @@ import {ParserMap} from "../parser/ParserMap";
 export class WeaponImporter extends DataImporter {
     public categoryTranslations: any;
     public itemTranslations: any;
+    public file: string = 'weapons.xml';
 
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("weapons") && jsonObject["weapons"].hasOwnProperty("weapon");
@@ -151,7 +152,7 @@ export class WeaponImporter extends DataImporter {
             return;
         }
 
-        let jsonWeaponi18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'weapons.xml');
+        let jsonWeaponi18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, this.file);
         this.categoryTranslations = ImportHelper.ExtractCategoriesTranslation(jsonWeaponi18n);
         this.itemTranslations = ImportHelper.ExtractItemTranslation(jsonWeaponi18n, 'weapons', 'weapon');
     }

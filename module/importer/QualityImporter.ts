@@ -6,6 +6,7 @@ import Quality = Shadowrun.Quality;
 export class QualityImporter extends DataImporter {
     public categoryTranslations: any;
     public itemTranslations: any;
+    public file: string = 'qualities.xml'
 
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("qualities") && jsonObject["qualities"].hasOwnProperty("quality");
@@ -81,7 +82,7 @@ export class QualityImporter extends DataImporter {
             return;
         }
 
-        let jsonQualityi18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'qualities.xml');
+        let jsonQualityi18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, this.file);
         this.categoryTranslations = ImportHelper.ExtractCategoriesTranslation(jsonQualityi18n);
         this.itemTranslations = ImportHelper.ExtractItemTranslation(jsonQualityi18n, 'qualities', 'quality');
     }

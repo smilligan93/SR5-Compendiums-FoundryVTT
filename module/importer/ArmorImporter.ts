@@ -7,6 +7,7 @@ import {ArmorParserBase} from "../parser/armor/ArmorParserBase";
 export class ArmorImporter extends DataImporter {
     public armorTranslations: any;
     public categoryTranslations: any;
+    public file: string = 'armor.xml'
 
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("armors") && jsonObject["armors"].hasOwnProperty("armor");
@@ -60,7 +61,7 @@ export class ArmorImporter extends DataImporter {
             return;
         }
 
-        let jsonArmori18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'armor.xml');
+        let jsonArmori18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, this.file);
         this.categoryTranslations = ImportHelper.ExtractCategoriesTranslation(jsonArmori18n);
         this.armorTranslations = ImportHelper.ExtractItemTranslation(jsonArmori18n, 'armors', 'armor');
     }

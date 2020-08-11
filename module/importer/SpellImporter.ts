@@ -11,6 +11,7 @@ import {ParserMap} from "../parser/ParserMap";
 export class SpellImporter extends DataImporter {
     public categoryTranslations: any;
     public itemTranslations: any;
+    public file: string = 'spells.xml';
 
     CanParse(jsonObject: object): boolean {
         return jsonObject.hasOwnProperty("spells") && jsonObject["spells"].hasOwnProperty("spell");
@@ -108,7 +109,7 @@ export class SpellImporter extends DataImporter {
             return;
         }
 
-        let jsonSpelli18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, 'spells.xml');
+        let jsonSpelli18n = ImportHelper.ExtractDataFileTranslation(DataImporter.jsoni18n, this.file);
         this.categoryTranslations = ImportHelper.ExtractCategoriesTranslation(jsonSpelli18n);
         this.itemTranslations = ImportHelper.ExtractItemTranslation(jsonSpelli18n, 'spells', 'spell');
     }
