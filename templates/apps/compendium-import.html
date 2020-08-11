@@ -12,7 +12,8 @@
             <h3>Data [data\*.xml]</h3>
             <input type="file" class="filedatadrop" accept="text/*"
                    style="width: 250px; height: 250px; border: 1px solid gray;" multiple/>
-            <div>Supported data files:</div>
+            <div>(It's possible to simply select all data files)</div>
+            <p>Supported data files:</p>
             <div style="display: grid; grid-template-columns: 200px 200px">
                 {{#each dataFiles}}
                 <div>{{this.name}}:</div>
@@ -31,6 +32,6 @@
             </div>
 
         </div>
-        <button name='import' type="submit">Import</button>
+        <button name='import' type="submit" {{#if disableImportButton}}disabled{{/if}}>Import</button>
     </section>
 </form>

@@ -14,6 +14,7 @@ export class Import extends Application {
     private dataFiles: File[] = [];
     private langDataFile: File;
     private parsedFiles: string[] = [];
+    private disableImportButton: boolean = true;
 
     constructor() {
         super();
@@ -48,6 +49,7 @@ export class Import extends Application {
         })
         data.langDataFile = this.langDataFile ? this.langDataFile.name : '';
         data.finishedOverallParsing = this.supportedDataFiles.length === this.parsedFiles.length;
+        data.disableImportButton = this.disableImportButton;
 
         return {...data};
     }
@@ -115,6 +117,7 @@ export class Import extends Application {
             event.preventDefault();
 
             this.clearParsingStatus();
+            this.disableImportButton = true;
 
             await this.render();
 
@@ -142,6 +145,10 @@ export class Import extends Application {
                     await this.render();
                 }
             }
+
+            this.disableImportButton = false;
+
+            await this.render();
         });
 
         html.find("input[type='file'].langDataFileDrop").on("change", async event => {
@@ -167,6 +174,11 @@ export class Import extends Application {
 
                 }
             })
+
+            if (this.dataFiles.length > 0) {
+                this.disableImportButton = false;
+            }
+
             this.render();
         });
     }
