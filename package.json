@@ -15,5 +15,8 @@
         "xml2js": "^0.4.23"
     },
     "repository": "https://github.com/smilligan93/SR5-Compendiums-FoundryVTT",
-    "license": "https://github.com/smilligan93/SR5-Compendiums-FoundryVTT/blob/master/LICENSE"
+    "license": "https://github.com/smilligan93/SR5-Compendiums-FoundryVTT/blob/master/LICENSE",
+    "dependencies": {
+        "@types/node": "^14.6.2"
+    }
 }

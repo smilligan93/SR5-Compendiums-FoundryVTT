@@ -1,2452 +1,4 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Import = void 0;
-const WeaponImporter_1 = require("../importer/WeaponImporter");
-const ArmorImporter_1 = require("../importer/ArmorImporter");
-const DataImporter_1 = require("../importer/DataImporter");
-const AmmoImporter_1 = require("../importer/AmmoImporter");
-const ModImporter_1 = require("../importer/ModImporter");
-const SpellImporter_1 = require("../importer/SpellImporter");
-const QualityImporter_1 = require("../importer/QualityImporter");
-const ComplexFormImporter_1 = require("../importer/ComplexFormImporter");
-const CyberwareImporter_1 = require("../importer/CyberwareImporter");
-const ImportHelper_1 = require("../helper/ImportHelper");
-class Import extends Application {
-    constructor() {
-        super(...arguments);
-        this.supportedDataFiles = [
-            'mod.xml',
-            'weapons.xml',
-            'armor.xml',
-            'bioware.xml',
-            'cyberware.xml',
-            'spells.xml',
-            'gear.xml'
-        ];
-        this.dataFiles = [];
-        this.isDataFile = (file) => {
-            return this.supportedDataFiles.some(supported => supported === file.name);
-        };
-        this.isLangDataFile = (file) => {
-            const pattern = /[a-zA-Z]{2}-[a-zA-Z]{2}_data\.xml/;
-            return file.name.match(pattern) !== null;
-        };
-    }
-    static get defaultOptions() {
-        const options = super.defaultOptions;
-        options.id = 'chummer-data-import';
-        options.classes = ["app", "window-app", "filepicker"];
-        options.title = 'Chummer/Data Import';
-        options.template = 'modules/shadowrun5e-compendiums/templates/apps/compendium-import.html';
-        options.width = 600;
-        options.height = "auto";
-        return options;
-    }
-    getData(options) {
-        const data = super.getData(options);
-        data.dataFiles = this.dataFiles.map(dataFile => dataFile.name);
-        data.langDataFile = this.langDataFile ? this.langDataFile.name : '';
-        return data;
-    }
-    parseXML(xmlSource) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let jsonSource = yield DataImporter_1.DataImporter.xml2json(xmlSource);
-            ImportHelper_1.ImportHelper.SetMode(ImportHelper_1.ImportMode.XML);
-            for (const di of Import.Importers) {
-                if (di.CanParse(jsonSource)) {
-                    di.ExtractTranslation();
-                    yield di.Parse(jsonSource);
-                }
-            }
-        });
-    }
-    parseXmli18n(xmlSource) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!xmlSource) {
-                return;
-            }
-            let jsonSource = yield DataImporter_1.DataImporter.xml2json(xmlSource);
-            if (DataImporter_1.DataImporter.CanParseI18n(jsonSource)) {
-                DataImporter_1.DataImporter.ParseTranslation(jsonSource);
-            }
-        });
-    }
-    activateListeners(html) {
-        html.find("button[type='submit']").on("click", (event) => __awaiter(this, void 0, void 0, function* () {
-            event.preventDefault();
-            if (this.langDataFile) {
-                const text = yield this.langDataFile.text();
-                yield this.parseXmli18n(text);
-            }
-            // Use for of pattern to allow await to actually pause.
-            // don't use .forEach as it won't await for async callbacks.
-            // TODO: Adhere to Importer order for multi file import. Create a file: Importer mapping with fixed order
-            for (const dataFile of this.dataFiles) {
-                console.error(dataFile.name);
-                const text = yield dataFile.text();
-                yield this.parseXML(text);
-            }
-        }));
-        html.find("input[type='file'].filedatadrop").on("change", (event) => __awaiter(this, void 0, void 0, function* () {
-            Array.from(event.target.files).forEach((file) => {
-                if (this.isDataFile(file)) {
-                    // Allow user to overwrite an already added file, they have their reasons.
-                    const existingIdx = this.dataFiles.findIndex(dataFile => dataFile.name === file.name);
-                    if (existingIdx === -1) {
-                        this.dataFiles.push(file);
-                    }
-                    else {
-                        this.dataFiles[existingIdx] = file;
-                    }
-                }
-                if (this.isLangDataFile(file)) {
-                    this.langDataFile = file;
-                }
-                this.render();
-            });
-        }));
-    }
-}
-exports.Import = Import;
-//Order is important, ex. some weapons need mods to fully import
-Import.Importers = [
-    new ModImporter_1.ModImporter(),
-    new WeaponImporter_1.WeaponImporter(),
-    new ArmorImporter_1.ArmorImporter(),
-    new AmmoImporter_1.AmmoImporter(),
-    new SpellImporter_1.SpellImporter(),
-    new ComplexFormImporter_1.ComplexFormImporter(),
-    new QualityImporter_1.QualityImporter(),
-    new CyberwareImporter_1.CyberwareImporter()
-];
-
-},{"../helper/ImportHelper":2,"../importer/AmmoImporter":6,"../importer/ArmorImporter":7,"../importer/ComplexFormImporter":8,"../importer/CyberwareImporter":10,"../importer/DataImporter":11,"../importer/ModImporter":12,"../importer/QualityImporter":13,"../importer/SpellImporter":14,"../importer/WeaponImporter":15}],2:[function(require,module,exports){
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ImportHelper = exports.LookupMode = exports.ImportMode = void 0;
-const Constants_1 = require("../importer/Constants");
-const XMLStrategy_1 = require("./XMLStrategy");
-const JSONStrategy_1 = require("./JSONStrategy");
-var ImportMode;
-(function (ImportMode) {
-    ImportMode[ImportMode["XML"] = 1] = "XML";
-    ImportMode[ImportMode["JSON"] = 2] = "JSON";
-})(ImportMode = exports.ImportMode || (exports.ImportMode = {}));
-var LookupMode;
-(function (LookupMode) {
-    LookupMode[LookupMode["Directory"] = 0] = "Directory";
-    LookupMode[LookupMode["Actor"] = 1] = "Actor";
-})(LookupMode = exports.LookupMode || (exports.LookupMode = {}));
-/**
- * An import helper to standardize data extraction.
- * Mostly conceived to reduced required refactoring if Chummer changes data file layout.
- * Also contains helper methods to safely parse values to appropriate types.
- */
-class ImportHelper {
-    constructor() { }
-    static SetMode(mode) {
-        switch (mode) {
-            case ImportMode.XML:
-                ImportHelper.s_Strategy = new XMLStrategy_1.XMLStrategy();
-                break;
-            case ImportMode.JSON:
-                ImportHelper.s_Strategy = new JSONStrategy_1.JSONStrategy();
-                break;
-        }
-    }
-    /**
-     * Helper method to create a new folder.
-     * @param name The name of the folder.
-     * @param parent The parent folder.
-     * @returns {Promise<Folder>} A promise that resolves with the folder object when the folder is created.
-     */
-    static NewFolder(name, parent = null) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return yield Folder.create({
-                type: "Item",
-                parent: (parent === null) ? null : parent.id,
-                name: name
-            });
-        });
-    }
-    /**
-     * Get a folder at a path in the items directory.
-     * @param path The absolute path of the folder.
-     * @param mkdirs If true, will make all folders along the hierarchy if they do not exist.
-     * @returns A promise that will resolve with the found folder.
-     */
-    static GetFolderAtPath(path, mkdirs = false) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let idx = 0;
-            let curr, last = null;
-            let next = path.split("/");
-            while (idx < next.length) {
-                curr = game.folders.find((folder) => folder.parent === last && folder.name === next[idx]);
-                if (curr === null) {
-                    if (!mkdirs) {
-                        return Promise.reject(`Unable to find folder: ${path}`);
-                    }
-                    curr = yield ImportHelper.NewFolder(next[idx], last);
-                }
-                last = curr;
-                idx++;
-            }
-            return Promise.resolve(curr);
-        });
-    }
-    /**
-     * Get a value from the the provided jsonData, optionally returning a default value if it is not found
-     * or is unable to be parsed to an integer.
-     * @param jsonData The data to get the keyed value in.
-     * @param key The key to check for the value under.
-     * @param fallback An optional default value to return if the key is not found.
-     */
-    static IntValue(jsonData, key, fallback = undefined) {
-        return ImportHelper.s_Strategy.intValue(jsonData, key, fallback);
-    }
-    /**
-     * Get a value from the the provided jsonData, optionally returning a default value if it is not found.
-     * @param jsonData The data to get the keyed value in.
-     * @param key The key to check for the value under.
-     * @param fallback An optional default value to return if the key is not found.
-     */
-    static StringValue(jsonData, key, fallback = undefined) {
-        return ImportHelper.s_Strategy.stringValue(jsonData, key, fallback);
-    }
-    /**
-     * Get an object from the the provided jsonData, optionally returning a default value if it is not found.
-     * @param jsonData The data to get the keyed value in.
-     * @param key The key to check for the value under.
-     * @param fallback An optional default value to return if the key is not found.
-     */
-    static ObjectValue(jsonData, key, fallback = undefined) {
-        return ImportHelper.s_Strategy.objectValue(jsonData, key, fallback);
-    }
-    //TODO
-    static findItem(nameOrCmp) {
-        let result;
-        if (typeof (nameOrCmp) === "string") {
-            result = game.items.find((item) => item.name == nameOrCmp);
-        }
-        else {
-            result = game.items.find(nameOrCmp);
-        }
-        return result;
-    }
-    //TODO
-    static MakeCategoryFolders(jsonData, path, jsonCategoryTranslations) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let folders = {};
-            let jsonCategories = jsonData["categories"]["category"];
-            for (let i = 0; i < jsonCategories.length; i++) {
-                let categoryName = jsonCategories[i][ImportHelper.CHAR_KEY];
-                // use untranslated category name for easier mapping during DataImporter.Parse implementations.
-                let origCategoryName = categoryName;
-                if (jsonCategoryTranslations && jsonCategoryTranslations.hasOwnProperty(categoryName)) {
-                    categoryName = jsonCategoryTranslations[categoryName];
-                }
-                folders[origCategoryName.toLowerCase()] = yield ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/${path}/${categoryName}`, true);
-            }
-            return folders;
-        });
-    }
-    /** Extract the correct <chummer file="${dataFileName}>[...]</chummer> element from xx-xx_data.xml translations.
-     *
-     * @param jsoni18n
-     * @param dataFileName Expected translation target file name
-     */
-    static ExtractDataFileTranslation(jsoni18n, dataFileName) {
-        for (let i = 0; i < jsoni18n.length; i++) {
-            const translation = jsoni18n[i];
-            if (translation.$.file === dataFileName) {
-                return translation;
-            }
-        }
-        return {};
-    }
-    ;
-    /** Extract categories translations within xx-xx_data.xml <chummer/> translation subset.
-     *
-     *  Note: Not all file translations provide categories.
-     *
-     * @param jsonChummeri18n Translations as given by ExtractDataFileTranslations
-     */
-    static ExtractCategoriesTranslation(jsonChummeri18n) {
-        const categoryTranslations = {};
-        if (jsonChummeri18n && jsonChummeri18n.hasOwnProperty("categories")) {
-            jsonChummeri18n.categories.category.forEach(category => {
-                const name = category[ImportHelper.CHAR_KEY];
-                const translate = category.$.translate;
-                categoryTranslations[name] = translate;
-            });
-        }
-        return categoryTranslations;
-    }
-    /** Extract item type translations within xx-xx_data.xml <chummer/> translation subset.
-     *
-     * @param jsonItemsi18n Translations as given by ExtractDataFileTranslations
-     * @param typeKey The item type to translate. Tends to be plural.
-     * @param listKey The item to translate. Tends to be singular.
-     */
-    static ExtractItemTranslation(jsonItemsi18n, typeKey, listKey) {
-        const itemTranslation = {};
-        if (jsonItemsi18n && jsonItemsi18n[typeKey] && jsonItemsi18n[typeKey][listKey] && jsonItemsi18n[typeKey][listKey].length > 0) {
-            jsonItemsi18n[typeKey][listKey].forEach(item => {
-                const name = item.name[ImportHelper.CHAR_KEY];
-                const translate = item.translate[ImportHelper.CHAR_KEY];
-                const altpage = item.altpage[ImportHelper.CHAR_KEY];
-                itemTranslation[name] = { translate, altpage };
-            });
-        }
-        return itemTranslation;
-    }
-    static MapNameToTranslationKey(translationMap, name, key, fallbackValue = '') {
-        if (translationMap && translationMap.hasOwnProperty(name) && translationMap[name].hasOwnProperty(key)) {
-            return translationMap[name][key];
-        }
-        return fallbackValue;
-    }
-    static MapNameToTranslation(translationMap, name) {
-        return ImportHelper.MapNameToTranslationKey(translationMap, name, 'translate', name);
-    }
-    static MapNameToPageSource(translationMap, name) {
-        return ImportHelper.MapNameToTranslationKey(translationMap, name, 'altpage', '?');
-    }
-}
-exports.ImportHelper = ImportHelper;
-ImportHelper.CHAR_KEY = "_TEXT";
-ImportHelper.s_Strategy = new XMLStrategy_1.XMLStrategy();
-
-},{"../importer/Constants":9,"./JSONStrategy":4,"./XMLStrategy":5}],3:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ImportStrategy = void 0;
-class ImportStrategy {
-}
-exports.ImportStrategy = ImportStrategy;
-
-},{}],4:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.JSONStrategy = void 0;
-const ImportStrategy_1 = require("./ImportStrategy");
-class JSONStrategy extends ImportStrategy_1.ImportStrategy {
-    intValue(jsonData, key, fallback = undefined) {
-        throw new Error("Unimplemented");
-    }
-    stringValue(jsonData, key, fallback = undefined) {
-        throw new Error("Unimplemented");
-    }
-    objectValue(jsonData, key, fallback = undefined) {
-        throw new Error("Unimplemented");
-    }
-}
-exports.JSONStrategy = JSONStrategy;
-
-},{"./ImportStrategy":3}],5:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.XMLStrategy = void 0;
-const ImportHelper_1 = require("./ImportHelper");
-const ImportStrategy_1 = require("./ImportStrategy");
-class XMLStrategy extends ImportStrategy_1.ImportStrategy {
-    intValue(jsonData, key, fallback = undefined) {
-        try {
-            return parseInt(jsonData[key][ImportHelper_1.ImportHelper.CHAR_KEY]);
-        }
-        catch (e) {
-            if (fallback !== undefined) {
-                return fallback;
-            }
-            else {
-                throw e;
-            }
-        }
-    }
-    stringValue(jsonData, key, fallback = undefined) {
-        try {
-            return jsonData[key][ImportHelper_1.ImportHelper.CHAR_KEY];
-        }
-        catch (e) {
-            if (fallback !== undefined) {
-                return fallback;
-            }
-            else {
-                throw e;
-            }
-        }
-    }
-    objectValue(jsonData, key, fallback = undefined) {
-        try {
-            return jsonData[key];
-        }
-        catch (e) {
-            if (fallback !== undefined) {
-                return fallback;
-            }
-            else {
-                throw e;
-            }
-        }
-    }
-}
-exports.XMLStrategy = XMLStrategy;
-
-},{"./ImportHelper":2,"./ImportStrategy":3}],6:[function(require,module,exports){
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AmmoImporter = void 0;
-const DataImporter_1 = require("./DataImporter");
-const ImportHelper_1 = require("../helper/ImportHelper");
-const Constants_1 = require("./Constants");
-class AmmoImporter extends DataImporter_1.DataImporter {
-    CanParse(jsonObject) {
-        return jsonObject.hasOwnProperty("gears") && jsonObject["gears"].hasOwnProperty("gear");
-    }
-    GetDefaultData() {
-        return {
-            name: "",
-            folder: null,
-            type: "ammo",
-            data: {
-                description: {
-                    value: "",
-                    chat: "",
-                    source: ""
-                },
-                technology: {
-                    rating: 1,
-                    availability: "",
-                    quantity: 1,
-                    cost: 0,
-                    equipped: true,
-                    conceal: {
-                        base: 0,
-                        value: 0,
-                        mod: {}
-                    }
-                },
-                condition_monitor: {
-                    value: 0,
-                    max: 0
-                },
-                element: "",
-                ap: 0,
-                damage: 0,
-                damageType: "physical",
-                blast: {
-                    radius: 0,
-                    dropoff: 0
-                }
-            },
-            permission: {
-                default: 2
-            }
-        };
-    }
-    ExtractTranslation() {
-        if (!DataImporter_1.DataImporter.jsoni18n) {
-            return;
-        }
-        let jsonGeari18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, 'gear.xml');
-        this.categoryTranslations = ImportHelper_1.ImportHelper.ExtractCategoriesTranslation(jsonGeari18n);
-        this.gearsTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonGeari18n, 'gears', 'gear');
-    }
-    Parse(jsonObject) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let ammoDatas = [];
-            let jsonAmmos = jsonObject["gears"]["gear"];
-            for (let i = 0; i < jsonAmmos.length; i++) {
-                let jsonData = jsonAmmos[i];
-                if (ImportHelper_1.ImportHelper.StringValue(jsonData, "category", "") !== "Ammunition") {
-                    continue;
-                }
-                let data = this.GetDefaultData();
-                data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
-                data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(this.gearsTranslations, data.name);
-                data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
-                data.data.technology.rating = 2;
-                data.data.technology.availability = ImportHelper_1.ImportHelper.StringValue(jsonData, "avail");
-                data.data.technology.cost = ImportHelper_1.ImportHelper.IntValue(jsonData, "cost", 0);
-                let bonusData = ImportHelper_1.ImportHelper.ObjectValue(jsonData, "weaponbonus", null);
-                if (bonusData !== undefined && bonusData !== null) {
-                    data.data.ap = ImportHelper_1.ImportHelper.IntValue(bonusData, "ap", 0);
-                    data.data.damage = ImportHelper_1.ImportHelper.IntValue(bonusData, "damage", 0);
-                    let damageType = ImportHelper_1.ImportHelper.StringValue(bonusData, "damagetype", "");
-                    if (damageType.length > 0) {
-                        if (damageType.includes("P")) {
-                            data.data.damageType = "physical";
-                        }
-                        else if (damageType.includes("S")) {
-                            data.data.damageType = "stun";
-                        }
-                        else if (damageType.includes("M")) {
-                            data.data.damageType = "matrix";
-                        }
-                    }
-                }
-                let shouldLookForWeapons = false;
-                let nameLower = data.name.toLowerCase();
-                ["grenade", "rocket", "missile"].forEach((compare) => {
-                    shouldLookForWeapons = shouldLookForWeapons || nameLower.includes(compare);
-                });
-                // NOTE: Should either weapons or gear not have been imported with translation, this will fail.
-                if (shouldLookForWeapons) {
-                    let foundWeapon = ImportHelper_1.ImportHelper.findItem((item) => {
-                        return item.name.toLowerCase() === nameLower;
-                    });
-                    if (foundWeapon !== null) {
-                        data.data.damage = foundWeapon.data.data.action.damage.value;
-                        data.data.ap = foundWeapon.data.data.action.damage.ap.value;
-                    }
-                }
-                // ammo doesn't have conceal rating from looking at the data
-                // data.data.technology.conceal.base = ImportHelper.intValue(jsonData, "conceal");
-                data.data.technology.conceal.base = 0;
-                ammoDatas.push(data);
-            }
-            for (let i = 0; i < ammoDatas.length; i++) {
-                let folderName = "Misc";
-                let ammo = ammoDatas[i];
-                let splitName = ammo.name.split(":");
-                if (splitName.length > 1) {
-                    folderName = splitName[0].trim();
-                }
-                let folder = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Ammo/${folderName}`, true);
-                ammo.folder = folder.id;
-            }
-            return yield Item.create(ammoDatas);
-        });
-    }
-}
-exports.AmmoImporter = AmmoImporter;
-
-},{"../helper/ImportHelper":2,"./Constants":9,"./DataImporter":11}],7:[function(require,module,exports){
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ArmorImporter = void 0;
-const DataImporter_1 = require("./DataImporter");
-const ImportHelper_1 = require("../helper/ImportHelper");
-const ArmorParserBase_1 = require("../parser/armor/ArmorParserBase");
-class ArmorImporter extends DataImporter_1.DataImporter {
-    CanParse(jsonObject) {
-        return jsonObject.hasOwnProperty("armors") && jsonObject["armors"].hasOwnProperty("armor");
-    }
-    GetDefaultData() {
-        return {
-            name: "Unnamed Armor",
-            folder: null,
-            type: "armor",
-            data: {
-                description: {
-                    value: "",
-                    chat: "",
-                    source: ""
-                },
-                technology: {
-                    rating: 1,
-                    availability: "",
-                    quantity: 1,
-                    cost: 0,
-                    equipped: true,
-                    conceal: {
-                        base: 0,
-                        value: 0,
-                        mod: {}
-                    }
-                },
-                condition_monitor: {
-                    value: 0,
-                    max: 0
-                },
-                armor: {
-                    value: 0,
-                    mod: false,
-                    acid: 0,
-                    cold: 0,
-                    fire: 0,
-                    electricity: 0,
-                    radiation: 0
-                }
-            },
-            permission: {
-                default: 2
-            }
-        };
-    }
-    ExtractTranslation() {
-        if (!DataImporter_1.DataImporter.jsoni18n) {
-            return;
-        }
-        let jsonArmori18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, 'armor.xml');
-        this.categoryTranslations = ImportHelper_1.ImportHelper.ExtractCategoriesTranslation(jsonArmori18n);
-        this.armorTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonArmori18n, 'armors', 'armor');
-    }
-    Parse(jsonObject) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Armor", this.categoryTranslations);
-            const parser = new ArmorParserBase_1.ArmorParserBase();
-            let datas = [];
-            let jsonDatas = jsonObject["armors"]["armor"];
-            for (let i = 0; i < jsonDatas.length; i++) {
-                let jsonData = jsonDatas[i];
-                let data = parser.Parse(jsonData, this.GetDefaultData());
-                const category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category").toLowerCase();
-                data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(this.armorTranslations, data.name);
-                data.folder = folders[category].id;
-                datas.push(data);
-            }
-            return yield Item.create(datas);
-        });
-    }
-}
-exports.ArmorImporter = ArmorImporter;
-
-},{"../helper/ImportHelper":2,"../parser/armor/ArmorParserBase":19,"./DataImporter":11}],8:[function(require,module,exports){
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ComplexFormImporter = void 0;
-const DataImporter_1 = require("./DataImporter");
-const ImportHelper_1 = require("../helper/ImportHelper");
-const Constants_1 = require("./Constants");
-const ComplexFormParserBase_1 = require("../parser/complex-form/ComplexFormParserBase");
-class ComplexFormImporter extends DataImporter_1.DataImporter {
-    CanParse(jsonObject) {
-        return jsonObject.hasOwnProperty("complexforms") && jsonObject["complexforms"].hasOwnProperty("complexform");
-    }
-    GetDefaultData() {
-        return {
-            name: "Unnamed Form",
-            folder: null,
-            type: "complex_form",
-            data: {
-                description: {
-                    value: "",
-                    chat: "",
-                    source: ""
-                },
-                action: {
-                    type: "complex",
-                    category: "",
-                    attribute: "resonance",
-                    attribute2: "",
-                    skill: "compiling",
-                    spec: false,
-                    mod: 0,
-                    mod_description: "",
-                    damage: {
-                        type: {
-                            base: "physical",
-                            value: "physical"
-                        },
-                        element: {
-                            base: "",
-                            value: ""
-                        },
-                        base: 0,
-                        value: 0,
-                        ap: {
-                            base: 0,
-                            value: 0,
-                            mod: {}
-                        },
-                        attribute: "",
-                        mod: {}
-                    },
-                    limit: {
-                        value: 0,
-                        attribute: "",
-                        mod: {},
-                        base: 0
-                    },
-                    extended: false,
-                    opposed: {
-                        type: "defense",
-                        attribute: "",
-                        attribute2: "",
-                        skill: "",
-                        mod: 0,
-                        description: ""
-                    },
-                    alt_mod: 0,
-                    dice_pool_mod: {}
-                },
-                target: "",
-                duration: "",
-                fade: 0
-            },
-            permission: {
-                default: 2
-            }
-        };
-    }
-    ExtractTranslation() {
-        if (!DataImporter_1.DataImporter.jsoni18n) {
-            return;
-        }
-        // Complexforms don't provide a category translation.
-        let jsonItemi18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, 'complexforms.xml');
-        this.nameTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonItemi18n, 'complexforms', 'complexform');
-    }
-    Parse(jsonObject) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const parser = new ComplexFormParserBase_1.ComplexFormParserBase();
-            const folder = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Complex Forms`, true);
-            let datas = [];
-            let jsonDatas = jsonObject["complexforms"]["complexform"];
-            for (let i = 0; i < jsonDatas.length; i++) {
-                let jsonData = jsonDatas[i];
-                let data = parser.Parse(jsonData, this.GetDefaultData(), this.nameTranslations);
-                data.folder = folder.id;
-                // TODO: Follow ComplexFormParserBase approach.
-                data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(this.nameTranslations, data.name);
-                datas.push(data);
-            }
-            return yield Item.create(datas);
-        });
-    }
-}
-exports.ComplexFormImporter = ComplexFormImporter;
-
-},{"../helper/ImportHelper":2,"../parser/complex-form/ComplexFormParserBase":20,"./Constants":9,"./DataImporter":11}],9:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Constants = void 0;
-class Constants {
-}
-exports.Constants = Constants;
-Constants.MAP_CATEGORY_TO_SKILL = {
-    "Assault Cannons": "heavy_weapons",
-    "Assault Rifles": "automatics",
-    "Blades": "blades",
-    "Bows": "archery",
-    "Carbines": "automatics",
-    "Clubs": "clubs",
-    "Crossbows": "archery",
-    "Exotic Melee Weapons": "exotic_melee",
-    "Exotic Ranged Weapons": "exotic_ranged",
-    "Flamethrowers": "exotic_ranged",
-    "Grenade Launchers": "heavy_weapons",
-    "Heavy Machine Guns": "heavy_weapons",
-    "Heavy Pistols": "pistols",
-    "Holdouts": "pistols",
-    "Laser Weapons": "exotic_ranged",
-    "Light Machine Guns": "heavy_weapons",
-    "Light Pistols": "pistols",
-    "Machine Pistols": "automatics",
-    "Medium Machine Guns": "automatics",
-    "Missile Launchers": "heavy_weapons",
-    "Shotguns": "longarms",
-    "Sniper Rifles": "longarms",
-    "Sporting Rifles": "longarms",
-    "Submachine Guns": "automatics",
-    "Tasers": "pistols",
-    "Unarmed": "unarmed_combat"
-};
-Constants.WEAPON_RANGES = {
-    "Tasers": {
-        short: 5,
-        medium: 10,
-        long: 15,
-        extreme: 20
-    },
-    "Holdouts": {
-        short: 5,
-        medium: 15,
-        long: 30,
-        extreme: 50
-    },
-    "Light Pistols": {
-        short: 5,
-        medium: 15,
-        long: 30,
-        extreme: 50
-    },
-    "Heavy Pistols": {
-        short: 5,
-        medium: 20,
-        long: 40,
-        extreme: 60
-    },
-    "Machine Pistols": {
-        short: 5,
-        medium: 15,
-        long: 30,
-        extreme: 50
-    },
-    "Submachine Guns": {
-        short: 10,
-        medium: 40,
-        long: 80,
-        extreme: 150
-    },
-    "Assault Rifles": {
-        short: 25,
-        medium: 150,
-        long: 350,
-        extreme: 550
-    },
-    "Shotguns": {
-        short: 10,
-        medium: 40,
-        long: 80,
-        extreme: 150
-    },
-    "Shotguns (slug)": {
-        short: 10,
-        medium: 40,
-        long: 80,
-        extreme: 150
-    },
-    "Shotguns (flechette)": {
-        short: 15,
-        medium: 30,
-        long: 45,
-        extreme: 60
-    },
-    "Sniper Rifles": {
-        short: 50,
-        medium: 350,
-        long: 800,
-        extreme: 1500
-    },
-    "Sporting Rifles": {
-        short: 50,
-        medium: 250,
-        long: 500,
-        extreme: 750
-    },
-    "Light Machine Guns": {
-        short: 25,
-        medium: 200,
-        long: 400,
-        extreme: 800
-    },
-    "Medium/Heavy Machinegun": {
-        short: 40,
-        medium: 250,
-        long: 750,
-        extreme: 1200
-    },
-    "Assault Cannons": {
-        short: 50,
-        medium: 300,
-        long: 750,
-        extreme: 1500
-    },
-    "Grenade Launchers": {
-        min: 5,
-        short: 50,
-        medium: 100,
-        long: 150,
-        extreme: 500
-    },
-    "Missile Launchers": {
-        min: 20,
-        short: 70,
-        medium: 150,
-        long: 450,
-        extreme: 1500
-    },
-    "Bows": {
-        short: 1,
-        medium: 10,
-        long: 30,
-        extreme: 60,
-        attribute: "strength"
-    },
-    "Light Crossbows": {
-        short: 6,
-        medium: 24,
-        long: 60,
-        extreme: 120
-    },
-    "Medium Crossbows": {
-        short: 9,
-        medium: 36,
-        long: 90,
-        extreme: 150
-    },
-    "Heavy Crossbows": {
-        short: 15,
-        medium: 45,
-        long: 120,
-        extreme: 180
-    },
-    "Thrown Knife": {
-        short: 1,
-        medium: 2,
-        long: 3,
-        extreme: 5,
-        attribute: "strength"
-    },
-    "Net": {
-        short: 0.5,
-        medium: 1,
-        long: 1.5,
-        extreme: 2.5,
-        attribute: "strength"
-    },
-    "Shuriken": {
-        short: 1,
-        medium: 2,
-        long: 5,
-        extreme: 7,
-        attribute: "strength"
-    },
-    "Standard Grenade": {
-        short: 2,
-        medium: 4,
-        long: 6,
-        extreme: 10,
-        attribute: "strength"
-    },
-    "Aerodynamic Grenade": {
-        min: 0,
-        short: 2,
-        medium: 4,
-        long: 8,
-        extreme: 15,
-        attribute: "strength"
-    },
-    "Harpoon Gun": {
-        short: 5,
-        medium: 20,
-        long: 40,
-        extreme: 60
-    },
-    "Harpoon Gun (Underwater)": {
-        short: 6,
-        medium: 24,
-        long: 60,
-        extreme: 120
-    },
-    "Flamethrowers": {
-        short: 15,
-        medium: 20,
-        long: -1,
-        extreme: -1
-    }
-};
-Constants.ROOT_IMPORT_FOLDER_NAME = "SR5e";
-
-},{}],10:[function(require,module,exports){
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.CyberwareImporter = void 0;
-const DataImporter_1 = require("./DataImporter");
-const ImportHelper_1 = require("../helper/ImportHelper");
-const CyberwareParser_1 = require("../parser/cyberware/CyberwareParser");
-class CyberwareImporter extends DataImporter_1.DataImporter {
-    CanParse(jsonObject) {
-        return (jsonObject.hasOwnProperty("cyberwares") && jsonObject["cyberwares"].hasOwnProperty("cyberware"))
-            || (jsonObject.hasOwnProperty("biowares") && jsonObject["biowares"].hasOwnProperty("bioware"));
-    }
-    GetDefaultData() {
-        return {
-            name: "Unnamed Form",
-            folder: null,
-            type: "cyberware",
-            data: {
-                description: {
-                    value: "",
-                    chat: "",
-                    source: ""
-                },
-                technology: {
-                    rating: 1,
-                    availability: "",
-                    quantity: 1,
-                    cost: 0,
-                    equipped: true,
-                    conceal: {
-                        base: 0,
-                        value: 0,
-                        mod: {}
-                    }
-                },
-                condition_monitor: {
-                    value: 0,
-                    max: 0
-                },
-                action: {
-                    type: "",
-                    category: "",
-                    attribute: "",
-                    attribute2: "",
-                    skill: "",
-                    spec: false,
-                    mod: 0,
-                    mod_description: "",
-                    damage: {
-                        type: {
-                            base: "",
-                            value: ""
-                        },
-                        element: {
-                            base: "",
-                            value: ""
-                        },
-                        base: 0,
-                        value: 0,
-                        ap: {
-                            base: 0,
-                            value: 0,
-                            mod: {}
-                        },
-                        attribute: "",
-                        mod: {}
-                    },
-                    limit: {
-                        value: 0,
-                        attribute: "",
-                        mod: {},
-                        base: 0
-                    },
-                    extended: false,
-                    opposed: {
-                        type: "",
-                        attribute: "",
-                        attribute2: "",
-                        skill: "",
-                        mod: 0,
-                        description: ""
-                    },
-                    alt_mod: 0,
-                    dice_pool_mod: {}
-                },
-                grade: "standard",
-                essence: 0,
-                capacity: 0
-            },
-            permission: {
-                default: 2
-            }
-        };
-    }
-    ExtractTranslation() {
-        if (!DataImporter_1.DataImporter.jsoni18n) {
-            return;
-        }
-        let jsonItemi18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, 'cyberware.xml');
-        this.categoryTranslations = ImportHelper_1.ImportHelper.ExtractCategoriesTranslation(jsonItemi18n);
-        this.itemTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonItemi18n, 'cyberwares', 'cyberware');
-    }
-    Parse(jsonObject) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const parser = new CyberwareParser_1.CyberwareParser();
-            let key = jsonObject.hasOwnProperty("cyberwares") ? "Cyberware" : "Bioware";
-            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, key);
-            key = key.toLowerCase();
-            let datas = [];
-            let jsonDatas = jsonObject[key + "s"][key];
-            for (let i = 0; i < jsonDatas.length; i++) {
-                let jsonData = jsonDatas[i];
-                let data = parser.Parse(jsonData, this.GetDefaultData(), this.itemTranslations);
-                const category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category");
-                data.folder = folders[category.toLowerCase()].id;
-                // // TODO: Follow ComplexFormParserBase approach.
-                // data.name = ImportHelper.MapNameToTranslation(this.itemTranslations, data.name);
-                datas.push(data);
-            }
-            return yield Item.create(datas);
-        });
-    }
-}
-exports.CyberwareImporter = CyberwareImporter;
-
-},{"../helper/ImportHelper":2,"../parser/cyberware/CyberwareParser":21,"./DataImporter":11}],11:[function(require,module,exports){
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.DataImporter = void 0;
-const ImportHelper_1 = require("../helper/ImportHelper");
-const xml2js = require("xml2js");
-class DataImporter {
-    /**
-     *
-     * @param jsonObject JSON Data with all data translations for one language.
-     */
-    static CanParseI18n(jsonObject) {
-        return jsonObject.hasOwnProperty("chummer") && jsonObject.chummer.length > 0 && jsonObject.chummer[0].$.hasOwnProperty("file");
-    }
-    /**
-     * Stores translations as a whole for all implementing classes to extract from without reparsing.
-     * @param jsonObject JSON Data with all data translations for one language.
-     */
-    static ParseTranslation(jsonObject) {
-        if (jsonObject && jsonObject.hasOwnProperty("chummer")) {
-            DataImporter.jsoni18n = jsonObject["chummer"];
-        }
-    }
-    /**
-     * Parse an XML string into a JSON object.
-     * @param xmlString The string to parse as XML.
-     * @returns A json object converted from the string.
-     */
-    static xml2json(xmlString) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const parser = xml2js.Parser({
-                explicitArray: false,
-                explicitCharkey: true,
-                charkey: ImportHelper_1.ImportHelper.CHAR_KEY
-            });
-            return (yield parser.parseStringPromise(xmlString))["chummer"];
-        });
-    }
-}
-exports.DataImporter = DataImporter;
-
-},{"../helper/ImportHelper":2,"xml2js":71}],12:[function(require,module,exports){
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ModImporter = void 0;
-const DataImporter_1 = require("./DataImporter");
-const ImportHelper_1 = require("../helper/ImportHelper");
-const Constants_1 = require("./Constants");
-const ModParserBase_1 = require("../parser/mod/ModParserBase");
-class ModImporter extends DataImporter_1.DataImporter {
-    CanParse(jsonObject) {
-        return jsonObject.hasOwnProperty("accessories") && jsonObject["accessories"].hasOwnProperty("accessory");
-    }
-    GetDefaultData() {
-        return {
-            name: "",
-            folder: null,
-            type: "modification",
-            data: {
-                description: {
-                    value: "",
-                    chat: "",
-                    source: ""
-                },
-                technology: {
-                    rating: 1,
-                    availability: "",
-                    quantity: 1,
-                    cost: 0,
-                    equipped: true,
-                    conceal: {
-                        base: 0,
-                        value: 0,
-                        mod: {}
-                    }
-                },
-                condition_monitor: {
-                    value: 0,
-                    max: 0
-                },
-                type: "",
-                mount_point: "",
-                dice_pool: 0,
-                accuracy: 0,
-                rc: 0
-            },
-            permission: {
-                default: 2
-            }
-        };
-    }
-    ExtractTranslation() {
-        if (!DataImporter_1.DataImporter.jsoni18n) {
-            return;
-        }
-        let jsonWeaponsi18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, 'weapons.xml');
-        // Parts of weapon accessory translations are within the application translation. Currently only data translation is used.
-        this.accessoryTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonWeaponsi18n, 'accessories', 'accessory');
-    }
-    Parse(jsonObject) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const parser = new ModParserBase_1.ModParserBase();
-            let datas = [];
-            let jsonDatas = jsonObject["accessories"]["accessory"];
-            for (let i = 0; i < jsonDatas.length; i++) {
-                let jsonData = jsonDatas[i];
-                let data = parser.Parse(jsonData, this.GetDefaultData());
-                // TODO: Integrate into ModParserBase approach.
-                data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(this.accessoryTranslations, data.name);
-                //TODO: Test this
-                let folderName = (data.data.mount_point !== undefined) ? data.data.mount_point : "Other";
-                if (folderName.includes("/")) {
-                    let splitName = folderName.split("/");
-                    folderName = splitName[0];
-                }
-                let folder = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Mods/${folderName}`, true);
-                data.folder = folder.id;
-                datas.push(data);
-            }
-            return yield Item.create(datas);
-        });
-    }
-}
-exports.ModImporter = ModImporter;
-
-},{"../helper/ImportHelper":2,"../parser/mod/ModParserBase":23,"./Constants":9,"./DataImporter":11}],13:[function(require,module,exports){
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.QualityImporter = void 0;
-const DataImporter_1 = require("./DataImporter");
-const ImportHelper_1 = require("../helper/ImportHelper");
-const QualityParserBase_1 = require("../parser/quality/QualityParserBase");
-class QualityImporter extends DataImporter_1.DataImporter {
-    CanParse(jsonObject) {
-        return jsonObject.hasOwnProperty("qualities") && jsonObject["qualities"].hasOwnProperty("quality");
-    }
-    GetDefaultData() {
-        return {
-            name: "Unnamed Armor",
-            folder: null,
-            type: "quality",
-            data: {
-                description: {
-                    value: "",
-                    chat: "",
-                    source: ""
-                },
-                action: {
-                    type: "varies",
-                    category: "",
-                    attribute: "",
-                    attribute2: "",
-                    skill: "",
-                    spec: false,
-                    mod: 0,
-                    mod_description: "",
-                    damage: {
-                        type: {
-                            base: "",
-                            value: ""
-                        },
-                        element: {
-                            base: "",
-                            value: ""
-                        },
-                        base: 0,
-                        value: 0,
-                        ap: {
-                            base: 0,
-                            value: 0,
-                            mod: {}
-                        },
-                        attribute: "",
-                        mod: {}
-                    },
-                    limit: {
-                        value: 0,
-                        attribute: "",
-                        mod: {},
-                        base: 0
-                    },
-                    extended: false,
-                    opposed: {
-                        type: "",
-                        attribute: "",
-                        attribute2: "",
-                        skill: "",
-                        mod: 0,
-                        description: ""
-                    },
-                    alt_mod: 0,
-                    dice_pool_mod: {}
-                },
-                type: ""
-            },
-            permission: {
-                default: 2
-            }
-        };
-    }
-    ExtractTranslation() {
-        if (!DataImporter_1.DataImporter.jsoni18n) {
-            return;
-        }
-        let jsonQualityi18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, 'qualities.xml');
-        this.categoryTranslations = ImportHelper_1.ImportHelper.ExtractCategoriesTranslation(jsonQualityi18n);
-        this.itemTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonQualityi18n, 'qualities', 'quality');
-    }
-    Parse(jsonObject) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const jsonNameTranslations = {};
-            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Qualities", this.categoryTranslations);
-            console.log(folders);
-            const parser = new QualityParserBase_1.QualityParserBase();
-            let datas = [];
-            let jsonDatas = jsonObject["qualities"]["quality"];
-            for (let i = 0; i < jsonDatas.length; i++) {
-                let jsonData = jsonDatas[i];
-                let data = parser.Parse(jsonData, this.GetDefaultData(), this.itemTranslations);
-                let category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category");
-                data.folder = folders[category.toLowerCase()].id;
-                data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(this.itemTranslations, data.name);
-                datas.push(data);
-            }
-            return yield Item.create(datas);
-        });
-    }
-}
-exports.QualityImporter = QualityImporter;
-
-},{"../helper/ImportHelper":2,"../parser/quality/QualityParserBase":24,"./DataImporter":11}],14:[function(require,module,exports){
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.SpellImporter = void 0;
-const DataImporter_1 = require("./DataImporter");
-const ImportHelper_1 = require("../helper/ImportHelper");
-const SpellParserBase_1 = require("../parser/spell/SpellParserBase");
-const CombatSpellParser_1 = require("../parser/spell/CombatSpellParser");
-const ManipulationSpellParser_1 = require("../parser/spell/ManipulationSpellParser");
-const IllusionSpellParser_1 = require("../parser/spell/IllusionSpellParser");
-const DetectionSpellImporter_1 = require("../parser/spell/DetectionSpellImporter");
-const ParserMap_1 = require("../parser/ParserMap");
-class SpellImporter extends DataImporter_1.DataImporter {
-    CanParse(jsonObject) {
-        return jsonObject.hasOwnProperty("spells") && jsonObject["spells"].hasOwnProperty("spell");
-    }
-    GetDefaultData() {
-        return {
-            name: "Unnamed Item",
-            folder: null,
-            type: "spell",
-            data: {
-                description: {
-                    value: "",
-                    chat: "",
-                    source: ""
-                },
-                action: {
-                    type: "varies",
-                    category: "",
-                    attribute: "magic",
-                    attribute2: "",
-                    skill: "spellcasting",
-                    spec: false,
-                    mod: 0,
-                    mod_description: "",
-                    damage: {
-                        type: {
-                            base: "",
-                            value: ""
-                        },
-                        element: {
-                            base: "",
-                            value: ""
-                        },
-                        base: 0,
-                        value: 0,
-                        ap: {
-                            base: 0,
-                            value: 0,
-                            mod: {}
-                        },
-                        attribute: "",
-                        mod: {}
-                    },
-                    limit: {
-                        value: 0,
-                        attribute: "",
-                        mod: {},
-                        base: 0
-                    },
-                    extended: false,
-                    opposed: {
-                        type: "",
-                        attribute: "",
-                        attribute2: "",
-                        skill: "",
-                        mod: 0,
-                        description: ""
-                    },
-                    alt_mod: 0,
-                    dice_pool_mod: {}
-                },
-                drain: 0,
-                category: "",
-                type: "",
-                range: "",
-                duration: "",
-                combat: {
-                    type: ""
-                },
-                detection: {
-                    passive: false,
-                    type: "",
-                    extended: false
-                },
-                illusion: {
-                    type: "",
-                    sense: ""
-                },
-                manipulation: {
-                    damaging: false,
-                    mental: false,
-                    environmental: false,
-                    physical: false
-                }
-            },
-            permission: {
-                default: 2
-            }
-        };
-    }
-    ExtractTranslation() {
-        if (!DataImporter_1.DataImporter.jsoni18n) {
-            return;
-        }
-        let jsonSpelli18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, 'spells.xml');
-        this.categoryTranslations = ImportHelper_1.ImportHelper.ExtractCategoriesTranslation(jsonSpelli18n);
-        this.itemTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonSpelli18n, 'spells', 'spell');
-    }
-    Parse(jsonObject) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Spells", this.categoryTranslations);
-            const parser = new ParserMap_1.ParserMap("category", [
-                { key: "Combat", value: new CombatSpellParser_1.CombatSpellParser() },
-                { key: "Manipulation", value: new ManipulationSpellParser_1.ManipulationSpellParser() },
-                { key: "Illusion", value: new IllusionSpellParser_1.IllusionSpellParser() },
-                { key: "Detection", value: new DetectionSpellImporter_1.DetectionSpellImporter() },
-                { key: "Health", value: new SpellParserBase_1.SpellParserBase() },
-                { key: "Enchantments", value: new SpellParserBase_1.SpellParserBase() },
-                { key: "Rituals", value: new SpellParserBase_1.SpellParserBase() },
-            ]);
-            let datas = [];
-            let jsonDatas = jsonObject["spells"]["spell"];
-            for (let i = 0; i < jsonDatas.length; i++) {
-                let jsonData = jsonDatas[i];
-                let data = parser.Parse(jsonData, this.GetDefaultData(), this.itemTranslations);
-                data.folder = folders[data.data.category].id;
-                datas.push(data);
-            }
-            return yield Item.create(datas);
-        });
-    }
-}
-exports.SpellImporter = SpellImporter;
-
-},{"../helper/ImportHelper":2,"../parser/ParserMap":18,"../parser/spell/CombatSpellParser":25,"../parser/spell/DetectionSpellImporter":26,"../parser/spell/IllusionSpellParser":27,"../parser/spell/ManipulationSpellParser":28,"../parser/spell/SpellParserBase":29,"./DataImporter":11}],15:[function(require,module,exports){
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.WeaponImporter = void 0;
-const DataImporter_1 = require("./DataImporter");
-const ImportHelper_1 = require("../helper/ImportHelper");
-const Constants_1 = require("./Constants");
-const RangedParser_1 = require("../parser/weapon/RangedParser");
-const MeleeParser_1 = require("../parser/weapon/MeleeParser");
-const ThrownParser_1 = require("../parser/weapon/ThrownParser");
-const ParserMap_1 = require("../parser/ParserMap");
-class WeaponImporter extends DataImporter_1.DataImporter {
-    CanParse(jsonObject) {
-        return jsonObject.hasOwnProperty("weapons") && jsonObject["weapons"].hasOwnProperty("weapon");
-    }
-    GetDefaultData() {
-        return {
-            name: "Unnamed Item",
-            folder: null,
-            type: "weapon",
-            data: {
-                description: {
-                    value: "",
-                    chat: "",
-                    source: ""
-                },
-                action: {
-                    type: "varies",
-                    category: "",
-                    attribute: "agility",
-                    attribute2: "",
-                    skill: "",
-                    spec: false,
-                    mod: 0,
-                    mod_description: "",
-                    damage: {
-                        type: {
-                            base: "physical",
-                            value: "physical"
-                        },
-                        element: {
-                            base: "",
-                            value: ""
-                        },
-                        base: 0,
-                        value: 0,
-                        ap: {
-                            base: 0,
-                            value: 0,
-                            mod: {}
-                        },
-                        attribute: "",
-                        mod: {}
-                    },
-                    limit: {
-                        value: 0,
-                        attribute: "",
-                        mod: {},
-                        base: 0
-                    },
-                    extended: false,
-                    opposed: {
-                        type: "defense",
-                        attribute: "",
-                        attribute2: "",
-                        skill: "",
-                        mod: 0,
-                        description: ""
-                    },
-                    alt_mod: 0,
-                    dice_pool_mod: {}
-                },
-                technology: {
-                    rating: 1,
-                    availability: "",
-                    quantity: 1,
-                    cost: 0,
-                    equipped: true,
-                    conceal: {
-                        base: 0,
-                        value: 0,
-                        mod: {}
-                    }
-                },
-                condition_monitor: {
-                    value: 0,
-                    max: 0
-                },
-                ammo: {
-                    spare_clips: {
-                        value: 0,
-                        max: 0
-                    },
-                    current: {
-                        value: 0,
-                        max: 0
-                    }
-                },
-                range: {
-                    category: "",
-                    ranges: {
-                        short: 0,
-                        medium: 0,
-                        long: 0,
-                        extreme: 0
-                    },
-                    rc: {
-                        value: 0,
-                        base: 0,
-                        mod: {}
-                    },
-                    modes: {
-                        single_shot: false,
-                        semi_auto: false,
-                        burst_fire: false,
-                        full_auto: false
-                    }
-                },
-                melee: {
-                    reach: 0
-                },
-                thrown: {
-                    ranges: {
-                        short: 0,
-                        medium: 0,
-                        long: 0,
-                        extreme: 0,
-                        attribute: ""
-                    },
-                    blast: {
-                        radius: 0,
-                        dropoff: 0
-                    }
-                },
-                category: "range"
-            },
-            permission: {
-                default: 2
-            }
-        };
-    }
-    ExtractTranslation() {
-        if (!DataImporter_1.DataImporter.jsoni18n) {
-            return;
-        }
-        let jsonWeaponi18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, 'weapons.xml');
-        this.categoryTranslations = ImportHelper_1.ImportHelper.ExtractCategoriesTranslation(jsonWeaponi18n);
-        this.itemTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonWeaponi18n, 'weapons', 'weapon');
-    }
-    static GetWeaponType(weaponJson) {
-        let type = ImportHelper_1.ImportHelper.StringValue(weaponJson, "type");
-        //melee is the least specific, all melee entries are accurate
-        if (type === "Melee") {
-            return "melee";
-        }
-        else {
-            // skill takes priorities over category
-            if (weaponJson.hasOwnProperty("useskill")) {
-                let skill = ImportHelper_1.ImportHelper.StringValue(weaponJson, "useskill");
-                if (skill === "Throwing Weapons")
-                    return "thrown";
-            }
-            // category is the fallback
-            let category = ImportHelper_1.ImportHelper.StringValue(weaponJson, "category");
-            if (category === "Throwing Weapons")
-                return "thrown";
-            // ranged is everything else
-            return "range";
-        }
-    }
-    Parse(jsonObject) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Weapons", this.categoryTranslations);
-            folders["gear"] = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Gear`, true);
-            folders["quality"] = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Quality`, true);
-            const parser = new ParserMap_1.ParserMap(WeaponImporter.GetWeaponType, [
-                { key: "range", value: new RangedParser_1.RangedParser() },
-                { key: "melee", value: new MeleeParser_1.MeleeParser() },
-                { key: "thrown", value: new ThrownParser_1.ThrownParser() },
-            ]);
-            let datas = [];
-            let jsonDatas = jsonObject["weapons"]["weapon"];
-            for (let i = 0; i < jsonDatas.length; i++) {
-                let jsonData = jsonDatas[i];
-                let data = parser.Parse(jsonData, this.GetDefaultData(), this.itemTranslations);
-                data.folder = folders[data.data.category].id;
-                datas.push(data);
-            }
-            return yield Item.create(datas);
-        });
-    }
-}
-exports.WeaponImporter = WeaponImporter;
-
-},{"../helper/ImportHelper":2,"../parser/ParserMap":18,"../parser/weapon/MeleeParser":30,"../parser/weapon/RangedParser":31,"../parser/weapon/ThrownParser":32,"./Constants":9,"./DataImporter":11}],16:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const import_form_1 = require("./apps/import-form");
-Hooks.on("renderItemDirectory", (app, html) => {
-    const button = $("<button>Import Chummer Data</button>");
-    html.find("footer").before(button);
-    button.on("click", (event) => {
-        new import_form_1.Import().render(true);
-    });
-});
-
-},{"./apps/import-form":1}],17:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Parser = void 0;
-class Parser {
-}
-exports.Parser = Parser;
-
-},{}],18:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ParserMap = void 0;
-const Parser_1 = require("./Parser");
-const ImportHelper_1 = require("../helper/ImportHelper");
-class ParserMap extends Parser_1.Parser {
-    constructor(branchKey, elements) {
-        super();
-        this.m_BranchKey = branchKey;
-        this.m_Map = new Map();
-        for (const { key, value } of elements) {
-            this.m_Map.set(key, value);
-        }
-    }
-    Parse(jsonData, data, jsonTranslation) {
-        let key;
-        if (typeof this.m_BranchKey === "function") {
-            key = this.m_BranchKey(jsonData);
-        }
-        else {
-            key = this.m_BranchKey;
-            key = ImportHelper_1.ImportHelper.StringValue(jsonData, key);
-        }
-        const parser = this.m_Map.get(key);
-        if (parser === undefined) {
-            console.warn(`Could not find mapped parser for category ${key}.`);
-            return data;
-        }
-        return parser.Parse(jsonData, data, jsonTranslation);
-    }
-}
-exports.ParserMap = ParserMap;
-
-},{"../helper/ImportHelper":2,"./Parser":17}],19:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ArmorParserBase = void 0;
-const ItemParserBase_1 = require("../item/ItemParserBase");
-const ImportHelper_1 = require("../../helper/ImportHelper");
-class ArmorParserBase extends ItemParserBase_1.ItemParserBase {
-    Parse(jsonData, data) {
-        data = super.Parse(jsonData, data);
-        data.data.armor.value = ImportHelper_1.ImportHelper.IntValue(jsonData, "armor", 0);
-        data.data.armor.mod = ImportHelper_1.ImportHelper.StringValue(jsonData, "armor").includes("+");
-        return data;
-    }
-}
-exports.ArmorParserBase = ArmorParserBase;
-
-},{"../../helper/ImportHelper":2,"../item/ItemParserBase":22}],20:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ComplexFormParserBase = void 0;
-const Parser_1 = require("../Parser");
-const ImportHelper_1 = require("../../helper/ImportHelper");
-class ComplexFormParserBase extends Parser_1.Parser {
-    Parse(jsonData, data, jsonTranslation) {
-        data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
-        data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
-        let fade = ImportHelper_1.ImportHelper.StringValue(jsonData, "fv");
-        if (fade.includes("+") || fade.includes("-")) {
-            data.data.fade = parseInt(fade.substring(1, fade.length));
-        }
-        let duration = ImportHelper_1.ImportHelper.StringValue(jsonData, "duration");
-        if (duration === "I") {
-            data.data.duration = "instant";
-        }
-        else if (duration === "S") {
-            data.data.duration = "sustained";
-        }
-        else if (duration === "P") {
-            data.data.duration = "permanent";
-        }
-        let target = ImportHelper_1.ImportHelper.StringValue(jsonData, "target");
-        switch (target) {
-            case "Device":
-            case "File":
-            case "Host":
-            case "Persona":
-            case "Self":
-            case "Sprite":
-                data.data.target = target.toLowerCase();
-                break;
-            default:
-                data.data.target = "other";
-                break;
-        }
-        if (jsonTranslation) {
-            const origName = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
-            data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(jsonTranslation, origName);
-            data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.MapNameToPageSource(jsonTranslation, origName)}`;
-        }
-        return data;
-    }
-}
-exports.ComplexFormParserBase = ComplexFormParserBase;
-
-},{"../../helper/ImportHelper":2,"../Parser":17}],21:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.CyberwareParser = void 0;
-const ItemParserBase_1 = require("../item/ItemParserBase");
-const ImportHelper_1 = require("../../helper/ImportHelper");
-class CyberwareParser extends ItemParserBase_1.ItemParserBase {
-    Parse(jsonData, data, jsonTranslation) {
-        data = super.Parse(jsonData, data, jsonTranslation);
-        const essence = ImportHelper_1.ImportHelper.StringValue(jsonData, "ess", "0").match(/[0-9]\.?[0-9]*/g);
-        if (essence !== null) {
-            data.data.essence = parseFloat(essence[0]);
-        }
-        const capacity = ImportHelper_1.ImportHelper.StringValue(jsonData, "capacity", "0").match(/[0-9]+/g);
-        if (capacity !== null) {
-            data.data.capacity = parseInt(capacity[0]);
-        }
-        return data;
-    }
-}
-exports.CyberwareParser = CyberwareParser;
-
-},{"../../helper/ImportHelper":2,"../item/ItemParserBase":22}],22:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ItemParserBase = void 0;
-const Parser_1 = require("../Parser");
-const ImportHelper_1 = require("../../helper/ImportHelper");
-class ItemParserBase extends Parser_1.Parser {
-    Parse(jsonData, data, jsonTranslation) {
-        data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
-        data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
-        data.data.technology.availability = ImportHelper_1.ImportHelper.StringValue(jsonData, "avail", "0");
-        data.data.technology.cost = ImportHelper_1.ImportHelper.IntValue(jsonData, "cost", 0);
-        data.data.technology.rating = ImportHelper_1.ImportHelper.IntValue(jsonData, "rating", 0);
-        if (jsonTranslation) {
-            const origName = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
-            data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(jsonTranslation, origName);
-            data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.MapNameToPageSource(jsonTranslation, origName)}`;
-        }
-        return data;
-    }
-}
-exports.ItemParserBase = ItemParserBase;
-
-},{"../../helper/ImportHelper":2,"../Parser":17}],23:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ModParserBase = void 0;
-const ItemParserBase_1 = require("../item/ItemParserBase");
-const ImportHelper_1 = require("../../helper/ImportHelper");
-class ModParserBase extends ItemParserBase_1.ItemParserBase {
-    Parse(jsonData, data) {
-        data = super.Parse(jsonData, data);
-        data.data.type = "weapon";
-        data.data.mount_point = ImportHelper_1.ImportHelper.StringValue(jsonData, "mount");
-        data.data.rc = ImportHelper_1.ImportHelper.IntValue(jsonData, "rc", 0);
-        data.data.accuracy = ImportHelper_1.ImportHelper.IntValue(jsonData, "accuracy", 0);
-        data.data.technology.conceal.base = ImportHelper_1.ImportHelper.IntValue(jsonData, "conceal", 0);
-        return data;
-    }
-}
-exports.ModParserBase = ModParserBase;
-
-},{"../../helper/ImportHelper":2,"../item/ItemParserBase":22}],24:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.QualityParserBase = void 0;
-const ImportHelper_1 = require("../../helper/ImportHelper");
-const Parser_1 = require("../Parser");
-class QualityParserBase extends Parser_1.Parser {
-    Parse(jsonData, data, jsonTranslation) {
-        data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
-        data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
-        data.data.type = (ImportHelper_1.ImportHelper.StringValue(jsonData, "category") === "Positive") ? "positive" : "negative";
-        if (jsonTranslation) {
-            const origName = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
-            data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(jsonTranslation, origName);
-            data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.MapNameToPageSource(jsonTranslation, origName)}`;
-        }
-        return data;
-    }
-}
-exports.QualityParserBase = QualityParserBase;
-
-},{"../../helper/ImportHelper":2,"../Parser":17}],25:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.CombatSpellParser = void 0;
-const SpellParserBase_1 = require("./SpellParserBase");
-const ImportHelper_1 = require("../../helper/ImportHelper");
-class CombatSpellParser extends SpellParserBase_1.SpellParserBase {
-    Parse(jsonData, data, jsonTranslation) {
-        data = super.Parse(jsonData, data, jsonTranslation);
-        let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
-        // A few spells have a missing descriptor instead of an empty string.
-        // The field is <descriptor /> rather than <descriptor></descriptor>
-        // which gets imported as undefined rather than empty string (sigh)
-        // Rather than refactor our ImportHelper we'll handle it in here.
-        if (descriptor === undefined) {
-            descriptor = "";
-        }
-        data.data.combat.type = (descriptor.includes("Indirect")) ? "indirect" : "direct";
-        if (data.data.combat.type === "direct") {
-            data.data.action.opposed.type = "custom";
-            switch (data.data.type) {
-                case "physical":
-                    data.data.action.opposed.attribute = "body";
-                    break;
-                case "mana":
-                    data.data.action.opposed.attribute = "willpower";
-                    break;
-                default:
-                    break;
-            }
-        }
-        else if (data.data.combat.type === "indirect") {
-            data.data.action.opposed.type = "defense";
-        }
-        return data;
-    }
-}
-exports.CombatSpellParser = CombatSpellParser;
-
-},{"../../helper/ImportHelper":2,"./SpellParserBase":29}],26:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.DetectionSpellImporter = void 0;
-const SpellParserBase_1 = require("./SpellParserBase");
-const ImportHelper_1 = require("../../helper/ImportHelper");
-class DetectionSpellImporter extends SpellParserBase_1.SpellParserBase {
-    Parse(jsonData, data, jsonTranslation) {
-        data = super.Parse(jsonData, data, jsonTranslation);
-        let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
-        // A few spells have a missing descriptor instead of an empty string.
-        // The field is <descriptor /> rather than <descriptor></descriptor>
-        // which gets imported as undefined rather than empty string (sigh)
-        // Rather than refactor our ImportHelper we'll handle it in here.
-        if (descriptor === undefined) {
-            descriptor = "";
-        }
-        data.data.detection.passive = descriptor.includes("Passive");
-        if (!data.data.detection.passive) {
-            data.data.action.opposed.type = "custom";
-            data.data.action.opposed.attribute = "willpower";
-            data.data.action.opposed.attribute2 = "logic";
-        }
-        data.data.detection.extended = descriptor.includes("Extended");
-        if (descriptor.includes("Psychic")) {
-            data.data.detection.type = "psychic";
-        }
-        else if (descriptor.includes("Directional")) {
-            data.data.detection.type = "directional";
-        }
-        else if (descriptor.includes("Area")) {
-            data.data.detection.type = "area";
-        }
-        return data;
-    }
-}
-exports.DetectionSpellImporter = DetectionSpellImporter;
-
-},{"../../helper/ImportHelper":2,"./SpellParserBase":29}],27:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.IllusionSpellParser = void 0;
-const SpellParserBase_1 = require("./SpellParserBase");
-const ImportHelper_1 = require("../../helper/ImportHelper");
-class IllusionSpellParser extends SpellParserBase_1.SpellParserBase {
-    Parse(jsonData, data, jsonTranslation) {
-        data = super.Parse(jsonData, data, jsonTranslation);
-        let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
-        // A few spells have a missing descriptor instead of an empty string.
-        // The field is <descriptor /> rather than <descriptor></descriptor>
-        // which gets imported as undefined rather than empty string (sigh)
-        // Rather than refactor our ImportHelper we'll handle it in here.
-        if (descriptor === undefined) {
-            descriptor = "";
-        }
-        if (data.data.type === "mana") {
-            data.data.action.opposed.type = "custom";
-            data.data.action.opposed.attribute = "logic";
-            data.data.action.opposed.attribute2 = "willpower";
-        }
-        else if (data.data.type === "physical") {
-            data.data.action.opposed.type = "custom";
-            data.data.action.opposed.attribute = "intuition";
-            data.data.action.opposed.attribute2 = "logic";
-        }
-        return data;
-    }
-}
-exports.IllusionSpellParser = IllusionSpellParser;
-
-},{"../../helper/ImportHelper":2,"./SpellParserBase":29}],28:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ManipulationSpellParser = void 0;
-const SpellParserBase_1 = require("./SpellParserBase");
-const ImportHelper_1 = require("../../helper/ImportHelper");
-class ManipulationSpellParser extends SpellParserBase_1.SpellParserBase {
-    Parse(jsonData, data, jsonTranslation) {
-        data = super.Parse(jsonData, data, jsonTranslation);
-        let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
-        // A few spells have a missing descriptor instead of an empty string.
-        // The field is <descriptor /> rather than <descriptor></descriptor>
-        // which gets imported as undefined rather than empty string (sigh)
-        // Rather than refactor our ImportHelper we'll handle it in here.
-        if (descriptor === undefined) {
-            descriptor = "";
-        }
-        data.data.manipulation.environmental = descriptor.includes("Environmental");
-        // Generally no resistance roll.
-        data.data.manipulation.mental = descriptor.includes("Mental");
-        if (data.data.manipulation.mental) {
-            data.data.action.opposed.type = "custom";
-            data.data.action.opposed.attribute = "logic";
-            data.data.action.opposed.attribute2 = "willpower";
-        }
-        data.data.manipulation.physical = descriptor.includes("Physical");
-        if (data.data.manipulation.physical) {
-            data.data.action.opposed.type = "custom";
-            data.data.action.opposed.attribute = "body";
-            data.data.action.opposed.attribute2 = "strength";
-        }
-        data.data.manipulation.damaging = descriptor.includes("Damaging");
-        if (data.data.manipulation.damaging) {
-            data.data.action.opposed.type = "soak";
-        }
-        return data;
-    }
-}
-exports.ManipulationSpellParser = ManipulationSpellParser;
-
-},{"../../helper/ImportHelper":2,"./SpellParserBase":29}],29:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.SpellParserBase = void 0;
-const ImportHelper_1 = require("../../helper/ImportHelper");
-const Parser_1 = require("../Parser");
-class SpellParserBase extends Parser_1.Parser {
-    Parse(jsonData, data, jsonTranslation) {
-        data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
-        data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
-        data.data.category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category").toLowerCase();
-        let damage = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
-        if (damage === "P") {
-            data.data.action.damage.type.base = "physical";
-            data.data.action.damage.type.value = "physical";
-        }
-        else if (damage === "S") {
-            data.data.action.damage.type.base = "stun";
-            data.data.action.damage.type.value = "stun";
-        }
-        let duration = ImportHelper_1.ImportHelper.StringValue(jsonData, "duration");
-        if (duration === "I") {
-            data.data.duration = "instant";
-        }
-        else if (duration === "S") {
-            data.data.duration = "sustained";
-        }
-        else if (duration === "P") {
-            data.data.duration = "permanent";
-        }
-        let drain = ImportHelper_1.ImportHelper.StringValue(jsonData, "dv");
-        if (drain.includes("+") || drain.includes("-")) {
-            data.data.drain = parseInt(drain.substring(1, drain.length));
-        }
-        let range = ImportHelper_1.ImportHelper.StringValue(jsonData, "range");
-        if (range === "T") {
-            data.data.range = "touch";
-        }
-        else if (range === "LOS") {
-            data.data.range = "los";
-        }
-        else if (range === "LOS (A)") {
-            data.data.range = "los_a";
-        }
-        let type = ImportHelper_1.ImportHelper.StringValue(jsonData, "type");
-        if (type === "P") {
-            data.data.type = "physical";
-        }
-        else if (type === "M") {
-            data.data.type = "mana";
-        }
-        if (jsonTranslation) {
-            const origName = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
-            data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(jsonTranslation, origName);
-            data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.MapNameToPageSource(jsonTranslation, origName)}`;
-        }
-        return data;
-    }
-}
-exports.SpellParserBase = SpellParserBase;
-
-},{"../../helper/ImportHelper":2,"../Parser":17}],30:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.MeleeParser = void 0;
-const ImportHelper_1 = require("../../helper/ImportHelper");
-const WeaponParserBase_1 = require("./WeaponParserBase");
-class MeleeParser extends WeaponParserBase_1.WeaponParserBase {
-    GetDamage(jsonData) {
-        var _a;
-        let jsonDamage = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
-        let damageCode = (_a = jsonDamage.match(/(STR)([+-]?)([1-9]*)\)([PS])/g)) === null || _a === void 0 ? void 0 : _a[0];
-        if (damageCode == null) {
-            return {
-                type: {
-                    base: "physical",
-                    value: "physical"
-                },
-                element: {
-                    base: "",
-                    value: ""
-                },
-                base: 0,
-                value: 0,
-                ap: {
-                    base: 0,
-                    value: 0,
-                    mod: {}
-                },
-                attribute: "",
-                mod: {}
-            };
-        }
-        let damageBase = 0;
-        let damageAp = ImportHelper_1.ImportHelper.IntValue(jsonData, "ap", 0);
-        let splitDamageCode = damageCode.split(")");
-        let damageType = (splitDamageCode[1].includes("P")) ? "physical" : "stun";
-        let splitBaseCode = damageCode.includes("+") ? splitDamageCode[0].split("+") : splitDamageCode[0].split("-");
-        if (splitDamageCode[0].includes("+") || splitDamageCode[0].includes("-")) {
-            damageBase = parseInt(splitBaseCode[1], 0);
-        }
-        let damageAttribute = (damageCode.includes("STR")) ? "strength" : "";
-        return {
-            type: {
-                base: damageType,
-                value: damageType
-            },
-            element: {
-                base: "",
-                value: ""
-            },
-            base: damageBase,
-            value: damageBase,
-            ap: {
-                base: damageAp,
-                value: damageAp,
-                mod: {}
-            },
-            attribute: damageAttribute,
-            mod: {}
-        };
-    }
-    ;
-    Parse(jsonData, data, jsonTranslation) {
-        data = super.Parse(jsonData, data, jsonTranslation);
-        data.data.melee.reach = ImportHelper_1.ImportHelper.IntValue(jsonData, "reach");
-        return data;
-    }
-    ;
-}
-exports.MeleeParser = MeleeParser;
-
-},{"../../helper/ImportHelper":2,"./WeaponParserBase":33}],31:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.RangedParser = void 0;
-const ImportHelper_1 = require("../../helper/ImportHelper");
-const WeaponParserBase_1 = require("./WeaponParserBase");
-const Constants_1 = require("../../importer/Constants");
-class RangedParser extends WeaponParserBase_1.WeaponParserBase {
-    GetDamage(jsonData) {
-        var _a;
-        let jsonDamage = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
-        let damageCode = (_a = jsonDamage.match(/[0-9]+[PS]/g)) === null || _a === void 0 ? void 0 : _a[0];
-        if (damageCode == null) {
-            return {
-                type: {
-                    base: "physical",
-                    value: ""
-                },
-                element: {
-                    base: "",
-                    value: ""
-                },
-                base: 0,
-                value: 0,
-                ap: {
-                    base: 0,
-                    value: 0,
-                    mod: {}
-                },
-                attribute: "",
-                mod: {}
-            };
-        }
-        let damageType = (damageCode.includes("P")) ? "physical" : "stun";
-        let damageAmount = parseInt(damageCode.replace(damageType[0].toUpperCase(), ""));
-        let damageAp = ImportHelper_1.ImportHelper.IntValue(jsonData, "ap", 0);
-        return {
-            type: {
-                base: damageType,
-                value: damageType
-            },
-            element: {
-                base: "",
-                value: ""
-            },
-            value: damageAmount,
-            ap: {
-                base: damageAp,
-                value: damageAp,
-                mod: {},
-            },
-            attribute: "",
-            mod: {},
-            base: damageAmount
-        };
-    }
-    ;
-    GetAmmo(weaponJson) {
-        var _a;
-        let jsonAmmo = ImportHelper_1.ImportHelper.StringValue(weaponJson, "ammo");
-        let match = (_a = jsonAmmo.match(/([0-9]+)/g)) === null || _a === void 0 ? void 0 : _a[0];
-        return (match !== undefined) ? parseInt(match) : 0;
-    }
-    Parse(jsonData, data, jsonTranslation) {
-        data = super.Parse(jsonData, data, jsonTranslation);
-        data.data.range.rc.base = ImportHelper_1.ImportHelper.IntValue(jsonData, "rc");
-        data.data.range.rc.value = ImportHelper_1.ImportHelper.IntValue(jsonData, "rc");
-        if (jsonData.hasOwnProperty("range")) {
-            data.data.range.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.StringValue(jsonData, "range")];
-        }
-        else {
-            data.data.range.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.StringValue(jsonData, "category")];
-        }
-        data.data.ammo.current.value = this.GetAmmo(jsonData);
-        data.data.ammo.current.max = this.GetAmmo(jsonData);
-        data.data.range.modes.single_shot = ImportHelper_1.ImportHelper.StringValue(jsonData, "mode").includes("SS");
-        data.data.range.modes.semi_auto = ImportHelper_1.ImportHelper.StringValue(jsonData, "mode").includes("SA");
-        data.data.range.modes.burst_fire = ImportHelper_1.ImportHelper.StringValue(jsonData, "mode").includes("BF");
-        data.data.range.modes.full_auto = ImportHelper_1.ImportHelper.StringValue(jsonData, "mode").includes("FA");
-        return data;
-    }
-    ;
-}
-exports.RangedParser = RangedParser;
-
-},{"../../helper/ImportHelper":2,"../../importer/Constants":9,"./WeaponParserBase":33}],32:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ThrownParser = void 0;
-const ImportHelper_1 = require("../../helper/ImportHelper");
-const WeaponParserBase_1 = require("./WeaponParserBase");
-const Constants_1 = require("../../importer/Constants");
-class ThrownParser extends WeaponParserBase_1.WeaponParserBase {
-    GetDamage(jsonData) {
-        var _a, _b, _c, _d;
-        let jsonDamage = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
-        let damageAmount = 0;
-        let damageType = "physical";
-        let damageAttribute = "";
-        //STR scaling weapons like the boomerang
-        if (jsonDamage.includes("STR")) {
-            damageAttribute = "strength";
-            let damageMatch = (_a = jsonDamage.match(/((STR)([+-])[0-9]\)[PS])/g)) === null || _a === void 0 ? void 0 : _a[0];
-            if (damageMatch !== undefined) {
-                let amountMatch = (_b = damageMatch.match(/-?[0-9]+/g)) === null || _b === void 0 ? void 0 : _b[0];
-                damageAmount = (amountMatch !== undefined) ? parseInt(amountMatch) : 0;
-            }
-        }
-        else {
-            let damageMatch = (_c = jsonDamage.match(/([0-9]+[PS])/g)) === null || _c === void 0 ? void 0 : _c[0];
-            if (damageMatch !== undefined) {
-                let amountMatch = (_d = damageMatch.match(/[0-9]+/g)) === null || _d === void 0 ? void 0 : _d[0];
-                if (amountMatch !== undefined) {
-                    damageAmount = parseInt(amountMatch);
-                }
-            }
-            else {
-                return {
-                    type: {
-                        base: "physical",
-                        value: "physical"
-                    },
-                    element: {
-                        base: "",
-                        value: ""
-                    },
-                    base: 0,
-                    value: 0,
-                    ap: {
-                        base: 0,
-                        value: 0,
-                        mod: {},
-                    },
-                    attribute: "",
-                    mod: {}
-                };
-            }
-        }
-        damageType = jsonDamage.includes("P") ? "physical" : "stun";
-        let damageAp = ImportHelper_1.ImportHelper.IntValue(jsonData, "ap", 0);
-        return {
-            type: {
-                base: damageType,
-                value: damageType
-            },
-            element: {
-                base: "",
-                value: ""
-            },
-            base: damageAmount,
-            value: damageAmount,
-            ap: {
-                base: damageAp,
-                value: damageAp,
-                mod: {},
-            },
-            attribute: damageAttribute,
-            mod: {}
-        };
-    }
-    ;
-    GetBlast(jsonData, data) {
-        var _a, _b, _c, _d;
-        let blastData = {
-            radius: 0,
-            dropoff: 0
-        };
-        let blastCode = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
-        let radiusMatch = (_a = blastCode.match(/([0-9]+m)/)) === null || _a === void 0 ? void 0 : _a[0];
-        if (radiusMatch !== undefined) {
-            radiusMatch = (_b = radiusMatch.match(/[0-9]+/)) === null || _b === void 0 ? void 0 : _b[0];
-            if (radiusMatch !== undefined) {
-                blastData.radius = parseInt(radiusMatch);
-            }
-        }
-        let dropoffMatch = (_c = blastCode.match(/(-[0-9]+\/m)/)) === null || _c === void 0 ? void 0 : _c[0];
-        if (dropoffMatch !== undefined) {
-            dropoffMatch = (_d = dropoffMatch.match(/-[0-9]+/)) === null || _d === void 0 ? void 0 : _d[0];
-            if (dropoffMatch !== undefined) {
-                blastData.dropoff = parseInt(dropoffMatch);
-            }
-        }
-        if (blastData.dropoff && !blastData.radius) {
-            blastData.radius = -(data.data.action.damage.base / blastData.dropoff);
-        }
-        return blastData;
-    }
-    Parse(jsonData, data, jsonTranslation) {
-        data = super.Parse(jsonData, data, jsonTranslation);
-        if (jsonData.hasOwnProperty("range")) {
-            data.data.thrown.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.StringValue(jsonData, "range")];
-        }
-        else {
-            data.data.thrown.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.StringValue(jsonData, "category")];
-        }
-        data.data.thrown.blast = this.GetBlast(jsonData, data);
-        return data;
-    }
-    ;
-}
-exports.ThrownParser = ThrownParser;
-
-},{"../../helper/ImportHelper":2,"../../importer/Constants":9,"./WeaponParserBase":33}],33:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.WeaponParserBase = void 0;
-const ImportHelper_1 = require("../../helper/ImportHelper");
-const Constants_1 = require("../../importer/Constants");
-const ItemParserBase_1 = require("../item/ItemParserBase");
-class WeaponParserBase extends ItemParserBase_1.ItemParserBase {
-    GetSkill(weaponJson) {
-        if (weaponJson.hasOwnProperty("useskill")) {
-            let jsonSkill = ImportHelper_1.ImportHelper.StringValue(weaponJson, "useskill");
-            if (Constants_1.Constants.MAP_CATEGORY_TO_SKILL.hasOwnProperty(jsonSkill)) {
-                return Constants_1.Constants.MAP_CATEGORY_TO_SKILL[jsonSkill];
-            }
-            return jsonSkill.replace(/[\s\-]/g, "_").toLowerCase();
-        }
-        else {
-            let category = ImportHelper_1.ImportHelper.StringValue(weaponJson, "category");
-            if (Constants_1.Constants.MAP_CATEGORY_TO_SKILL.hasOwnProperty(category)) {
-                return Constants_1.Constants.MAP_CATEGORY_TO_SKILL[category];
-            }
-            let type = ImportHelper_1.ImportHelper.StringValue(weaponJson, "type").toLowerCase();
-            return (type === "ranged") ? "exotic_range" : "exotic_melee";
-        }
-    }
-    ;
-    Parse(jsonData, data, jsonTranslation) {
-        data = super.Parse(jsonData, data, jsonTranslation);
-        let category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category");
-        // A single item does not meet normal rules, thanks Chummer!
-        // TODO: Check these rules after localization using a generic, non-english approach.
-        if (category === "Hold-outs") {
-            category = "Holdouts";
-        }
-        data.data.category = category.toLowerCase();
-        data.data.action.skill = this.GetSkill(jsonData);
-        data.data.action.damage = this.GetDamage(jsonData);
-        data.data.action.limit.value = ImportHelper_1.ImportHelper.IntValue(jsonData, "accuracy");
-        data.data.action.limit.base = ImportHelper_1.ImportHelper.IntValue(jsonData, "accuracy");
-        data.data.technology.conceal.base = ImportHelper_1.ImportHelper.IntValue(jsonData, "conceal");
-        return data;
-    }
-}
-exports.WeaponParserBase = WeaponParserBase;
-
-},{"../../helper/ImportHelper":2,"../../importer/Constants":9,"../item/ItemParserBase":22}],34:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -2600,9 +152,9 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],35:[function(require,module,exports){
+},{}],2:[function(require,module,exports){
 
-},{}],36:[function(require,module,exports){
+},{}],3:[function(require,module,exports){
 (function (Buffer){
 /*!
  * The buffer module from node.js, for the browser.
@@ -4383,7 +1935,7 @@ function numberIsNaN (obj) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"base64-js":34,"buffer":36,"ieee754":39}],37:[function(require,module,exports){
+},{"base64-js":1,"buffer":3,"ieee754":6}],4:[function(require,module,exports){
 (function (Buffer){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -4494,7 +2046,7 @@ function objectToString(o) {
 }
 
 }).call(this,{"isBuffer":require("../../is-buffer/index.js")})
-},{"../../is-buffer/index.js":41}],38:[function(require,module,exports){
+},{"../../is-buffer/index.js":8}],5:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -5019,7 +2571,7 @@ function functionBindPolyfill(context) {
   };
 }
 
-},{}],39:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = (nBytes * 8) - mLen - 1
@@ -5105,7 +2657,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],40:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -5134,7 +2686,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],41:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 /*!
  * Determine if an object is a Buffer
  *
@@ -5157,14 +2709,14 @@ function isSlowBuffer (obj) {
   return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
 }
 
-},{}],42:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 var toString = {}.toString;
 
 module.exports = Array.isArray || function (arr) {
   return toString.call(arr) == '[object Array]';
 };
 
-},{}],43:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -5213,7 +2765,7 @@ function nextTick(fn, arg1, arg2, arg3) {
 
 
 }).call(this,require('_process'))
-},{"_process":44}],44:[function(require,module,exports){
+},{"_process":11}],11:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -5399,10 +2951,10 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],45:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 module.exports = require('./lib/_stream_duplex.js');
 
-},{"./lib/_stream_duplex.js":46}],46:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":13}],13:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -5534,7 +3086,7 @@ Duplex.prototype._destroy = function (err, cb) {
 
   pna.nextTick(cb, err);
 };
-},{"./_stream_readable":48,"./_stream_writable":50,"core-util-is":37,"inherits":40,"process-nextick-args":43}],47:[function(require,module,exports){
+},{"./_stream_readable":15,"./_stream_writable":17,"core-util-is":4,"inherits":7,"process-nextick-args":10}],14:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -5582,7 +3134,7 @@ function PassThrough(options) {
 PassThrough.prototype._transform = function (chunk, encoding, cb) {
   cb(null, chunk);
 };
-},{"./_stream_transform":49,"core-util-is":37,"inherits":40}],48:[function(require,module,exports){
+},{"./_stream_transform":16,"core-util-is":4,"inherits":7}],15:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -6604,7 +4156,7 @@ function indexOf(xs, x) {
   return -1;
 }
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./_stream_duplex":46,"./internal/streams/BufferList":51,"./internal/streams/destroy":52,"./internal/streams/stream":53,"_process":44,"core-util-is":37,"events":38,"inherits":40,"isarray":42,"process-nextick-args":43,"safe-buffer":54,"string_decoder/":55,"util":35}],49:[function(require,module,exports){
+},{"./_stream_duplex":13,"./internal/streams/BufferList":18,"./internal/streams/destroy":19,"./internal/streams/stream":20,"_process":11,"core-util-is":4,"events":5,"inherits":7,"isarray":9,"process-nextick-args":10,"safe-buffer":21,"string_decoder/":22,"util":2}],16:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -6819,7 +4371,7 @@ function done(stream, er, data) {
 
   return stream.push(null);
 }
-},{"./_stream_duplex":46,"core-util-is":37,"inherits":40}],50:[function(require,module,exports){
+},{"./_stream_duplex":13,"core-util-is":4,"inherits":7}],17:[function(require,module,exports){
 (function (process,global,setImmediate){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -7509,7 +5061,7 @@ Writable.prototype._destroy = function (err, cb) {
   cb(err);
 };
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("timers").setImmediate)
-},{"./_stream_duplex":46,"./internal/streams/destroy":52,"./internal/streams/stream":53,"_process":44,"core-util-is":37,"inherits":40,"process-nextick-args":43,"safe-buffer":54,"timers":64,"util-deprecate":65}],51:[function(require,module,exports){
+},{"./_stream_duplex":13,"./internal/streams/destroy":19,"./internal/streams/stream":20,"_process":11,"core-util-is":4,"inherits":7,"process-nextick-args":10,"safe-buffer":21,"timers":30,"util-deprecate":31}],18:[function(require,module,exports){
 'use strict';
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -7589,7 +5141,7 @@ if (util && util.inspect && util.inspect.custom) {
     return this.constructor.name + ' ' + obj;
   };
 }
-},{"safe-buffer":54,"util":35}],52:[function(require,module,exports){
+},{"safe-buffer":21,"util":2}],19:[function(require,module,exports){
 'use strict';
 
 /*<replacement>*/
@@ -7664,10 +5216,10 @@ module.exports = {
   destroy: destroy,
   undestroy: undestroy
 };
-},{"process-nextick-args":43}],53:[function(require,module,exports){
+},{"process-nextick-args":10}],20:[function(require,module,exports){
 module.exports = require('events').EventEmitter;
 
-},{"events":38}],54:[function(require,module,exports){
+},{"events":5}],21:[function(require,module,exports){
 /* eslint-disable node/no-deprecated-api */
 var buffer = require('buffer')
 var Buffer = buffer.Buffer
@@ -7731,7 +5283,7 @@ SafeBuffer.allocUnsafeSlow = function (size) {
   return buffer.SlowBuffer(size)
 }
 
-},{"buffer":36}],55:[function(require,module,exports){
+},{"buffer":3}],22:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -8028,10 +5580,10 @@ function simpleWrite(buf) {
 function simpleEnd(buf) {
   return buf && buf.length ? this.write(buf) : '';
 }
-},{"safe-buffer":54}],56:[function(require,module,exports){
+},{"safe-buffer":21}],23:[function(require,module,exports){
 module.exports = require('./readable').PassThrough
 
-},{"./readable":57}],57:[function(require,module,exports){
+},{"./readable":24}],24:[function(require,module,exports){
 exports = module.exports = require('./lib/_stream_readable.js');
 exports.Stream = exports;
 exports.Readable = exports;
@@ -8040,13 +5592,13 @@ exports.Duplex = require('./lib/_stream_duplex.js');
 exports.Transform = require('./lib/_stream_transform.js');
 exports.PassThrough = require('./lib/_stream_passthrough.js');
 
-},{"./lib/_stream_duplex.js":46,"./lib/_stream_passthrough.js":47,"./lib/_stream_readable.js":48,"./lib/_stream_transform.js":49,"./lib/_stream_writable.js":50}],58:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":13,"./lib/_stream_passthrough.js":14,"./lib/_stream_readable.js":15,"./lib/_stream_transform.js":16,"./lib/_stream_writable.js":17}],25:[function(require,module,exports){
 module.exports = require('./readable').Transform
 
-},{"./readable":57}],59:[function(require,module,exports){
+},{"./readable":24}],26:[function(require,module,exports){
 module.exports = require('./lib/_stream_writable.js');
 
-},{"./lib/_stream_writable.js":50}],60:[function(require,module,exports){
+},{"./lib/_stream_writable.js":17}],27:[function(require,module,exports){
 /*! safe-buffer. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */
 /* eslint-disable node/no-deprecated-api */
 var buffer = require('buffer')
@@ -8113,7 +5665,2808 @@ SafeBuffer.allocUnsafeSlow = function (size) {
   return buffer.SlowBuffer(size)
 }
 
-},{"buffer":36}],61:[function(require,module,exports){
+},{"buffer":3}],28:[function(require,module,exports){
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+module.exports = Stream;
+
+var EE = require('events').EventEmitter;
+var inherits = require('inherits');
+
+inherits(Stream, EE);
+Stream.Readable = require('readable-stream/readable.js');
+Stream.Writable = require('readable-stream/writable.js');
+Stream.Duplex = require('readable-stream/duplex.js');
+Stream.Transform = require('readable-stream/transform.js');
+Stream.PassThrough = require('readable-stream/passthrough.js');
+
+// Backwards-compat with node 0.4.x
+Stream.Stream = Stream;
+
+
+
+// old-style streams.  Note that the pipe method (the only relevant
+// part of this class) is overridden in the Readable class.
+
+function Stream() {
+  EE.call(this);
+}
+
+Stream.prototype.pipe = function(dest, options) {
+  var source = this;
+
+  function ondata(chunk) {
+    if (dest.writable) {
+      if (false === dest.write(chunk) && source.pause) {
+        source.pause();
+      }
+    }
+  }
+
+  source.on('data', ondata);
+
+  function ondrain() {
+    if (source.readable && source.resume) {
+      source.resume();
+    }
+  }
+
+  dest.on('drain', ondrain);
+
+  // If the 'end' option is not supplied, dest.end() will be called when
+  // source gets the 'end' or 'close' events.  Only dest.end() once.
+  if (!dest._isStdio && (!options || options.end !== false)) {
+    source.on('end', onend);
+    source.on('close', onclose);
+  }
+
+  var didOnEnd = false;
+  function onend() {
+    if (didOnEnd) return;
+    didOnEnd = true;
+
+    dest.end();
+  }
+
+
+  function onclose() {
+    if (didOnEnd) return;
+    didOnEnd = true;
+
+    if (typeof dest.destroy === 'function') dest.destroy();
+  }
+
+  // don't leave dangling pipes when there are errors.
+  function onerror(er) {
+    cleanup();
+    if (EE.listenerCount(this, 'error') === 0) {
+      throw er; // Unhandled stream error in pipe.
+    }
+  }
+
+  source.on('error', onerror);
+  dest.on('error', onerror);
+
+  // remove all the event listeners that were added.
+  function cleanup() {
+    source.removeListener('data', ondata);
+    dest.removeListener('drain', ondrain);
+
+    source.removeListener('end', onend);
+    source.removeListener('close', onclose);
+
+    source.removeListener('error', onerror);
+    dest.removeListener('error', onerror);
+
+    source.removeListener('end', cleanup);
+    source.removeListener('close', cleanup);
+
+    dest.removeListener('close', cleanup);
+  }
+
+  source.on('end', cleanup);
+  source.on('close', cleanup);
+
+  dest.on('close', cleanup);
+
+  dest.emit('pipe', source);
+
+  // Allow for unix-like usage: A.pipe(B).pipe(C)
+  return dest;
+};
+
+},{"events":5,"inherits":7,"readable-stream/duplex.js":12,"readable-stream/passthrough.js":23,"readable-stream/readable.js":24,"readable-stream/transform.js":25,"readable-stream/writable.js":26}],29:[function(require,module,exports){
+arguments[4][22][0].apply(exports,arguments)
+},{"dup":22,"safe-buffer":27}],30:[function(require,module,exports){
+(function (setImmediate,clearImmediate){
+var nextTick = require('process/browser.js').nextTick;
+var apply = Function.prototype.apply;
+var slice = Array.prototype.slice;
+var immediateIds = {};
+var nextImmediateId = 0;
+
+// DOM APIs, for completeness
+
+exports.setTimeout = function() {
+  return new Timeout(apply.call(setTimeout, window, arguments), clearTimeout);
+};
+exports.setInterval = function() {
+  return new Timeout(apply.call(setInterval, window, arguments), clearInterval);
+};
+exports.clearTimeout =
+exports.clearInterval = function(timeout) { timeout.close(); };
+
+function Timeout(id, clearFn) {
+  this._id = id;
+  this._clearFn = clearFn;
+}
+Timeout.prototype.unref = Timeout.prototype.ref = function() {};
+Timeout.prototype.close = function() {
+  this._clearFn.call(window, this._id);
+};
+
+// Does not start the time, just sets up the members needed.
+exports.enroll = function(item, msecs) {
+  clearTimeout(item._idleTimeoutId);
+  item._idleTimeout = msecs;
+};
+
+exports.unenroll = function(item) {
+  clearTimeout(item._idleTimeoutId);
+  item._idleTimeout = -1;
+};
+
+exports._unrefActive = exports.active = function(item) {
+  clearTimeout(item._idleTimeoutId);
+
+  var msecs = item._idleTimeout;
+  if (msecs >= 0) {
+    item._idleTimeoutId = setTimeout(function onTimeout() {
+      if (item._onTimeout)
+        item._onTimeout();
+    }, msecs);
+  }
+};
+
+// That's not how node.js implements it but the exposed api is the same.
+exports.setImmediate = typeof setImmediate === "function" ? setImmediate : function(fn) {
+  var id = nextImmediateId++;
+  var args = arguments.length < 2 ? false : slice.call(arguments, 1);
+
+  immediateIds[id] = true;
+
+  nextTick(function onNextTick() {
+    if (immediateIds[id]) {
+      // fn.call() is faster so we optimize for the common use-case
+      // @see http://jsperf.com/call-apply-segu
+      if (args) {
+        fn.apply(null, args);
+      } else {
+        fn.call(null);
+      }
+      // Prevent ids from leaking
+      exports.clearImmediate(id);
+    }
+  });
+
+  return id;
+};
+
+exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate : function(id) {
+  delete immediateIds[id];
+};
+}).call(this,require("timers").setImmediate,require("timers").clearImmediate)
+},{"process/browser.js":11,"timers":30}],31:[function(require,module,exports){
+(function (global){
+
+/**
+ * Module exports.
+ */
+
+module.exports = deprecate;
+
+/**
+ * Mark that a method should not be used.
+ * Returns a modified function which warns once by default.
+ *
+ * If `localStorage.noDeprecation = true` is set, then it is a no-op.
+ *
+ * If `localStorage.throwDeprecation = true` is set, then deprecated functions
+ * will throw an Error when invoked.
+ *
+ * If `localStorage.traceDeprecation = true` is set, then deprecated functions
+ * will invoke `console.trace()` instead of `console.error()`.
+ *
+ * @param {Function} fn - the function to deprecate
+ * @param {String} msg - the string to print to the console when `fn` is invoked
+ * @returns {Function} a new "deprecated" version of `fn`
+ * @api public
+ */
+
+function deprecate (fn, msg) {
+  if (config('noDeprecation')) {
+    return fn;
+  }
+
+  var warned = false;
+  function deprecated() {
+    if (!warned) {
+      if (config('throwDeprecation')) {
+        throw new Error(msg);
+      } else if (config('traceDeprecation')) {
+        console.trace(msg);
+      } else {
+        console.warn(msg);
+      }
+      warned = true;
+    }
+    return fn.apply(this, arguments);
+  }
+
+  return deprecated;
+}
+
+/**
+ * Checks `localStorage` for boolean values for the given `name`.
+ *
+ * @param {String} name
+ * @returns {Boolean}
+ * @api private
+ */
+
+function config (name) {
+  // accessing global.localStorage can trigger a DOMException in sandboxed iframes
+  try {
+    if (!global.localStorage) return false;
+  } catch (_) {
+    return false;
+  }
+  var val = global.localStorage[name];
+  if (null == val) return false;
+  return String(val).toLowerCase() === 'true';
+}
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],32:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Import = void 0;
+const WeaponImporter_1 = require("../importer/WeaponImporter");
+const ArmorImporter_1 = require("../importer/ArmorImporter");
+const DataImporter_1 = require("../importer/DataImporter");
+const AmmoImporter_1 = require("../importer/AmmoImporter");
+const ModImporter_1 = require("../importer/ModImporter");
+const SpellImporter_1 = require("../importer/SpellImporter");
+const QualityImporter_1 = require("../importer/QualityImporter");
+const ComplexFormImporter_1 = require("../importer/ComplexFormImporter");
+const CyberwareImporter_1 = require("../importer/CyberwareImporter");
+const ImportHelper_1 = require("../helper/ImportHelper");
+class Import extends Application {
+    constructor() {
+        super();
+        this.supportedDataFiles = [];
+        this.dataFiles = [];
+        this.parsedFiles = [];
+        this.disableImportButton = true;
+        this.isDataFile = (file) => {
+            return this.supportedDataFiles.some(supported => supported === file.name);
+        };
+        this.isLangDataFile = (file) => {
+            const pattern = /[a-zA-Z]{2}-[a-zA-Z]{2}_data\.xml/;
+            return file.name.match(pattern) !== null;
+        };
+        this.collectDataImporterFileSupport();
+    }
+    static get defaultOptions() {
+        const options = super.defaultOptions;
+        options.id = 'chummer-data-import';
+        options.classes = ["app", "window-app", "filepicker"];
+        options.title = 'Chummer/Data Import';
+        options.template = 'modules/shadowrun5e-compendiums/templates/apps/compendium-import.html';
+        options.width = 600;
+        options.height = "auto";
+        return options;
+    }
+    getData(options) {
+        const data = super.getData(options);
+        data.dataFiles = {};
+        this.supportedDataFiles.forEach((supportedFileName) => {
+            const missing = !this.dataFiles.some(dataFile => supportedFileName === dataFile.name);
+            const parsed = this.parsedFiles.some(parsedFileName => supportedFileName === parsedFileName);
+            data.dataFiles[supportedFileName] = {
+                name: supportedFileName,
+                missing,
+                parsed
+            };
+        });
+        data.langDataFile = this.langDataFile ? this.langDataFile.name : '';
+        data.finishedOverallParsing = this.supportedDataFiles.length === this.parsedFiles.length;
+        data.disableImportButton = this.disableImportButton;
+        return Object.assign({}, data);
+    }
+    collectDataImporterFileSupport() {
+        this.supportedDataFiles = [];
+        Import.Importers.forEach(importer => {
+            if (this.supportedDataFiles.some(supported => supported === importer.file)) {
+                return;
+            }
+            this.supportedDataFiles.push(importer.file);
+        });
+    }
+    clearParsingStatus() {
+        this.parsedFiles = [];
+    }
+    parseXML(xmlSource) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let jsonSource = yield DataImporter_1.DataImporter.xml2json(xmlSource);
+            ImportHelper_1.ImportHelper.SetMode(ImportHelper_1.ImportMode.XML);
+            for (const di of Import.Importers) {
+                if (di.CanParse(jsonSource)) {
+                    di.ExtractTranslation();
+                    yield di.Parse(jsonSource);
+                }
+            }
+        });
+    }
+    parseXmli18n(xmlSource) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!xmlSource) {
+                return;
+            }
+            let jsonSource = yield DataImporter_1.DataImporter.xml2json(xmlSource);
+            if (DataImporter_1.DataImporter.CanParseI18n(jsonSource)) {
+                DataImporter_1.DataImporter.ParseTranslation(jsonSource);
+            }
+        });
+    }
+    activateListeners(html) {
+        html.find("button[type='submit']").on("click", (event) => __awaiter(this, void 0, void 0, function* () {
+            event.preventDefault();
+            this.clearParsingStatus();
+            this.disableImportButton = true;
+            yield this.render();
+            if (this.langDataFile) {
+                const text = yield this.langDataFile.text();
+                yield this.parseXmli18n(text);
+            }
+            // Use 'for of'-loop to allow await to actually pause.
+            // don't use .forEach as it won't await for async callbacks.
+            // iterate over supportedDataFiles to adhere to Importer order
+            for (const supportedFile of this.supportedDataFiles) {
+                // Only try supported files.
+                const dataFile = this.dataFiles.find(dataFile => dataFile.name === supportedFile);
+                if (dataFile) {
+                    const text = yield dataFile.text();
+                    yield this.parseXML(text);
+                    // Store status to show parsing progression.
+                    if (!this.parsedFiles.some(parsedFileName => parsedFileName === dataFile.name)) {
+                        this.parsedFiles.push(dataFile.name);
+                    }
+                    yield this.render();
+                }
+            }
+            this.disableImportButton = false;
+            yield this.render();
+        }));
+        html.find("input[type='file'].langDataFileDrop").on("change", (event) => __awaiter(this, void 0, void 0, function* () {
+            Array.from(event.target.files).forEach((file) => {
+                if (this.isLangDataFile(file)) {
+                    this.langDataFile = file;
+                    this.render();
+                }
+            });
+            return true;
+        }));
+        html.find("input[type='file'].filedatadrop").on("change", (event) => __awaiter(this, void 0, void 0, function* () {
+            Array.from(event.target.files).forEach((file) => {
+                if (this.isDataFile(file)) {
+                    // Allow user to overwrite an already added file, they have their reasons.
+                    const existingIdx = this.dataFiles.findIndex(dataFile => dataFile.name === file.name);
+                    if (existingIdx === -1) {
+                        this.dataFiles.push(file);
+                    }
+                    else {
+                        this.dataFiles[existingIdx] = file;
+                    }
+                }
+            });
+            if (this.dataFiles.length > 0) {
+                this.disableImportButton = false;
+            }
+            this.render();
+        }));
+    }
+}
+exports.Import = Import;
+//Order is important, ex. some weapons need mods to fully import
+Import.Importers = [
+    new ModImporter_1.ModImporter(),
+    new WeaponImporter_1.WeaponImporter(),
+    new ArmorImporter_1.ArmorImporter(),
+    new AmmoImporter_1.AmmoImporter(),
+    new SpellImporter_1.SpellImporter(),
+    new ComplexFormImporter_1.ComplexFormImporter(),
+    new QualityImporter_1.QualityImporter(),
+    new CyberwareImporter_1.CyberwareImporter()
+];
+
+},{"../helper/ImportHelper":33,"../importer/AmmoImporter":37,"../importer/ArmorImporter":38,"../importer/ComplexFormImporter":39,"../importer/CyberwareImporter":41,"../importer/DataImporter":42,"../importer/ModImporter":43,"../importer/QualityImporter":44,"../importer/SpellImporter":45,"../importer/WeaponImporter":46}],33:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ImportHelper = exports.LookupMode = exports.ImportMode = void 0;
+const Constants_1 = require("../importer/Constants");
+const XMLStrategy_1 = require("./XMLStrategy");
+const JSONStrategy_1 = require("./JSONStrategy");
+var ImportMode;
+(function (ImportMode) {
+    ImportMode[ImportMode["XML"] = 1] = "XML";
+    ImportMode[ImportMode["JSON"] = 2] = "JSON";
+})(ImportMode = exports.ImportMode || (exports.ImportMode = {}));
+var LookupMode;
+(function (LookupMode) {
+    LookupMode[LookupMode["Directory"] = 0] = "Directory";
+    LookupMode[LookupMode["Actor"] = 1] = "Actor";
+})(LookupMode = exports.LookupMode || (exports.LookupMode = {}));
+/**
+ * An import helper to standardize data extraction.
+ * Mostly conceived to reduced required refactoring if Chummer changes data file layout.
+ * Also contains helper methods to safely parse values to appropriate types.
+ */
+class ImportHelper {
+    constructor() { }
+    static SetMode(mode) {
+        switch (mode) {
+            case ImportMode.XML:
+                ImportHelper.s_Strategy = new XMLStrategy_1.XMLStrategy();
+                break;
+            case ImportMode.JSON:
+                ImportHelper.s_Strategy = new JSONStrategy_1.JSONStrategy();
+                break;
+        }
+    }
+    /**
+     * Helper method to create a new folder.
+     * @param name The name of the folder.
+     * @param parent The parent folder.
+     * @returns {Promise<Folder>} A promise that resolves with the folder object when the folder is created.
+     */
+    static NewFolder(name, parent = null) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield Folder.create({
+                type: "Item",
+                parent: (parent === null) ? null : parent.id,
+                name: name
+            });
+        });
+    }
+    /**
+     * Get a folder at a path in the items directory.
+     * @param path The absolute path of the folder.
+     * @param mkdirs If true, will make all folders along the hierarchy if they do not exist.
+     * @returns A promise that will resolve with the found folder.
+     */
+    static GetFolderAtPath(path, mkdirs = false) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let idx = 0;
+            let curr, last = null;
+            let next = path.split("/");
+            while (idx < next.length) {
+                curr = game.folders.find((folder) => folder.parent === last && folder.name === next[idx]);
+                if (curr === null) {
+                    if (!mkdirs) {
+                        return Promise.reject(`Unable to find folder: ${path}`);
+                    }
+                    curr = yield ImportHelper.NewFolder(next[idx], last);
+                }
+                last = curr;
+                idx++;
+            }
+            return Promise.resolve(curr);
+        });
+    }
+    /**
+     * Get a value from the the provided jsonData, optionally returning a default value if it is not found
+     * or is unable to be parsed to an integer.
+     * @param jsonData The data to get the keyed value in.
+     * @param key The key to check for the value under.
+     * @param fallback An optional default value to return if the key is not found.
+     */
+    static IntValue(jsonData, key, fallback = undefined) {
+        return ImportHelper.s_Strategy.intValue(jsonData, key, fallback);
+    }
+    /**
+     * Get a value from the the provided jsonData, optionally returning a default value if it is not found.
+     * @param jsonData The data to get the keyed value in.
+     * @param key The key to check for the value under.
+     * @param fallback An optional default value to return if the key is not found.
+     */
+    static StringValue(jsonData, key, fallback = undefined) {
+        return ImportHelper.s_Strategy.stringValue(jsonData, key, fallback);
+    }
+    /**
+     * Get an object from the the provided jsonData, optionally returning a default value if it is not found.
+     * @param jsonData The data to get the keyed value in.
+     * @param key The key to check for the value under.
+     * @param fallback An optional default value to return if the key is not found.
+     */
+    static ObjectValue(jsonData, key, fallback = undefined) {
+        return ImportHelper.s_Strategy.objectValue(jsonData, key, fallback);
+    }
+    //TODO
+    static findItem(nameOrCmp) {
+        let result;
+        if (typeof (nameOrCmp) === "string") {
+            result = game.items.find((item) => item.name == nameOrCmp);
+        }
+        else {
+            result = game.items.find(nameOrCmp);
+        }
+        return result;
+    }
+    //TODO
+    static MakeCategoryFolders(jsonData, path, jsonCategoryTranslations) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let folders = {};
+            let jsonCategories = jsonData["categories"]["category"];
+            for (let i = 0; i < jsonCategories.length; i++) {
+                let categoryName = jsonCategories[i][ImportHelper.CHAR_KEY];
+                // use untranslated category name for easier mapping during DataImporter.Parse implementations.
+                let origCategoryName = categoryName;
+                if (jsonCategoryTranslations && jsonCategoryTranslations.hasOwnProperty(categoryName)) {
+                    categoryName = jsonCategoryTranslations[categoryName];
+                }
+                folders[origCategoryName.toLowerCase()] = yield ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/${path}/${categoryName}`, true);
+            }
+            return folders;
+        });
+    }
+    /** Extract the correct <chummer file="${dataFileName}>[...]</chummer> element from xx-xx_data.xml translations.
+     *
+     * @param jsoni18n
+     * @param dataFileName Expected translation target file name
+     */
+    static ExtractDataFileTranslation(jsoni18n, dataFileName) {
+        for (let i = 0; i < jsoni18n.length; i++) {
+            const translation = jsoni18n[i];
+            if (translation.$.file === dataFileName) {
+                return translation;
+            }
+        }
+        return {};
+    }
+    ;
+    /** Extract categories translations within xx-xx_data.xml <chummer/> translation subset.
+     *
+     *  Note: Not all file translations provide categories.
+     *
+     * @param jsonChummeri18n Translations as given by ExtractDataFileTranslations
+     */
+    static ExtractCategoriesTranslation(jsonChummeri18n) {
+        const categoryTranslations = {};
+        if (jsonChummeri18n && jsonChummeri18n.hasOwnProperty("categories")) {
+            jsonChummeri18n.categories.category.forEach(category => {
+                const name = category[ImportHelper.CHAR_KEY];
+                const translate = category.$.translate;
+                categoryTranslations[name] = translate;
+            });
+        }
+        return categoryTranslations;
+    }
+    /** Extract item type translations within xx-xx_data.xml <chummer/> translation subset.
+     *
+     * @param jsonItemsi18n Translations as given by ExtractDataFileTranslations
+     * @param typeKey The item type to translate. Tends to be plural.
+     * @param listKey The item to translate. Tends to be singular.
+     */
+    static ExtractItemTranslation(jsonItemsi18n, typeKey, listKey) {
+        const itemTranslation = {};
+        if (jsonItemsi18n && jsonItemsi18n[typeKey] && jsonItemsi18n[typeKey][listKey] && jsonItemsi18n[typeKey][listKey].length > 0) {
+            jsonItemsi18n[typeKey][listKey].forEach(item => {
+                const name = item.name[ImportHelper.CHAR_KEY];
+                const translate = item.translate[ImportHelper.CHAR_KEY];
+                const altpage = item.altpage[ImportHelper.CHAR_KEY];
+                itemTranslation[name] = { translate, altpage };
+            });
+        }
+        return itemTranslation;
+    }
+    static MapNameToTranslationKey(translationMap, name, key, fallbackValue = '') {
+        if (translationMap && translationMap.hasOwnProperty(name) && translationMap[name].hasOwnProperty(key)) {
+            return translationMap[name][key];
+        }
+        return fallbackValue;
+    }
+    static MapNameToTranslation(translationMap, name) {
+        return ImportHelper.MapNameToTranslationKey(translationMap, name, 'translate', name);
+    }
+    static MapNameToPageSource(translationMap, name) {
+        return ImportHelper.MapNameToTranslationKey(translationMap, name, 'altpage', '?');
+    }
+}
+exports.ImportHelper = ImportHelper;
+ImportHelper.CHAR_KEY = "_TEXT";
+ImportHelper.s_Strategy = new XMLStrategy_1.XMLStrategy();
+
+},{"../importer/Constants":40,"./JSONStrategy":35,"./XMLStrategy":36}],34:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ImportStrategy = void 0;
+class ImportStrategy {
+}
+exports.ImportStrategy = ImportStrategy;
+
+},{}],35:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.JSONStrategy = void 0;
+const ImportStrategy_1 = require("./ImportStrategy");
+class JSONStrategy extends ImportStrategy_1.ImportStrategy {
+    intValue(jsonData, key, fallback = undefined) {
+        throw new Error("Unimplemented");
+    }
+    stringValue(jsonData, key, fallback = undefined) {
+        throw new Error("Unimplemented");
+    }
+    objectValue(jsonData, key, fallback = undefined) {
+        throw new Error("Unimplemented");
+    }
+}
+exports.JSONStrategy = JSONStrategy;
+
+},{"./ImportStrategy":34}],36:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.XMLStrategy = void 0;
+const ImportHelper_1 = require("./ImportHelper");
+const ImportStrategy_1 = require("./ImportStrategy");
+class XMLStrategy extends ImportStrategy_1.ImportStrategy {
+    intValue(jsonData, key, fallback = undefined) {
+        try {
+            return parseInt(jsonData[key][ImportHelper_1.ImportHelper.CHAR_KEY]);
+        }
+        catch (e) {
+            if (fallback !== undefined) {
+                return fallback;
+            }
+            else {
+                throw e;
+            }
+        }
+    }
+    stringValue(jsonData, key, fallback = undefined) {
+        try {
+            return jsonData[key][ImportHelper_1.ImportHelper.CHAR_KEY];
+        }
+        catch (e) {
+            if (fallback !== undefined) {
+                return fallback;
+            }
+            else {
+                throw e;
+            }
+        }
+    }
+    objectValue(jsonData, key, fallback = undefined) {
+        try {
+            return jsonData[key];
+        }
+        catch (e) {
+            if (fallback !== undefined) {
+                return fallback;
+            }
+            else {
+                throw e;
+            }
+        }
+    }
+}
+exports.XMLStrategy = XMLStrategy;
+
+},{"./ImportHelper":33,"./ImportStrategy":34}],37:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AmmoImporter = void 0;
+const DataImporter_1 = require("./DataImporter");
+const ImportHelper_1 = require("../helper/ImportHelper");
+const Constants_1 = require("./Constants");
+class AmmoImporter extends DataImporter_1.DataImporter {
+    constructor() {
+        super(...arguments);
+        this.file = 'gear.xml';
+    }
+    CanParse(jsonObject) {
+        return jsonObject.hasOwnProperty("gears") && jsonObject["gears"].hasOwnProperty("gear");
+    }
+    GetDefaultData() {
+        return {
+            name: "",
+            folder: null,
+            type: "ammo",
+            data: {
+                description: {
+                    value: "",
+                    chat: "",
+                    source: ""
+                },
+                technology: {
+                    rating: 1,
+                    availability: "",
+                    quantity: 1,
+                    cost: 0,
+                    equipped: true,
+                    conceal: {
+                        base: 0,
+                        value: 0,
+                        mod: {}
+                    }
+                },
+                condition_monitor: {
+                    value: 0,
+                    max: 0
+                },
+                element: "",
+                ap: 0,
+                damage: 0,
+                damageType: "physical",
+                blast: {
+                    radius: 0,
+                    dropoff: 0
+                }
+            },
+            permission: {
+                default: 2
+            }
+        };
+    }
+    ExtractTranslation() {
+        if (!DataImporter_1.DataImporter.jsoni18n) {
+            return;
+        }
+        let jsonGeari18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, this.file);
+        this.categoryTranslations = ImportHelper_1.ImportHelper.ExtractCategoriesTranslation(jsonGeari18n);
+        this.gearsTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonGeari18n, 'gears', 'gear');
+    }
+    Parse(jsonObject) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let ammoDatas = [];
+            let jsonAmmos = jsonObject["gears"]["gear"];
+            for (let i = 0; i < jsonAmmos.length; i++) {
+                let jsonData = jsonAmmos[i];
+                if (ImportHelper_1.ImportHelper.StringValue(jsonData, "category", "") !== "Ammunition") {
+                    continue;
+                }
+                let data = this.GetDefaultData();
+                data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+                data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(this.gearsTranslations, data.name);
+                data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
+                data.data.technology.rating = 2;
+                data.data.technology.availability = ImportHelper_1.ImportHelper.StringValue(jsonData, "avail");
+                data.data.technology.cost = ImportHelper_1.ImportHelper.IntValue(jsonData, "cost", 0);
+                let bonusData = ImportHelper_1.ImportHelper.ObjectValue(jsonData, "weaponbonus", null);
+                if (bonusData !== undefined && bonusData !== null) {
+                    data.data.ap = ImportHelper_1.ImportHelper.IntValue(bonusData, "ap", 0);
+                    data.data.damage = ImportHelper_1.ImportHelper.IntValue(bonusData, "damage", 0);
+                    let damageType = ImportHelper_1.ImportHelper.StringValue(bonusData, "damagetype", "");
+                    if (damageType.length > 0) {
+                        if (damageType.includes("P")) {
+                            data.data.damageType = "physical";
+                        }
+                        else if (damageType.includes("S")) {
+                            data.data.damageType = "stun";
+                        }
+                        else if (damageType.includes("M")) {
+                            data.data.damageType = "matrix";
+                        }
+                    }
+                }
+                let shouldLookForWeapons = false;
+                let nameLower = data.name.toLowerCase();
+                ["grenade", "rocket", "missile"].forEach((compare) => {
+                    shouldLookForWeapons = shouldLookForWeapons || nameLower.includes(compare);
+                });
+                // NOTE: Should either weapons or gear not have been imported with translation, this will fail.
+                if (shouldLookForWeapons) {
+                    let foundWeapon = ImportHelper_1.ImportHelper.findItem((item) => {
+                        return item.name.toLowerCase() === nameLower;
+                    });
+                    if (foundWeapon !== null) {
+                        data.data.damage = foundWeapon.data.data.action.damage.value;
+                        data.data.ap = foundWeapon.data.data.action.damage.ap.value;
+                    }
+                }
+                // ammo doesn't have conceal rating from looking at the data
+                // data.data.technology.conceal.base = ImportHelper.intValue(jsonData, "conceal");
+                data.data.technology.conceal.base = 0;
+                ammoDatas.push(data);
+            }
+            for (let i = 0; i < ammoDatas.length; i++) {
+                let folderName = "Misc";
+                let ammo = ammoDatas[i];
+                let splitName = ammo.name.split(":");
+                if (splitName.length > 1) {
+                    folderName = splitName[0].trim();
+                }
+                let folder = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Ammo/${folderName}`, true);
+                ammo.folder = folder.id;
+            }
+            return yield Item.create(ammoDatas);
+        });
+    }
+}
+exports.AmmoImporter = AmmoImporter;
+
+},{"../helper/ImportHelper":33,"./Constants":40,"./DataImporter":42}],38:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ArmorImporter = void 0;
+const DataImporter_1 = require("./DataImporter");
+const ImportHelper_1 = require("../helper/ImportHelper");
+const ArmorParserBase_1 = require("../parser/armor/ArmorParserBase");
+class ArmorImporter extends DataImporter_1.DataImporter {
+    constructor() {
+        super(...arguments);
+        this.file = 'armor.xml';
+    }
+    CanParse(jsonObject) {
+        return jsonObject.hasOwnProperty("armors") && jsonObject["armors"].hasOwnProperty("armor");
+    }
+    GetDefaultData() {
+        return {
+            name: "Unnamed Armor",
+            folder: null,
+            type: "armor",
+            data: {
+                description: {
+                    value: "",
+                    chat: "",
+                    source: ""
+                },
+                technology: {
+                    rating: 1,
+                    availability: "",
+                    quantity: 1,
+                    cost: 0,
+                    equipped: true,
+                    conceal: {
+                        base: 0,
+                        value: 0,
+                        mod: {}
+                    }
+                },
+                condition_monitor: {
+                    value: 0,
+                    max: 0
+                },
+                armor: {
+                    value: 0,
+                    mod: false,
+                    acid: 0,
+                    cold: 0,
+                    fire: 0,
+                    electricity: 0,
+                    radiation: 0
+                }
+            },
+            permission: {
+                default: 2
+            }
+        };
+    }
+    ExtractTranslation() {
+        if (!DataImporter_1.DataImporter.jsoni18n) {
+            return;
+        }
+        let jsonArmori18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, this.file);
+        this.categoryTranslations = ImportHelper_1.ImportHelper.ExtractCategoriesTranslation(jsonArmori18n);
+        this.armorTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonArmori18n, 'armors', 'armor');
+    }
+    Parse(jsonObject) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Armor", this.categoryTranslations);
+            const parser = new ArmorParserBase_1.ArmorParserBase();
+            let datas = [];
+            let jsonDatas = jsonObject["armors"]["armor"];
+            for (let i = 0; i < jsonDatas.length; i++) {
+                let jsonData = jsonDatas[i];
+                let data = parser.Parse(jsonData, this.GetDefaultData());
+                const category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category").toLowerCase();
+                data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(this.armorTranslations, data.name);
+                data.folder = folders[category].id;
+                datas.push(data);
+            }
+            return yield Item.create(datas);
+        });
+    }
+}
+exports.ArmorImporter = ArmorImporter;
+
+},{"../helper/ImportHelper":33,"../parser/armor/ArmorParserBase":50,"./DataImporter":42}],39:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ComplexFormImporter = void 0;
+const DataImporter_1 = require("./DataImporter");
+const ImportHelper_1 = require("../helper/ImportHelper");
+const Constants_1 = require("./Constants");
+const ComplexFormParserBase_1 = require("../parser/complex-form/ComplexFormParserBase");
+class ComplexFormImporter extends DataImporter_1.DataImporter {
+    constructor() {
+        super(...arguments);
+        this.file = 'complexforms.xml';
+    }
+    CanParse(jsonObject) {
+        return jsonObject.hasOwnProperty("complexforms") && jsonObject["complexforms"].hasOwnProperty("complexform");
+    }
+    GetDefaultData() {
+        return {
+            name: "Unnamed Form",
+            folder: null,
+            type: "complex_form",
+            data: {
+                description: {
+                    value: "",
+                    chat: "",
+                    source: ""
+                },
+                action: {
+                    type: "complex",
+                    category: "",
+                    attribute: "resonance",
+                    attribute2: "",
+                    skill: "compiling",
+                    spec: false,
+                    mod: 0,
+                    mod_description: "",
+                    damage: {
+                        type: {
+                            base: "physical",
+                            value: "physical"
+                        },
+                        element: {
+                            base: "",
+                            value: ""
+                        },
+                        base: 0,
+                        value: 0,
+                        ap: {
+                            base: 0,
+                            value: 0,
+                            mod: {}
+                        },
+                        attribute: "",
+                        mod: {}
+                    },
+                    limit: {
+                        value: 0,
+                        attribute: "",
+                        mod: {},
+                        base: 0
+                    },
+                    extended: false,
+                    opposed: {
+                        type: "defense",
+                        attribute: "",
+                        attribute2: "",
+                        skill: "",
+                        mod: 0,
+                        description: ""
+                    },
+                    alt_mod: 0,
+                    dice_pool_mod: {}
+                },
+                target: "",
+                duration: "",
+                fade: 0
+            },
+            permission: {
+                default: 2
+            }
+        };
+    }
+    ExtractTranslation() {
+        if (!DataImporter_1.DataImporter.jsoni18n) {
+            return;
+        }
+        // Complexforms don't provide a category translation.
+        let jsonItemi18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, this.file);
+        this.nameTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonItemi18n, 'complexforms', 'complexform');
+    }
+    Parse(jsonObject) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const parser = new ComplexFormParserBase_1.ComplexFormParserBase();
+            const folder = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Complex Forms`, true);
+            let datas = [];
+            let jsonDatas = jsonObject["complexforms"]["complexform"];
+            for (let i = 0; i < jsonDatas.length; i++) {
+                let jsonData = jsonDatas[i];
+                let data = parser.Parse(jsonData, this.GetDefaultData(), this.nameTranslations);
+                data.folder = folder.id;
+                // TODO: Follow ComplexFormParserBase approach.
+                data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(this.nameTranslations, data.name);
+                datas.push(data);
+            }
+            return yield Item.create(datas);
+        });
+    }
+}
+exports.ComplexFormImporter = ComplexFormImporter;
+
+},{"../helper/ImportHelper":33,"../parser/complex-form/ComplexFormParserBase":51,"./Constants":40,"./DataImporter":42}],40:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Constants = void 0;
+class Constants {
+}
+exports.Constants = Constants;
+Constants.MAP_CATEGORY_TO_SKILL = {
+    "Assault Cannons": "heavy_weapons",
+    "Assault Rifles": "automatics",
+    "Blades": "blades",
+    "Bows": "archery",
+    "Carbines": "automatics",
+    "Clubs": "clubs",
+    "Crossbows": "archery",
+    "Exotic Melee Weapons": "exotic_melee",
+    "Exotic Ranged Weapons": "exotic_ranged",
+    "Flamethrowers": "exotic_ranged",
+    "Grenade Launchers": "heavy_weapons",
+    "Heavy Machine Guns": "heavy_weapons",
+    "Heavy Pistols": "pistols",
+    "Holdouts": "pistols",
+    "Laser Weapons": "exotic_ranged",
+    "Light Machine Guns": "heavy_weapons",
+    "Light Pistols": "pistols",
+    "Machine Pistols": "automatics",
+    "Medium Machine Guns": "automatics",
+    "Missile Launchers": "heavy_weapons",
+    "Shotguns": "longarms",
+    "Sniper Rifles": "longarms",
+    "Sporting Rifles": "longarms",
+    "Submachine Guns": "automatics",
+    "Tasers": "pistols",
+    "Unarmed": "unarmed_combat"
+};
+Constants.WEAPON_RANGES = {
+    "Tasers": {
+        short: 5,
+        medium: 10,
+        long: 15,
+        extreme: 20
+    },
+    "Holdouts": {
+        short: 5,
+        medium: 15,
+        long: 30,
+        extreme: 50
+    },
+    "Light Pistols": {
+        short: 5,
+        medium: 15,
+        long: 30,
+        extreme: 50
+    },
+    "Heavy Pistols": {
+        short: 5,
+        medium: 20,
+        long: 40,
+        extreme: 60
+    },
+    "Machine Pistols": {
+        short: 5,
+        medium: 15,
+        long: 30,
+        extreme: 50
+    },
+    "Submachine Guns": {
+        short: 10,
+        medium: 40,
+        long: 80,
+        extreme: 150
+    },
+    "Assault Rifles": {
+        short: 25,
+        medium: 150,
+        long: 350,
+        extreme: 550
+    },
+    "Shotguns": {
+        short: 10,
+        medium: 40,
+        long: 80,
+        extreme: 150
+    },
+    "Shotguns (slug)": {
+        short: 10,
+        medium: 40,
+        long: 80,
+        extreme: 150
+    },
+    "Shotguns (flechette)": {
+        short: 15,
+        medium: 30,
+        long: 45,
+        extreme: 60
+    },
+    "Sniper Rifles": {
+        short: 50,
+        medium: 350,
+        long: 800,
+        extreme: 1500
+    },
+    "Sporting Rifles": {
+        short: 50,
+        medium: 250,
+        long: 500,
+        extreme: 750
+    },
+    "Light Machine Guns": {
+        short: 25,
+        medium: 200,
+        long: 400,
+        extreme: 800
+    },
+    "Medium/Heavy Machinegun": {
+        short: 40,
+        medium: 250,
+        long: 750,
+        extreme: 1200
+    },
+    "Assault Cannons": {
+        short: 50,
+        medium: 300,
+        long: 750,
+        extreme: 1500
+    },
+    "Grenade Launchers": {
+        min: 5,
+        short: 50,
+        medium: 100,
+        long: 150,
+        extreme: 500
+    },
+    "Missile Launchers": {
+        min: 20,
+        short: 70,
+        medium: 150,
+        long: 450,
+        extreme: 1500
+    },
+    "Bows": {
+        short: 1,
+        medium: 10,
+        long: 30,
+        extreme: 60,
+        attribute: "strength"
+    },
+    "Light Crossbows": {
+        short: 6,
+        medium: 24,
+        long: 60,
+        extreme: 120
+    },
+    "Medium Crossbows": {
+        short: 9,
+        medium: 36,
+        long: 90,
+        extreme: 150
+    },
+    "Heavy Crossbows": {
+        short: 15,
+        medium: 45,
+        long: 120,
+        extreme: 180
+    },
+    "Thrown Knife": {
+        short: 1,
+        medium: 2,
+        long: 3,
+        extreme: 5,
+        attribute: "strength"
+    },
+    "Net": {
+        short: 0.5,
+        medium: 1,
+        long: 1.5,
+        extreme: 2.5,
+        attribute: "strength"
+    },
+    "Shuriken": {
+        short: 1,
+        medium: 2,
+        long: 5,
+        extreme: 7,
+        attribute: "strength"
+    },
+    "Standard Grenade": {
+        short: 2,
+        medium: 4,
+        long: 6,
+        extreme: 10,
+        attribute: "strength"
+    },
+    "Aerodynamic Grenade": {
+        min: 0,
+        short: 2,
+        medium: 4,
+        long: 8,
+        extreme: 15,
+        attribute: "strength"
+    },
+    "Harpoon Gun": {
+        short: 5,
+        medium: 20,
+        long: 40,
+        extreme: 60
+    },
+    "Harpoon Gun (Underwater)": {
+        short: 6,
+        medium: 24,
+        long: 60,
+        extreme: 120
+    },
+    "Flamethrowers": {
+        short: 15,
+        medium: 20,
+        long: -1,
+        extreme: -1
+    }
+};
+Constants.ROOT_IMPORT_FOLDER_NAME = "SR5e";
+
+},{}],41:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CyberwareImporter = void 0;
+const DataImporter_1 = require("./DataImporter");
+const ImportHelper_1 = require("../helper/ImportHelper");
+const CyberwareParser_1 = require("../parser/cyberware/CyberwareParser");
+class CyberwareImporter extends DataImporter_1.DataImporter {
+    constructor() {
+        super(...arguments);
+        this.file = 'cyberware.xml';
+    }
+    CanParse(jsonObject) {
+        return (jsonObject.hasOwnProperty("cyberwares") && jsonObject["cyberwares"].hasOwnProperty("cyberware"))
+            || (jsonObject.hasOwnProperty("biowares") && jsonObject["biowares"].hasOwnProperty("bioware"));
+    }
+    GetDefaultData() {
+        return {
+            name: "Unnamed Form",
+            folder: null,
+            type: "cyberware",
+            data: {
+                description: {
+                    value: "",
+                    chat: "",
+                    source: ""
+                },
+                technology: {
+                    rating: 1,
+                    availability: "",
+                    quantity: 1,
+                    cost: 0,
+                    equipped: true,
+                    conceal: {
+                        base: 0,
+                        value: 0,
+                        mod: {}
+                    }
+                },
+                condition_monitor: {
+                    value: 0,
+                    max: 0
+                },
+                action: {
+                    type: "",
+                    category: "",
+                    attribute: "",
+                    attribute2: "",
+                    skill: "",
+                    spec: false,
+                    mod: 0,
+                    mod_description: "",
+                    damage: {
+                        type: {
+                            base: "",
+                            value: ""
+                        },
+                        element: {
+                            base: "",
+                            value: ""
+                        },
+                        base: 0,
+                        value: 0,
+                        ap: {
+                            base: 0,
+                            value: 0,
+                            mod: {}
+                        },
+                        attribute: "",
+                        mod: {}
+                    },
+                    limit: {
+                        value: 0,
+                        attribute: "",
+                        mod: {},
+                        base: 0
+                    },
+                    extended: false,
+                    opposed: {
+                        type: "",
+                        attribute: "",
+                        attribute2: "",
+                        skill: "",
+                        mod: 0,
+                        description: ""
+                    },
+                    alt_mod: 0,
+                    dice_pool_mod: {}
+                },
+                grade: "standard",
+                essence: 0,
+                capacity: 0
+            },
+            permission: {
+                default: 2
+            }
+        };
+    }
+    ExtractTranslation() {
+        if (!DataImporter_1.DataImporter.jsoni18n) {
+            return;
+        }
+        let jsonItemi18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, this.file);
+        this.categoryTranslations = ImportHelper_1.ImportHelper.ExtractCategoriesTranslation(jsonItemi18n);
+        this.itemTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonItemi18n, 'cyberwares', 'cyberware');
+    }
+    Parse(jsonObject) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const parser = new CyberwareParser_1.CyberwareParser();
+            let key = jsonObject.hasOwnProperty("cyberwares") ? "Cyberware" : "Bioware";
+            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, key);
+            key = key.toLowerCase();
+            let datas = [];
+            let jsonDatas = jsonObject[key + "s"][key];
+            for (let i = 0; i < jsonDatas.length; i++) {
+                let jsonData = jsonDatas[i];
+                let data = parser.Parse(jsonData, this.GetDefaultData(), this.itemTranslations);
+                const category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category");
+                data.folder = folders[category.toLowerCase()].id;
+                // // TODO: Follow ComplexFormParserBase approach.
+                // data.name = ImportHelper.MapNameToTranslation(this.itemTranslations, data.name);
+                datas.push(data);
+            }
+            return yield Item.create(datas);
+        });
+    }
+}
+exports.CyberwareImporter = CyberwareImporter;
+
+},{"../helper/ImportHelper":33,"../parser/cyberware/CyberwareParser":52,"./DataImporter":42}],42:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DataImporter = void 0;
+const ImportHelper_1 = require("../helper/ImportHelper");
+const xml2js = require("xml2js");
+class DataImporter {
+    /**
+     *
+     * @param jsonObject JSON Data with all data translations for one language.
+     */
+    static CanParseI18n(jsonObject) {
+        return jsonObject.hasOwnProperty("chummer") && jsonObject.chummer.length > 0 && jsonObject.chummer[0].$.hasOwnProperty("file");
+    }
+    /**
+     * Stores translations as a whole for all implementing classes to extract from without reparsing.
+     * @param jsonObject JSON Data with all data translations for one language.
+     */
+    static ParseTranslation(jsonObject) {
+        if (jsonObject && jsonObject.hasOwnProperty("chummer")) {
+            DataImporter.jsoni18n = jsonObject["chummer"];
+        }
+    }
+    /**
+     * Parse an XML string into a JSON object.
+     * @param xmlString The string to parse as XML.
+     * @returns A json object converted from the string.
+     */
+    static xml2json(xmlString) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const parser = xml2js.Parser({
+                explicitArray: false,
+                explicitCharkey: true,
+                charkey: ImportHelper_1.ImportHelper.CHAR_KEY
+            });
+            return (yield parser.parseStringPromise(xmlString))["chummer"];
+        });
+    }
+}
+exports.DataImporter = DataImporter;
+
+},{"../helper/ImportHelper":33,"xml2js":71}],43:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ModImporter = void 0;
+const DataImporter_1 = require("./DataImporter");
+const ImportHelper_1 = require("../helper/ImportHelper");
+const Constants_1 = require("./Constants");
+const ModParserBase_1 = require("../parser/mod/ModParserBase");
+class ModImporter extends DataImporter_1.DataImporter {
+    constructor() {
+        super(...arguments);
+        this.file = 'weapons.xml';
+    }
+    CanParse(jsonObject) {
+        return jsonObject.hasOwnProperty("accessories") && jsonObject["accessories"].hasOwnProperty("accessory");
+    }
+    GetDefaultData() {
+        return {
+            name: "",
+            folder: null,
+            type: "modification",
+            data: {
+                description: {
+                    value: "",
+                    chat: "",
+                    source: ""
+                },
+                technology: {
+                    rating: 1,
+                    availability: "",
+                    quantity: 1,
+                    cost: 0,
+                    equipped: true,
+                    conceal: {
+                        base: 0,
+                        value: 0,
+                        mod: {}
+                    }
+                },
+                condition_monitor: {
+                    value: 0,
+                    max: 0
+                },
+                type: "",
+                mount_point: "",
+                dice_pool: 0,
+                accuracy: 0,
+                rc: 0
+            },
+            permission: {
+                default: 2
+            }
+        };
+    }
+    ExtractTranslation() {
+        if (!DataImporter_1.DataImporter.jsoni18n) {
+            return;
+        }
+        let jsonWeaponsi18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, this.file);
+        // Parts of weapon accessory translations are within the application translation. Currently only data translation is used.
+        this.accessoryTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonWeaponsi18n, 'accessories', 'accessory');
+    }
+    Parse(jsonObject) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const parser = new ModParserBase_1.ModParserBase();
+            let datas = [];
+            let jsonDatas = jsonObject["accessories"]["accessory"];
+            for (let i = 0; i < jsonDatas.length; i++) {
+                let jsonData = jsonDatas[i];
+                let data = parser.Parse(jsonData, this.GetDefaultData());
+                // TODO: Integrate into ModParserBase approach.
+                data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(this.accessoryTranslations, data.name);
+                //TODO: Test this
+                let folderName = (data.data.mount_point !== undefined) ? data.data.mount_point : "Other";
+                if (folderName.includes("/")) {
+                    let splitName = folderName.split("/");
+                    folderName = splitName[0];
+                }
+                let folder = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Mods/${folderName}`, true);
+                data.folder = folder.id;
+                datas.push(data);
+            }
+            return yield Item.create(datas);
+        });
+    }
+}
+exports.ModImporter = ModImporter;
+
+},{"../helper/ImportHelper":33,"../parser/mod/ModParserBase":54,"./Constants":40,"./DataImporter":42}],44:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.QualityImporter = void 0;
+const DataImporter_1 = require("./DataImporter");
+const ImportHelper_1 = require("../helper/ImportHelper");
+const QualityParserBase_1 = require("../parser/quality/QualityParserBase");
+class QualityImporter extends DataImporter_1.DataImporter {
+    constructor() {
+        super(...arguments);
+        this.file = 'qualities.xml';
+    }
+    CanParse(jsonObject) {
+        return jsonObject.hasOwnProperty("qualities") && jsonObject["qualities"].hasOwnProperty("quality");
+    }
+    GetDefaultData() {
+        return {
+            name: "Unnamed Armor",
+            folder: null,
+            type: "quality",
+            data: {
+                description: {
+                    value: "",
+                    chat: "",
+                    source: ""
+                },
+                action: {
+                    type: "varies",
+                    category: "",
+                    attribute: "",
+                    attribute2: "",
+                    skill: "",
+                    spec: false,
+                    mod: 0,
+                    mod_description: "",
+                    damage: {
+                        type: {
+                            base: "",
+                            value: ""
+                        },
+                        element: {
+                            base: "",
+                            value: ""
+                        },
+                        base: 0,
+                        value: 0,
+                        ap: {
+                            base: 0,
+                            value: 0,
+                            mod: {}
+                        },
+                        attribute: "",
+                        mod: {}
+                    },
+                    limit: {
+                        value: 0,
+                        attribute: "",
+                        mod: {},
+                        base: 0
+                    },
+                    extended: false,
+                    opposed: {
+                        type: "",
+                        attribute: "",
+                        attribute2: "",
+                        skill: "",
+                        mod: 0,
+                        description: ""
+                    },
+                    alt_mod: 0,
+                    dice_pool_mod: {}
+                },
+                type: ""
+            },
+            permission: {
+                default: 2
+            }
+        };
+    }
+    ExtractTranslation() {
+        if (!DataImporter_1.DataImporter.jsoni18n) {
+            return;
+        }
+        let jsonQualityi18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, this.file);
+        this.categoryTranslations = ImportHelper_1.ImportHelper.ExtractCategoriesTranslation(jsonQualityi18n);
+        this.itemTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonQualityi18n, 'qualities', 'quality');
+    }
+    Parse(jsonObject) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const jsonNameTranslations = {};
+            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Qualities", this.categoryTranslations);
+            console.log(folders);
+            const parser = new QualityParserBase_1.QualityParserBase();
+            let datas = [];
+            let jsonDatas = jsonObject["qualities"]["quality"];
+            for (let i = 0; i < jsonDatas.length; i++) {
+                let jsonData = jsonDatas[i];
+                let data = parser.Parse(jsonData, this.GetDefaultData(), this.itemTranslations);
+                let category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category");
+                data.folder = folders[category.toLowerCase()].id;
+                data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(this.itemTranslations, data.name);
+                datas.push(data);
+            }
+            return yield Item.create(datas);
+        });
+    }
+}
+exports.QualityImporter = QualityImporter;
+
+},{"../helper/ImportHelper":33,"../parser/quality/QualityParserBase":55,"./DataImporter":42}],45:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SpellImporter = void 0;
+const DataImporter_1 = require("./DataImporter");
+const ImportHelper_1 = require("../helper/ImportHelper");
+const SpellParserBase_1 = require("../parser/spell/SpellParserBase");
+const CombatSpellParser_1 = require("../parser/spell/CombatSpellParser");
+const ManipulationSpellParser_1 = require("../parser/spell/ManipulationSpellParser");
+const IllusionSpellParser_1 = require("../parser/spell/IllusionSpellParser");
+const DetectionSpellImporter_1 = require("../parser/spell/DetectionSpellImporter");
+const ParserMap_1 = require("../parser/ParserMap");
+class SpellImporter extends DataImporter_1.DataImporter {
+    constructor() {
+        super(...arguments);
+        this.file = 'spells.xml';
+    }
+    CanParse(jsonObject) {
+        return jsonObject.hasOwnProperty("spells") && jsonObject["spells"].hasOwnProperty("spell");
+    }
+    GetDefaultData() {
+        return {
+            name: "Unnamed Item",
+            folder: null,
+            type: "spell",
+            data: {
+                description: {
+                    value: "",
+                    chat: "",
+                    source: ""
+                },
+                action: {
+                    type: "varies",
+                    category: "",
+                    attribute: "magic",
+                    attribute2: "",
+                    skill: "spellcasting",
+                    spec: false,
+                    mod: 0,
+                    mod_description: "",
+                    damage: {
+                        type: {
+                            base: "",
+                            value: ""
+                        },
+                        element: {
+                            base: "",
+                            value: ""
+                        },
+                        base: 0,
+                        value: 0,
+                        ap: {
+                            base: 0,
+                            value: 0,
+                            mod: {}
+                        },
+                        attribute: "",
+                        mod: {}
+                    },
+                    limit: {
+                        value: 0,
+                        attribute: "",
+                        mod: {},
+                        base: 0
+                    },
+                    extended: false,
+                    opposed: {
+                        type: "",
+                        attribute: "",
+                        attribute2: "",
+                        skill: "",
+                        mod: 0,
+                        description: ""
+                    },
+                    alt_mod: 0,
+                    dice_pool_mod: {}
+                },
+                drain: 0,
+                category: "",
+                type: "",
+                range: "",
+                duration: "",
+                combat: {
+                    type: ""
+                },
+                detection: {
+                    passive: false,
+                    type: "",
+                    extended: false
+                },
+                illusion: {
+                    type: "",
+                    sense: ""
+                },
+                manipulation: {
+                    damaging: false,
+                    mental: false,
+                    environmental: false,
+                    physical: false
+                }
+            },
+            permission: {
+                default: 2
+            }
+        };
+    }
+    ExtractTranslation() {
+        if (!DataImporter_1.DataImporter.jsoni18n) {
+            return;
+        }
+        let jsonSpelli18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, this.file);
+        this.categoryTranslations = ImportHelper_1.ImportHelper.ExtractCategoriesTranslation(jsonSpelli18n);
+        this.itemTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonSpelli18n, 'spells', 'spell');
+    }
+    Parse(jsonObject) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Spells", this.categoryTranslations);
+            const parser = new ParserMap_1.ParserMap("category", [
+                { key: "Combat", value: new CombatSpellParser_1.CombatSpellParser() },
+                { key: "Manipulation", value: new ManipulationSpellParser_1.ManipulationSpellParser() },
+                { key: "Illusion", value: new IllusionSpellParser_1.IllusionSpellParser() },
+                { key: "Detection", value: new DetectionSpellImporter_1.DetectionSpellImporter() },
+                { key: "Health", value: new SpellParserBase_1.SpellParserBase() },
+                { key: "Enchantments", value: new SpellParserBase_1.SpellParserBase() },
+                { key: "Rituals", value: new SpellParserBase_1.SpellParserBase() },
+            ]);
+            let datas = [];
+            let jsonDatas = jsonObject["spells"]["spell"];
+            for (let i = 0; i < jsonDatas.length; i++) {
+                let jsonData = jsonDatas[i];
+                let data = parser.Parse(jsonData, this.GetDefaultData(), this.itemTranslations);
+                data.folder = folders[data.data.category].id;
+                datas.push(data);
+            }
+            return yield Item.create(datas);
+        });
+    }
+}
+exports.SpellImporter = SpellImporter;
+
+},{"../helper/ImportHelper":33,"../parser/ParserMap":49,"../parser/spell/CombatSpellParser":56,"../parser/spell/DetectionSpellImporter":57,"../parser/spell/IllusionSpellParser":58,"../parser/spell/ManipulationSpellParser":59,"../parser/spell/SpellParserBase":60,"./DataImporter":42}],46:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.WeaponImporter = void 0;
+const DataImporter_1 = require("./DataImporter");
+const ImportHelper_1 = require("../helper/ImportHelper");
+const Constants_1 = require("./Constants");
+const RangedParser_1 = require("../parser/weapon/RangedParser");
+const MeleeParser_1 = require("../parser/weapon/MeleeParser");
+const ThrownParser_1 = require("../parser/weapon/ThrownParser");
+const ParserMap_1 = require("../parser/ParserMap");
+class WeaponImporter extends DataImporter_1.DataImporter {
+    constructor() {
+        super(...arguments);
+        this.file = 'weapons.xml';
+    }
+    CanParse(jsonObject) {
+        return jsonObject.hasOwnProperty("weapons") && jsonObject["weapons"].hasOwnProperty("weapon");
+    }
+    GetDefaultData() {
+        return {
+            name: "Unnamed Item",
+            folder: null,
+            type: "weapon",
+            data: {
+                description: {
+                    value: "",
+                    chat: "",
+                    source: ""
+                },
+                action: {
+                    type: "varies",
+                    category: "",
+                    attribute: "agility",
+                    attribute2: "",
+                    skill: "",
+                    spec: false,
+                    mod: 0,
+                    mod_description: "",
+                    damage: {
+                        type: {
+                            base: "physical",
+                            value: "physical"
+                        },
+                        element: {
+                            base: "",
+                            value: ""
+                        },
+                        base: 0,
+                        value: 0,
+                        ap: {
+                            base: 0,
+                            value: 0,
+                            mod: {}
+                        },
+                        attribute: "",
+                        mod: {}
+                    },
+                    limit: {
+                        value: 0,
+                        attribute: "",
+                        mod: {},
+                        base: 0
+                    },
+                    extended: false,
+                    opposed: {
+                        type: "defense",
+                        attribute: "",
+                        attribute2: "",
+                        skill: "",
+                        mod: 0,
+                        description: ""
+                    },
+                    alt_mod: 0,
+                    dice_pool_mod: {}
+                },
+                technology: {
+                    rating: 1,
+                    availability: "",
+                    quantity: 1,
+                    cost: 0,
+                    equipped: true,
+                    conceal: {
+                        base: 0,
+                        value: 0,
+                        mod: {}
+                    }
+                },
+                condition_monitor: {
+                    value: 0,
+                    max: 0
+                },
+                ammo: {
+                    spare_clips: {
+                        value: 0,
+                        max: 0
+                    },
+                    current: {
+                        value: 0,
+                        max: 0
+                    }
+                },
+                range: {
+                    category: "",
+                    ranges: {
+                        short: 0,
+                        medium: 0,
+                        long: 0,
+                        extreme: 0
+                    },
+                    rc: {
+                        value: 0,
+                        base: 0,
+                        mod: {}
+                    },
+                    modes: {
+                        single_shot: false,
+                        semi_auto: false,
+                        burst_fire: false,
+                        full_auto: false
+                    }
+                },
+                melee: {
+                    reach: 0
+                },
+                thrown: {
+                    ranges: {
+                        short: 0,
+                        medium: 0,
+                        long: 0,
+                        extreme: 0,
+                        attribute: ""
+                    },
+                    blast: {
+                        radius: 0,
+                        dropoff: 0
+                    }
+                },
+                category: "range"
+            },
+            permission: {
+                default: 2
+            }
+        };
+    }
+    ExtractTranslation() {
+        if (!DataImporter_1.DataImporter.jsoni18n) {
+            return;
+        }
+        let jsonWeaponi18n = ImportHelper_1.ImportHelper.ExtractDataFileTranslation(DataImporter_1.DataImporter.jsoni18n, this.file);
+        this.categoryTranslations = ImportHelper_1.ImportHelper.ExtractCategoriesTranslation(jsonWeaponi18n);
+        this.itemTranslations = ImportHelper_1.ImportHelper.ExtractItemTranslation(jsonWeaponi18n, 'weapons', 'weapon');
+    }
+    static GetWeaponType(weaponJson) {
+        let type = ImportHelper_1.ImportHelper.StringValue(weaponJson, "type");
+        //melee is the least specific, all melee entries are accurate
+        if (type === "Melee") {
+            return "melee";
+        }
+        else {
+            // skill takes priorities over category
+            if (weaponJson.hasOwnProperty("useskill")) {
+                let skill = ImportHelper_1.ImportHelper.StringValue(weaponJson, "useskill");
+                if (skill === "Throwing Weapons")
+                    return "thrown";
+            }
+            // category is the fallback
+            let category = ImportHelper_1.ImportHelper.StringValue(weaponJson, "category");
+            if (category === "Throwing Weapons")
+                return "thrown";
+            // ranged is everything else
+            return "range";
+        }
+    }
+    Parse(jsonObject) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const folders = yield ImportHelper_1.ImportHelper.MakeCategoryFolders(jsonObject, "Weapons", this.categoryTranslations);
+            folders["gear"] = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Gear`, true);
+            folders["quality"] = yield ImportHelper_1.ImportHelper.GetFolderAtPath(`${Constants_1.Constants.ROOT_IMPORT_FOLDER_NAME}/Weapons/Quality`, true);
+            const parser = new ParserMap_1.ParserMap(WeaponImporter.GetWeaponType, [
+                { key: "range", value: new RangedParser_1.RangedParser() },
+                { key: "melee", value: new MeleeParser_1.MeleeParser() },
+                { key: "thrown", value: new ThrownParser_1.ThrownParser() },
+            ]);
+            let datas = [];
+            let jsonDatas = jsonObject["weapons"]["weapon"];
+            for (let i = 0; i < jsonDatas.length; i++) {
+                let jsonData = jsonDatas[i];
+                let data = parser.Parse(jsonData, this.GetDefaultData(), this.itemTranslations);
+                data.folder = folders[data.data.category].id;
+                datas.push(data);
+            }
+            return yield Item.create(datas);
+        });
+    }
+}
+exports.WeaponImporter = WeaponImporter;
+
+},{"../helper/ImportHelper":33,"../parser/ParserMap":49,"../parser/weapon/MeleeParser":61,"../parser/weapon/RangedParser":62,"../parser/weapon/ThrownParser":63,"./Constants":40,"./DataImporter":42}],47:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const import_form_1 = require("./apps/import-form");
+Hooks.on("renderItemDirectory", (app, html) => {
+    const button = $("<button>Import Chummer Data</button>");
+    html.find("footer").before(button);
+    button.on("click", (event) => {
+        new import_form_1.Import().render(true);
+    });
+});
+
+},{"./apps/import-form":32}],48:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Parser = void 0;
+class Parser {
+}
+exports.Parser = Parser;
+
+},{}],49:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ParserMap = void 0;
+const Parser_1 = require("./Parser");
+const ImportHelper_1 = require("../helper/ImportHelper");
+class ParserMap extends Parser_1.Parser {
+    constructor(branchKey, elements) {
+        super();
+        this.m_BranchKey = branchKey;
+        this.m_Map = new Map();
+        for (const { key, value } of elements) {
+            this.m_Map.set(key, value);
+        }
+    }
+    Parse(jsonData, data, jsonTranslation) {
+        let key;
+        if (typeof this.m_BranchKey === "function") {
+            key = this.m_BranchKey(jsonData);
+        }
+        else {
+            key = this.m_BranchKey;
+            key = ImportHelper_1.ImportHelper.StringValue(jsonData, key);
+        }
+        const parser = this.m_Map.get(key);
+        if (parser === undefined) {
+            console.warn(`Could not find mapped parser for category ${key}.`);
+            return data;
+        }
+        return parser.Parse(jsonData, data, jsonTranslation);
+    }
+}
+exports.ParserMap = ParserMap;
+
+},{"../helper/ImportHelper":33,"./Parser":48}],50:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ArmorParserBase = void 0;
+const ItemParserBase_1 = require("../item/ItemParserBase");
+const ImportHelper_1 = require("../../helper/ImportHelper");
+class ArmorParserBase extends ItemParserBase_1.ItemParserBase {
+    Parse(jsonData, data) {
+        data = super.Parse(jsonData, data);
+        data.data.armor.value = ImportHelper_1.ImportHelper.IntValue(jsonData, "armor", 0);
+        data.data.armor.mod = ImportHelper_1.ImportHelper.StringValue(jsonData, "armor").includes("+");
+        return data;
+    }
+}
+exports.ArmorParserBase = ArmorParserBase;
+
+},{"../../helper/ImportHelper":33,"../item/ItemParserBase":53}],51:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ComplexFormParserBase = void 0;
+const Parser_1 = require("../Parser");
+const ImportHelper_1 = require("../../helper/ImportHelper");
+class ComplexFormParserBase extends Parser_1.Parser {
+    Parse(jsonData, data, jsonTranslation) {
+        data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+        data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
+        let fade = ImportHelper_1.ImportHelper.StringValue(jsonData, "fv");
+        if (fade.includes("+") || fade.includes("-")) {
+            data.data.fade = parseInt(fade.substring(1, fade.length));
+        }
+        let duration = ImportHelper_1.ImportHelper.StringValue(jsonData, "duration");
+        if (duration === "I") {
+            data.data.duration = "instant";
+        }
+        else if (duration === "S") {
+            data.data.duration = "sustained";
+        }
+        else if (duration === "P") {
+            data.data.duration = "permanent";
+        }
+        let target = ImportHelper_1.ImportHelper.StringValue(jsonData, "target");
+        switch (target) {
+            case "Device":
+            case "File":
+            case "Host":
+            case "Persona":
+            case "Self":
+            case "Sprite":
+                data.data.target = target.toLowerCase();
+                break;
+            default:
+                data.data.target = "other";
+                break;
+        }
+        if (jsonTranslation) {
+            const origName = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+            data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(jsonTranslation, origName);
+            data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.MapNameToPageSource(jsonTranslation, origName)}`;
+        }
+        return data;
+    }
+}
+exports.ComplexFormParserBase = ComplexFormParserBase;
+
+},{"../../helper/ImportHelper":33,"../Parser":48}],52:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CyberwareParser = void 0;
+const ItemParserBase_1 = require("../item/ItemParserBase");
+const ImportHelper_1 = require("../../helper/ImportHelper");
+class CyberwareParser extends ItemParserBase_1.ItemParserBase {
+    Parse(jsonData, data, jsonTranslation) {
+        data = super.Parse(jsonData, data, jsonTranslation);
+        const essence = ImportHelper_1.ImportHelper.StringValue(jsonData, "ess", "0").match(/[0-9]\.?[0-9]*/g);
+        if (essence !== null) {
+            data.data.essence = parseFloat(essence[0]);
+        }
+        const capacity = ImportHelper_1.ImportHelper.StringValue(jsonData, "capacity", "0").match(/[0-9]+/g);
+        if (capacity !== null) {
+            data.data.capacity = parseInt(capacity[0]);
+        }
+        return data;
+    }
+}
+exports.CyberwareParser = CyberwareParser;
+
+},{"../../helper/ImportHelper":33,"../item/ItemParserBase":53}],53:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ItemParserBase = void 0;
+const Parser_1 = require("../Parser");
+const ImportHelper_1 = require("../../helper/ImportHelper");
+class ItemParserBase extends Parser_1.Parser {
+    Parse(jsonData, data, jsonTranslation) {
+        data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+        data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
+        data.data.technology.availability = ImportHelper_1.ImportHelper.StringValue(jsonData, "avail", "0");
+        data.data.technology.cost = ImportHelper_1.ImportHelper.IntValue(jsonData, "cost", 0);
+        data.data.technology.rating = ImportHelper_1.ImportHelper.IntValue(jsonData, "rating", 0);
+        if (jsonTranslation) {
+            const origName = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+            data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(jsonTranslation, origName);
+            data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.MapNameToPageSource(jsonTranslation, origName)}`;
+        }
+        return data;
+    }
+}
+exports.ItemParserBase = ItemParserBase;
+
+},{"../../helper/ImportHelper":33,"../Parser":48}],54:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ModParserBase = void 0;
+const ItemParserBase_1 = require("../item/ItemParserBase");
+const ImportHelper_1 = require("../../helper/ImportHelper");
+class ModParserBase extends ItemParserBase_1.ItemParserBase {
+    Parse(jsonData, data) {
+        data = super.Parse(jsonData, data);
+        data.data.type = "weapon";
+        data.data.mount_point = ImportHelper_1.ImportHelper.StringValue(jsonData, "mount");
+        data.data.rc = ImportHelper_1.ImportHelper.IntValue(jsonData, "rc", 0);
+        data.data.accuracy = ImportHelper_1.ImportHelper.IntValue(jsonData, "accuracy", 0);
+        data.data.technology.conceal.base = ImportHelper_1.ImportHelper.IntValue(jsonData, "conceal", 0);
+        return data;
+    }
+}
+exports.ModParserBase = ModParserBase;
+
+},{"../../helper/ImportHelper":33,"../item/ItemParserBase":53}],55:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.QualityParserBase = void 0;
+const ImportHelper_1 = require("../../helper/ImportHelper");
+const Parser_1 = require("../Parser");
+class QualityParserBase extends Parser_1.Parser {
+    Parse(jsonData, data, jsonTranslation) {
+        data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+        data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
+        data.data.type = (ImportHelper_1.ImportHelper.StringValue(jsonData, "category") === "Positive") ? "positive" : "negative";
+        if (jsonTranslation) {
+            const origName = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+            data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(jsonTranslation, origName);
+            data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.MapNameToPageSource(jsonTranslation, origName)}`;
+        }
+        return data;
+    }
+}
+exports.QualityParserBase = QualityParserBase;
+
+},{"../../helper/ImportHelper":33,"../Parser":48}],56:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CombatSpellParser = void 0;
+const SpellParserBase_1 = require("./SpellParserBase");
+const ImportHelper_1 = require("../../helper/ImportHelper");
+class CombatSpellParser extends SpellParserBase_1.SpellParserBase {
+    Parse(jsonData, data, jsonTranslation) {
+        data = super.Parse(jsonData, data, jsonTranslation);
+        let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
+        // A few spells have a missing descriptor instead of an empty string.
+        // The field is <descriptor /> rather than <descriptor></descriptor>
+        // which gets imported as undefined rather than empty string (sigh)
+        // Rather than refactor our ImportHelper we'll handle it in here.
+        if (descriptor === undefined) {
+            descriptor = "";
+        }
+        data.data.combat.type = (descriptor.includes("Indirect")) ? "indirect" : "direct";
+        if (data.data.combat.type === "direct") {
+            data.data.action.opposed.type = "custom";
+            switch (data.data.type) {
+                case "physical":
+                    data.data.action.opposed.attribute = "body";
+                    break;
+                case "mana":
+                    data.data.action.opposed.attribute = "willpower";
+                    break;
+                default:
+                    break;
+            }
+        }
+        else if (data.data.combat.type === "indirect") {
+            data.data.action.opposed.type = "defense";
+        }
+        return data;
+    }
+}
+exports.CombatSpellParser = CombatSpellParser;
+
+},{"../../helper/ImportHelper":33,"./SpellParserBase":60}],57:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DetectionSpellImporter = void 0;
+const SpellParserBase_1 = require("./SpellParserBase");
+const ImportHelper_1 = require("../../helper/ImportHelper");
+class DetectionSpellImporter extends SpellParserBase_1.SpellParserBase {
+    Parse(jsonData, data, jsonTranslation) {
+        data = super.Parse(jsonData, data, jsonTranslation);
+        let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
+        // A few spells have a missing descriptor instead of an empty string.
+        // The field is <descriptor /> rather than <descriptor></descriptor>
+        // which gets imported as undefined rather than empty string (sigh)
+        // Rather than refactor our ImportHelper we'll handle it in here.
+        if (descriptor === undefined) {
+            descriptor = "";
+        }
+        data.data.detection.passive = descriptor.includes("Passive");
+        if (!data.data.detection.passive) {
+            data.data.action.opposed.type = "custom";
+            data.data.action.opposed.attribute = "willpower";
+            data.data.action.opposed.attribute2 = "logic";
+        }
+        data.data.detection.extended = descriptor.includes("Extended");
+        if (descriptor.includes("Psychic")) {
+            data.data.detection.type = "psychic";
+        }
+        else if (descriptor.includes("Directional")) {
+            data.data.detection.type = "directional";
+        }
+        else if (descriptor.includes("Area")) {
+            data.data.detection.type = "area";
+        }
+        return data;
+    }
+}
+exports.DetectionSpellImporter = DetectionSpellImporter;
+
+},{"../../helper/ImportHelper":33,"./SpellParserBase":60}],58:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.IllusionSpellParser = void 0;
+const SpellParserBase_1 = require("./SpellParserBase");
+const ImportHelper_1 = require("../../helper/ImportHelper");
+class IllusionSpellParser extends SpellParserBase_1.SpellParserBase {
+    Parse(jsonData, data, jsonTranslation) {
+        data = super.Parse(jsonData, data, jsonTranslation);
+        let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
+        // A few spells have a missing descriptor instead of an empty string.
+        // The field is <descriptor /> rather than <descriptor></descriptor>
+        // which gets imported as undefined rather than empty string (sigh)
+        // Rather than refactor our ImportHelper we'll handle it in here.
+        if (descriptor === undefined) {
+            descriptor = "";
+        }
+        if (data.data.type === "mana") {
+            data.data.action.opposed.type = "custom";
+            data.data.action.opposed.attribute = "logic";
+            data.data.action.opposed.attribute2 = "willpower";
+        }
+        else if (data.data.type === "physical") {
+            data.data.action.opposed.type = "custom";
+            data.data.action.opposed.attribute = "intuition";
+            data.data.action.opposed.attribute2 = "logic";
+        }
+        return data;
+    }
+}
+exports.IllusionSpellParser = IllusionSpellParser;
+
+},{"../../helper/ImportHelper":33,"./SpellParserBase":60}],59:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ManipulationSpellParser = void 0;
+const SpellParserBase_1 = require("./SpellParserBase");
+const ImportHelper_1 = require("../../helper/ImportHelper");
+class ManipulationSpellParser extends SpellParserBase_1.SpellParserBase {
+    Parse(jsonData, data, jsonTranslation) {
+        data = super.Parse(jsonData, data, jsonTranslation);
+        let descriptor = ImportHelper_1.ImportHelper.StringValue(jsonData, "descriptor");
+        // A few spells have a missing descriptor instead of an empty string.
+        // The field is <descriptor /> rather than <descriptor></descriptor>
+        // which gets imported as undefined rather than empty string (sigh)
+        // Rather than refactor our ImportHelper we'll handle it in here.
+        if (descriptor === undefined) {
+            descriptor = "";
+        }
+        data.data.manipulation.environmental = descriptor.includes("Environmental");
+        // Generally no resistance roll.
+        data.data.manipulation.mental = descriptor.includes("Mental");
+        if (data.data.manipulation.mental) {
+            data.data.action.opposed.type = "custom";
+            data.data.action.opposed.attribute = "logic";
+            data.data.action.opposed.attribute2 = "willpower";
+        }
+        data.data.manipulation.physical = descriptor.includes("Physical");
+        if (data.data.manipulation.physical) {
+            data.data.action.opposed.type = "custom";
+            data.data.action.opposed.attribute = "body";
+            data.data.action.opposed.attribute2 = "strength";
+        }
+        data.data.manipulation.damaging = descriptor.includes("Damaging");
+        if (data.data.manipulation.damaging) {
+            data.data.action.opposed.type = "soak";
+        }
+        return data;
+    }
+}
+exports.ManipulationSpellParser = ManipulationSpellParser;
+
+},{"../../helper/ImportHelper":33,"./SpellParserBase":60}],60:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SpellParserBase = void 0;
+const ImportHelper_1 = require("../../helper/ImportHelper");
+const Parser_1 = require("../Parser");
+class SpellParserBase extends Parser_1.Parser {
+    Parse(jsonData, data, jsonTranslation) {
+        data.name = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+        data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.StringValue(jsonData, "page")}`;
+        data.data.category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category").toLowerCase();
+        let damage = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
+        if (damage === "P") {
+            data.data.action.damage.type.base = "physical";
+            data.data.action.damage.type.value = "physical";
+        }
+        else if (damage === "S") {
+            data.data.action.damage.type.base = "stun";
+            data.data.action.damage.type.value = "stun";
+        }
+        let duration = ImportHelper_1.ImportHelper.StringValue(jsonData, "duration");
+        if (duration === "I") {
+            data.data.duration = "instant";
+        }
+        else if (duration === "S") {
+            data.data.duration = "sustained";
+        }
+        else if (duration === "P") {
+            data.data.duration = "permanent";
+        }
+        let drain = ImportHelper_1.ImportHelper.StringValue(jsonData, "dv");
+        if (drain.includes("+") || drain.includes("-")) {
+            data.data.drain = parseInt(drain.substring(1, drain.length));
+        }
+        let range = ImportHelper_1.ImportHelper.StringValue(jsonData, "range");
+        if (range === "T") {
+            data.data.range = "touch";
+        }
+        else if (range === "LOS") {
+            data.data.range = "los";
+        }
+        else if (range === "LOS (A)") {
+            data.data.range = "los_a";
+        }
+        let type = ImportHelper_1.ImportHelper.StringValue(jsonData, "type");
+        if (type === "P") {
+            data.data.type = "physical";
+        }
+        else if (type === "M") {
+            data.data.type = "mana";
+        }
+        if (jsonTranslation) {
+            const origName = ImportHelper_1.ImportHelper.StringValue(jsonData, "name");
+            data.name = ImportHelper_1.ImportHelper.MapNameToTranslation(jsonTranslation, origName);
+            data.data.description.source = `${ImportHelper_1.ImportHelper.StringValue(jsonData, "source")} ${ImportHelper_1.ImportHelper.MapNameToPageSource(jsonTranslation, origName)}`;
+        }
+        return data;
+    }
+}
+exports.SpellParserBase = SpellParserBase;
+
+},{"../../helper/ImportHelper":33,"../Parser":48}],61:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.MeleeParser = void 0;
+const ImportHelper_1 = require("../../helper/ImportHelper");
+const WeaponParserBase_1 = require("./WeaponParserBase");
+class MeleeParser extends WeaponParserBase_1.WeaponParserBase {
+    GetDamage(jsonData) {
+        var _a;
+        let jsonDamage = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
+        let damageCode = (_a = jsonDamage.match(/(STR)([+-]?)([1-9]*)\)([PS])/g)) === null || _a === void 0 ? void 0 : _a[0];
+        if (damageCode == null) {
+            return {
+                type: {
+                    base: "physical",
+                    value: "physical"
+                },
+                element: {
+                    base: "",
+                    value: ""
+                },
+                base: 0,
+                value: 0,
+                ap: {
+                    base: 0,
+                    value: 0,
+                    mod: {}
+                },
+                attribute: "",
+                mod: {}
+            };
+        }
+        let damageBase = 0;
+        let damageAp = ImportHelper_1.ImportHelper.IntValue(jsonData, "ap", 0);
+        let splitDamageCode = damageCode.split(")");
+        let damageType = (splitDamageCode[1].includes("P")) ? "physical" : "stun";
+        let splitBaseCode = damageCode.includes("+") ? splitDamageCode[0].split("+") : splitDamageCode[0].split("-");
+        if (splitDamageCode[0].includes("+") || splitDamageCode[0].includes("-")) {
+            damageBase = parseInt(splitBaseCode[1], 0);
+        }
+        let damageAttribute = (damageCode.includes("STR")) ? "strength" : "";
+        return {
+            type: {
+                base: damageType,
+                value: damageType
+            },
+            element: {
+                base: "",
+                value: ""
+            },
+            base: damageBase,
+            value: damageBase,
+            ap: {
+                base: damageAp,
+                value: damageAp,
+                mod: {}
+            },
+            attribute: damageAttribute,
+            mod: {}
+        };
+    }
+    ;
+    Parse(jsonData, data, jsonTranslation) {
+        data = super.Parse(jsonData, data, jsonTranslation);
+        data.data.melee.reach = ImportHelper_1.ImportHelper.IntValue(jsonData, "reach");
+        return data;
+    }
+    ;
+}
+exports.MeleeParser = MeleeParser;
+
+},{"../../helper/ImportHelper":33,"./WeaponParserBase":64}],62:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.RangedParser = void 0;
+const ImportHelper_1 = require("../../helper/ImportHelper");
+const WeaponParserBase_1 = require("./WeaponParserBase");
+const Constants_1 = require("../../importer/Constants");
+class RangedParser extends WeaponParserBase_1.WeaponParserBase {
+    GetDamage(jsonData) {
+        var _a;
+        let jsonDamage = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
+        let damageCode = (_a = jsonDamage.match(/[0-9]+[PS]/g)) === null || _a === void 0 ? void 0 : _a[0];
+        if (damageCode == null) {
+            return {
+                type: {
+                    base: "physical",
+                    value: ""
+                },
+                element: {
+                    base: "",
+                    value: ""
+                },
+                base: 0,
+                value: 0,
+                ap: {
+                    base: 0,
+                    value: 0,
+                    mod: {}
+                },
+                attribute: "",
+                mod: {}
+            };
+        }
+        let damageType = (damageCode.includes("P")) ? "physical" : "stun";
+        let damageAmount = parseInt(damageCode.replace(damageType[0].toUpperCase(), ""));
+        let damageAp = ImportHelper_1.ImportHelper.IntValue(jsonData, "ap", 0);
+        return {
+            type: {
+                base: damageType,
+                value: damageType
+            },
+            element: {
+                base: "",
+                value: ""
+            },
+            value: damageAmount,
+            ap: {
+                base: damageAp,
+                value: damageAp,
+                mod: {},
+            },
+            attribute: "",
+            mod: {},
+            base: damageAmount
+        };
+    }
+    ;
+    GetAmmo(weaponJson) {
+        var _a;
+        let jsonAmmo = ImportHelper_1.ImportHelper.StringValue(weaponJson, "ammo");
+        let match = (_a = jsonAmmo.match(/([0-9]+)/g)) === null || _a === void 0 ? void 0 : _a[0];
+        return (match !== undefined) ? parseInt(match) : 0;
+    }
+    Parse(jsonData, data, jsonTranslation) {
+        data = super.Parse(jsonData, data, jsonTranslation);
+        data.data.range.rc.base = ImportHelper_1.ImportHelper.IntValue(jsonData, "rc");
+        data.data.range.rc.value = ImportHelper_1.ImportHelper.IntValue(jsonData, "rc");
+        if (jsonData.hasOwnProperty("range")) {
+            data.data.range.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.StringValue(jsonData, "range")];
+        }
+        else {
+            data.data.range.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.StringValue(jsonData, "category")];
+        }
+        data.data.ammo.current.value = this.GetAmmo(jsonData);
+        data.data.ammo.current.max = this.GetAmmo(jsonData);
+        data.data.range.modes.single_shot = ImportHelper_1.ImportHelper.StringValue(jsonData, "mode").includes("SS");
+        data.data.range.modes.semi_auto = ImportHelper_1.ImportHelper.StringValue(jsonData, "mode").includes("SA");
+        data.data.range.modes.burst_fire = ImportHelper_1.ImportHelper.StringValue(jsonData, "mode").includes("BF");
+        data.data.range.modes.full_auto = ImportHelper_1.ImportHelper.StringValue(jsonData, "mode").includes("FA");
+        return data;
+    }
+    ;
+}
+exports.RangedParser = RangedParser;
+
+},{"../../helper/ImportHelper":33,"../../importer/Constants":40,"./WeaponParserBase":64}],63:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ThrownParser = void 0;
+const ImportHelper_1 = require("../../helper/ImportHelper");
+const WeaponParserBase_1 = require("./WeaponParserBase");
+const Constants_1 = require("../../importer/Constants");
+class ThrownParser extends WeaponParserBase_1.WeaponParserBase {
+    GetDamage(jsonData) {
+        var _a, _b, _c, _d;
+        let jsonDamage = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
+        let damageAmount = 0;
+        let damageType = "physical";
+        let damageAttribute = "";
+        //STR scaling weapons like the boomerang
+        if (jsonDamage.includes("STR")) {
+            damageAttribute = "strength";
+            let damageMatch = (_a = jsonDamage.match(/((STR)([+-])[0-9]\)[PS])/g)) === null || _a === void 0 ? void 0 : _a[0];
+            if (damageMatch !== undefined) {
+                let amountMatch = (_b = damageMatch.match(/-?[0-9]+/g)) === null || _b === void 0 ? void 0 : _b[0];
+                damageAmount = (amountMatch !== undefined) ? parseInt(amountMatch) : 0;
+            }
+        }
+        else {
+            let damageMatch = (_c = jsonDamage.match(/([0-9]+[PS])/g)) === null || _c === void 0 ? void 0 : _c[0];
+            if (damageMatch !== undefined) {
+                let amountMatch = (_d = damageMatch.match(/[0-9]+/g)) === null || _d === void 0 ? void 0 : _d[0];
+                if (amountMatch !== undefined) {
+                    damageAmount = parseInt(amountMatch);
+                }
+            }
+            else {
+                return {
+                    type: {
+                        base: "physical",
+                        value: "physical"
+                    },
+                    element: {
+                        base: "",
+                        value: ""
+                    },
+                    base: 0,
+                    value: 0,
+                    ap: {
+                        base: 0,
+                        value: 0,
+                        mod: {},
+                    },
+                    attribute: "",
+                    mod: {}
+                };
+            }
+        }
+        damageType = jsonDamage.includes("P") ? "physical" : "stun";
+        let damageAp = ImportHelper_1.ImportHelper.IntValue(jsonData, "ap", 0);
+        return {
+            type: {
+                base: damageType,
+                value: damageType
+            },
+            element: {
+                base: "",
+                value: ""
+            },
+            base: damageAmount,
+            value: damageAmount,
+            ap: {
+                base: damageAp,
+                value: damageAp,
+                mod: {},
+            },
+            attribute: damageAttribute,
+            mod: {}
+        };
+    }
+    ;
+    GetBlast(jsonData, data) {
+        var _a, _b, _c, _d;
+        let blastData = {
+            radius: 0,
+            dropoff: 0
+        };
+        let blastCode = ImportHelper_1.ImportHelper.StringValue(jsonData, "damage");
+        let radiusMatch = (_a = blastCode.match(/([0-9]+m)/)) === null || _a === void 0 ? void 0 : _a[0];
+        if (radiusMatch !== undefined) {
+            radiusMatch = (_b = radiusMatch.match(/[0-9]+/)) === null || _b === void 0 ? void 0 : _b[0];
+            if (radiusMatch !== undefined) {
+                blastData.radius = parseInt(radiusMatch);
+            }
+        }
+        let dropoffMatch = (_c = blastCode.match(/(-[0-9]+\/m)/)) === null || _c === void 0 ? void 0 : _c[0];
+        if (dropoffMatch !== undefined) {
+            dropoffMatch = (_d = dropoffMatch.match(/-[0-9]+/)) === null || _d === void 0 ? void 0 : _d[0];
+            if (dropoffMatch !== undefined) {
+                blastData.dropoff = parseInt(dropoffMatch);
+            }
+        }
+        if (blastData.dropoff && !blastData.radius) {
+            blastData.radius = -(data.data.action.damage.base / blastData.dropoff);
+        }
+        return blastData;
+    }
+    Parse(jsonData, data, jsonTranslation) {
+        data = super.Parse(jsonData, data, jsonTranslation);
+        if (jsonData.hasOwnProperty("range")) {
+            data.data.thrown.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.StringValue(jsonData, "range")];
+        }
+        else {
+            data.data.thrown.ranges = Constants_1.Constants.WEAPON_RANGES[ImportHelper_1.ImportHelper.StringValue(jsonData, "category")];
+        }
+        data.data.thrown.blast = this.GetBlast(jsonData, data);
+        return data;
+    }
+    ;
+}
+exports.ThrownParser = ThrownParser;
+
+},{"../../helper/ImportHelper":33,"../../importer/Constants":40,"./WeaponParserBase":64}],64:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.WeaponParserBase = void 0;
+const ImportHelper_1 = require("../../helper/ImportHelper");
+const Constants_1 = require("../../importer/Constants");
+const ItemParserBase_1 = require("../item/ItemParserBase");
+class WeaponParserBase extends ItemParserBase_1.ItemParserBase {
+    GetSkill(weaponJson) {
+        if (weaponJson.hasOwnProperty("useskill")) {
+            let jsonSkill = ImportHelper_1.ImportHelper.StringValue(weaponJson, "useskill");
+            if (Constants_1.Constants.MAP_CATEGORY_TO_SKILL.hasOwnProperty(jsonSkill)) {
+                return Constants_1.Constants.MAP_CATEGORY_TO_SKILL[jsonSkill];
+            }
+            return jsonSkill.replace(/[\s\-]/g, "_").toLowerCase();
+        }
+        else {
+            let category = ImportHelper_1.ImportHelper.StringValue(weaponJson, "category");
+            if (Constants_1.Constants.MAP_CATEGORY_TO_SKILL.hasOwnProperty(category)) {
+                return Constants_1.Constants.MAP_CATEGORY_TO_SKILL[category];
+            }
+            let type = ImportHelper_1.ImportHelper.StringValue(weaponJson, "type").toLowerCase();
+            return (type === "ranged") ? "exotic_range" : "exotic_melee";
+        }
+    }
+    ;
+    Parse(jsonData, data, jsonTranslation) {
+        data = super.Parse(jsonData, data, jsonTranslation);
+        let category = ImportHelper_1.ImportHelper.StringValue(jsonData, "category");
+        // A single item does not meet normal rules, thanks Chummer!
+        // TODO: Check these rules after localization using a generic, non-english approach.
+        if (category === "Hold-outs") {
+            category = "Holdouts";
+        }
+        data.data.category = category.toLowerCase();
+        data.data.action.skill = this.GetSkill(jsonData);
+        data.data.action.damage = this.GetDamage(jsonData);
+        data.data.action.limit.value = ImportHelper_1.ImportHelper.IntValue(jsonData, "accuracy");
+        data.data.action.limit.base = ImportHelper_1.ImportHelper.IntValue(jsonData, "accuracy");
+        data.data.technology.conceal.base = ImportHelper_1.ImportHelper.IntValue(jsonData, "conceal");
+        return data;
+    }
+}
+exports.WeaponParserBase = WeaponParserBase;
+
+},{"../../helper/ImportHelper":33,"../../importer/Constants":40,"../item/ItemParserBase":53}],65:[function(require,module,exports){
 (function (Buffer){
 ;(function (sax) { // wrapper for non-node envs
   sax.parser = function (strict, opt) { return new SAXParser(strict, opt) }
@@ -9682,288 +10035,7 @@ SafeBuffer.allocUnsafeSlow = function (size) {
 })(typeof exports === 'undefined' ? this.sax = {} : exports)
 
 }).call(this,require("buffer").Buffer)
-},{"buffer":36,"stream":62,"string_decoder":63}],62:[function(require,module,exports){
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-module.exports = Stream;
-
-var EE = require('events').EventEmitter;
-var inherits = require('inherits');
-
-inherits(Stream, EE);
-Stream.Readable = require('readable-stream/readable.js');
-Stream.Writable = require('readable-stream/writable.js');
-Stream.Duplex = require('readable-stream/duplex.js');
-Stream.Transform = require('readable-stream/transform.js');
-Stream.PassThrough = require('readable-stream/passthrough.js');
-
-// Backwards-compat with node 0.4.x
-Stream.Stream = Stream;
-
-
-
-// old-style streams.  Note that the pipe method (the only relevant
-// part of this class) is overridden in the Readable class.
-
-function Stream() {
-  EE.call(this);
-}
-
-Stream.prototype.pipe = function(dest, options) {
-  var source = this;
-
-  function ondata(chunk) {
-    if (dest.writable) {
-      if (false === dest.write(chunk) && source.pause) {
-        source.pause();
-      }
-    }
-  }
-
-  source.on('data', ondata);
-
-  function ondrain() {
-    if (source.readable && source.resume) {
-      source.resume();
-    }
-  }
-
-  dest.on('drain', ondrain);
-
-  // If the 'end' option is not supplied, dest.end() will be called when
-  // source gets the 'end' or 'close' events.  Only dest.end() once.
-  if (!dest._isStdio && (!options || options.end !== false)) {
-    source.on('end', onend);
-    source.on('close', onclose);
-  }
-
-  var didOnEnd = false;
-  function onend() {
-    if (didOnEnd) return;
-    didOnEnd = true;
-
-    dest.end();
-  }
-
-
-  function onclose() {
-    if (didOnEnd) return;
-    didOnEnd = true;
-
-    if (typeof dest.destroy === 'function') dest.destroy();
-  }
-
-  // don't leave dangling pipes when there are errors.
-  function onerror(er) {
-    cleanup();
-    if (EE.listenerCount(this, 'error') === 0) {
-      throw er; // Unhandled stream error in pipe.
-    }
-  }
-
-  source.on('error', onerror);
-  dest.on('error', onerror);
-
-  // remove all the event listeners that were added.
-  function cleanup() {
-    source.removeListener('data', ondata);
-    dest.removeListener('drain', ondrain);
-
-    source.removeListener('end', onend);
-    source.removeListener('close', onclose);
-
-    source.removeListener('error', onerror);
-    dest.removeListener('error', onerror);
-
-    source.removeListener('end', cleanup);
-    source.removeListener('close', cleanup);
-
-    dest.removeListener('close', cleanup);
-  }
-
-  source.on('end', cleanup);
-  source.on('close', cleanup);
-
-  dest.on('close', cleanup);
-
-  dest.emit('pipe', source);
-
-  // Allow for unix-like usage: A.pipe(B).pipe(C)
-  return dest;
-};
-
-},{"events":38,"inherits":40,"readable-stream/duplex.js":45,"readable-stream/passthrough.js":56,"readable-stream/readable.js":57,"readable-stream/transform.js":58,"readable-stream/writable.js":59}],63:[function(require,module,exports){
-arguments[4][55][0].apply(exports,arguments)
-},{"dup":55,"safe-buffer":60}],64:[function(require,module,exports){
-(function (setImmediate,clearImmediate){
-var nextTick = require('process/browser.js').nextTick;
-var apply = Function.prototype.apply;
-var slice = Array.prototype.slice;
-var immediateIds = {};
-var nextImmediateId = 0;
-
-// DOM APIs, for completeness
-
-exports.setTimeout = function() {
-  return new Timeout(apply.call(setTimeout, window, arguments), clearTimeout);
-};
-exports.setInterval = function() {
-  return new Timeout(apply.call(setInterval, window, arguments), clearInterval);
-};
-exports.clearTimeout =
-exports.clearInterval = function(timeout) { timeout.close(); };
-
-function Timeout(id, clearFn) {
-  this._id = id;
-  this._clearFn = clearFn;
-}
-Timeout.prototype.unref = Timeout.prototype.ref = function() {};
-Timeout.prototype.close = function() {
-  this._clearFn.call(window, this._id);
-};
-
-// Does not start the time, just sets up the members needed.
-exports.enroll = function(item, msecs) {
-  clearTimeout(item._idleTimeoutId);
-  item._idleTimeout = msecs;
-};
-
-exports.unenroll = function(item) {
-  clearTimeout(item._idleTimeoutId);
-  item._idleTimeout = -1;
-};
-
-exports._unrefActive = exports.active = function(item) {
-  clearTimeout(item._idleTimeoutId);
-
-  var msecs = item._idleTimeout;
-  if (msecs >= 0) {
-    item._idleTimeoutId = setTimeout(function onTimeout() {
-      if (item._onTimeout)
-        item._onTimeout();
-    }, msecs);
-  }
-};
-
-// That's not how node.js implements it but the exposed api is the same.
-exports.setImmediate = typeof setImmediate === "function" ? setImmediate : function(fn) {
-  var id = nextImmediateId++;
-  var args = arguments.length < 2 ? false : slice.call(arguments, 1);
-
-  immediateIds[id] = true;
-
-  nextTick(function onNextTick() {
-    if (immediateIds[id]) {
-      // fn.call() is faster so we optimize for the common use-case
-      // @see http://jsperf.com/call-apply-segu
-      if (args) {
-        fn.apply(null, args);
-      } else {
-        fn.call(null);
-      }
-      // Prevent ids from leaking
-      exports.clearImmediate(id);
-    }
-  });
-
-  return id;
-};
-
-exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate : function(id) {
-  delete immediateIds[id];
-};
-}).call(this,require("timers").setImmediate,require("timers").clearImmediate)
-},{"process/browser.js":44,"timers":64}],65:[function(require,module,exports){
-(function (global){
-
-/**
- * Module exports.
- */
-
-module.exports = deprecate;
-
-/**
- * Mark that a method should not be used.
- * Returns a modified function which warns once by default.
- *
- * If `localStorage.noDeprecation = true` is set, then it is a no-op.
- *
- * If `localStorage.throwDeprecation = true` is set, then deprecated functions
- * will throw an Error when invoked.
- *
- * If `localStorage.traceDeprecation = true` is set, then deprecated functions
- * will invoke `console.trace()` instead of `console.error()`.
- *
- * @param {Function} fn - the function to deprecate
- * @param {String} msg - the string to print to the console when `fn` is invoked
- * @returns {Function} a new "deprecated" version of `fn`
- * @api public
- */
-
-function deprecate (fn, msg) {
-  if (config('noDeprecation')) {
-    return fn;
-  }
-
-  var warned = false;
-  function deprecated() {
-    if (!warned) {
-      if (config('throwDeprecation')) {
-        throw new Error(msg);
-      } else if (config('traceDeprecation')) {
-        console.trace(msg);
-      } else {
-        console.warn(msg);
-      }
-      warned = true;
-    }
-    return fn.apply(this, arguments);
-  }
-
-  return deprecated;
-}
-
-/**
- * Checks `localStorage` for boolean values for the given `name`.
- *
- * @param {String} name
- * @returns {Boolean}
- * @api private
- */
-
-function config (name) {
-  // accessing global.localStorage can trigger a DOMException in sandboxed iframes
-  try {
-    if (!global.localStorage) return false;
-  } catch (_) {
-    return false;
-  }
-  var val = global.localStorage[name];
-  if (null == val) return false;
-  return String(val).toLowerCase() === 'true';
-}
-
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],66:[function(require,module,exports){
+},{"buffer":3,"stream":28,"string_decoder":29}],66:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -10563,7 +10635,7 @@ function config (name) {
 
 }).call(this);
 
-},{"./bom":66,"./defaults":68,"./processors":70,"events":38,"sax":61,"timers":64}],70:[function(require,module,exports){
+},{"./bom":66,"./defaults":68,"./processors":70,"events":5,"sax":65,"timers":30}],70:[function(require,module,exports){
 // Generated by CoffeeScript 1.12.7
 (function() {
   "use strict";
@@ -14771,4 +14843,4 @@ function config (name) {
 
 }).call(this);
 
-},{"./NodeType":73,"./Utility":74,"./WriterState":75,"./XMLDOMImplementation":82,"./XMLDocument":90,"./XMLDocumentCB":91,"./XMLStreamWriter":99,"./XMLStringWriter":100}]},{},[16]);
+},{"./NodeType":73,"./Utility":74,"./WriterState":75,"./XMLDOMImplementation":82,"./XMLDocument":90,"./XMLDocumentCB":91,"./XMLStreamWriter":99,"./XMLStringWriter":100}]},{},[47]);
