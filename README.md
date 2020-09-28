@@ -24,7 +24,8 @@
 
 For use with the [Shadowrun 5e FoundryVTT System](https://github.com/smilligan93/SR5-FoundryVTT)
 
-#### Manifest
+#### Module Installation
+To install this module enter the following URL into 'Manifest-URL' in the module installation dialoge in FoundryVTT.
 > https://raw.githubusercontent.com/smilligan93/SR5-Compendiums-FoundryVTT/master/module.json
 
 Shadowrun is registered trademarks and/or trademarks of The Topps Company, Inc. in the United States and/or other countries. This is a fan project, we are in no way associated with Topps or Catalyst Games Lab.
